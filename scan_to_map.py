@@ -26,6 +26,9 @@ class map:
             x2 = segment[1][0]
             y1 = segment[0][1]
             y2 = segment[1][1]
+            if x1 > x2:
+                x1, x2 = x2, x1
+                y1, y2 = y2, y1
             if x1 == x2:
                 ax.add_patch(
                     Rectangle(
@@ -115,7 +118,9 @@ class map:
         dmax = 0
         index = 0
         end = len(points)
-        for i in range(1, end):
+        if end == 0:
+            return []
+        for i in range(1, end - 1):
             d = perpendicularDistance(points[i], points[0], points[-1])
             if d > dmax:
                 index = i
@@ -134,34 +139,41 @@ class map:
         return result
 
 
+def euler_length(point1, point2):
+    x1, y1 = point1
+    x2, y2 = point2
+    return sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
+
 def perpendicularDistance(point, start_point, end_point):
     x0, y0 = start_point
     x1, y1 = end_point
     x, y = point
+    def_val = min(euler_length(point, start_point), euler_length(point, end_point))
     if x0 == x1:
         if min(y0, y1) <= y <= max(y0, y1):
             return abs(x - x0)
-        return None
+        return def_val
     if y0 == y1:
         if min(x0, x1) <= x <= max(x0, x1):
             return abs(y - y0)
-        return None
+        return def_val
     m = (y0 - y1) / (x0 - x1)
     inter_x = (y - y0 + m * x0 + x / m) / (m + 1 / m)
     inter_y = y0 + m * (inter_x - x0)
     if min(x0, x1) <= inter_x <= max(x0, x1):
         return sqrt((x - inter_x) ** 2 + (y - inter_y) ** 2)
-    return None
+    return def_val
 
 
 epsilon = 0.1
 new_map = map([], 10, epsilon)
 
 ## first ball
-new_map.add([(0, 0), (0, 1)])
-new_map.add([(0, 0), (1, 0)])
-new_map.add([(1, 0), (1, 1)])
-new_map.add([(0, 1), (1, 1)])
+new_map.add(new_map.points_to_line([(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)]))
+
+new_map.add(new_map.points_to_line([]))
+
 
 ## second ball
 new_map.add([(2.5, 0), (2.5, 1)])
