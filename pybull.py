@@ -5,8 +5,10 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 print("current_dir=" + currentdir)
 parentdir = os.path.join(currentdir, "../gym")
 
+
 os.sys.path.insert(0, parentdir)
 
+import scan_to_map
 import pybullet as p
 import pybullet_data
 
@@ -35,6 +37,8 @@ def rayCast(p, car, offset, direction):
     return p.rayTest(addLists([pos, offset]), addLists([pos, offset, direction]))[0][3]
 
 
+hits = []
+map = scan_to_map.Map([], 10, 0.1)
 cid = p.connect(p.SHARED_MEMORY)
 if cid < 0:
     p.connect(p.GUI)
@@ -119,9 +123,11 @@ maxForceSlider = p.addUserDebugParameter("maxForce", 0, 10, 10)
 steeringSlider = p.addUserDebugParameter("steering", -0.5, 0.5, 0)
 while True:
     hit = rayCast(p, car, [0, 0, 0], [10, 0, 0])
-    if hit[0] > 0.0001:
-        print("hit!!")
-        print(hit)
+    if hit != (0, 0, 0):
+        hits.append((hit[0], hit[1]))
+        if len(hits) == 10:
+            scan_to_map.Map()
+
     maxForce = p.readUserDebugParameter(maxForceSlider)
     targetVelocity = p.readUserDebugParameter(targetVelocitySlider)
     steeringAngle = p.readUserDebugParameter(steeringSlider)
