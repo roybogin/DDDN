@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib.patches import Rectangle
 
 
-class map:
+class Map:
     # map is a list of segments, the obstacles
     def __init__(self, map=[], size=30, epsilon=0.001):
         # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
@@ -32,27 +32,36 @@ class map:
             if x1 == x2:
                 ax.add_patch(
                     Rectangle(
-                        (x1 - epsilon, min(y1, y2) - epsilon),
-                        2 * epsilon,
-                        2 * epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
+                        (x1 - self.epsilon, min(y1, y2) - self.epsilon),
+                        2 * self.epsilon,
+                        2 * self.epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
                     )
                 )
 
             else:
                 m = (y1 - y2) / (x1 - x2)
                 theta = np.arctan(m)
-                x = x1 - epsilon * sqrt(2) * np.cos(theta + np.pi / 4)
-                y = y1 - epsilon * sqrt(2) * np.sin(theta + np.pi / 4)
+                x = x1 - self.epsilon * sqrt(2) * np.cos(theta + np.pi / 4)
+                y = y1 - self.epsilon * sqrt(2) * np.sin(theta + np.pi / 4)
                 ax.add_patch(
                     Rectangle(
                         (x, y),
-                        2 * epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
-                        2 * epsilon,
+                        2 * self.epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
+                        2 * self.epsilon,
                         theta * 180 / np.pi,
                     )
                 )
         plt.show()
         return
+
+    def add_points_to_map(self, points):
+        segment_representation = self.segment_representation()
+        for point in points:
+            for segment in segment_representation:
+                if perpendicularDistance(point, segment[0], segment[1]) < self.epsilon:
+                    points.remove(point)
+                    break
+        self.add(self.points_to_line(points))
 
     def segment_representation(self):
         segments = []
@@ -166,33 +175,32 @@ def perpendicularDistance(point, start_point, end_point):
     return def_val
 
 
-epsilon = 0.1
-new_map = map([], 10, epsilon)
+if __name__ == "__main__":
+    epsilon = 0.1
+    new_map = Map([], 10, epsilon)
 
-## first ball
-new_map.add(new_map.points_to_line([(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)]))
+    ## first ball
+    new_map.add(new_map.points_to_line([(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)]))
 
-new_map.add(new_map.points_to_line([]))
+    new_map.add(new_map.points_to_line([]))
 
+    ## second ball
+    new_map.add([(2.5, 0), (2.5, 1)])
+    new_map.add([(2.5, 0), (3.5, 0)])
+    new_map.add([(3.5, 0), (3.5, 1)])
+    new_map.add([(2.5, 1), (3.5, 1)])
 
-## second ball
-new_map.add([(2.5, 0), (2.5, 1)])
-new_map.add([(2.5, 0), (3.5, 0)])
-new_map.add([(3.5, 0), (3.5, 1)])
-new_map.add([(2.5, 1), (3.5, 1)])
+    # shaft
+    new_map.add([(1, 0), (2.5, 0)])
+    new_map.add([(1, 0), (1, 7)])
+    new_map.add([(2.5, 0), (2.5, 7)])
+    new_map.add([(1, 7), (2.5, 7)])
 
-# shaft
-new_map.add([(1, 0), (2.5, 0)])
-new_map.add([(1, 0), (1, 7)])
-new_map.add([(2.5, 0), (2.5, 7)])
-new_map.add([(1, 7), (2.5, 7)])
+    # tip
+    new_map.add([(0.75, 7), (2.75, 7)])
+    new_map.add([(0.75, 7), (0.75, 7.7)])
+    new_map.add([(2.75, 7), (2.75, 7.7)])
+    new_map.add([(0.75, 7.7), (2.75, 7.7)])
+    new_map.add([(1.73, 7.48), (1.77, 7.48)])
 
-# tip
-new_map.add([(0.75, 7), (2.75, 7)])
-new_map.add([(0.75, 7), (0.75, 7.7)])
-new_map.add([(2.75, 7), (2.75, 7.7)])
-new_map.add([(0.75, 7.7), (2.75, 7.7)])
-new_map.add([(1.73, 7.48), (1.77, 7.48)])
-
-
-new_map.show()
+    new_map.show()

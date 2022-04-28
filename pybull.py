@@ -8,7 +8,7 @@ parentdir = os.path.join(currentdir, "../gym")
 
 os.sys.path.insert(0, parentdir)
 
-import scan_to_map
+from scan_to_map import Map
 import pybullet as p
 import pybullet_data
 
@@ -38,7 +38,7 @@ def rayCast(p, car, offset, direction):
 
 
 hits = []
-map = scan_to_map.Map([], 10, 0.1)
+map = Map([], 10, 0.15)
 cid = p.connect(p.SHARED_MEMORY)
 if cid < 0:
     p.connect(p.GUI)
@@ -50,7 +50,7 @@ useRealTimeSim = 1
 
 
 boxHalfLength = 0.05
-boxHalfWidth = 0.05
+boxHalfWidth = 1
 boxHalfHeight = 0.5
 body = p.createCollisionShape(
     p.GEOM_BOX, halfExtents=[boxHalfLength, boxHalfWidth, boxHalfHeight]
@@ -107,9 +107,6 @@ p.setRealTimeSimulation(useRealTimeSim)  # either this
 p.loadSDF(os.path.join(pybullet_data.getDataPath(), "stadium.sdf"))
 
 car = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "racecar/racecar.urdf"))
-for i in range(p.getNumJoints(car)):
-    print(p.getJointInfo(car, i))
-
 inactive_wheels = [3, 5, 7]
 wheels = [2]
 
@@ -121,12 +118,18 @@ steering = [4, 6]
 targetVelocitySlider = p.addUserDebugParameter("wheelVelocity", -10, 10, 0)
 maxForceSlider = p.addUserDebugParameter("maxForce", 0, 10, 10)
 steeringSlider = p.addUserDebugParameter("steering", -0.5, 0.5, 0)
+
+
 while True:
-    hit = rayCast(p, car, [0, 0, 0], [10, 0, 0])
+    hit = rayCast(p, car, [0, 0, 0], [-10, 0, 0])
     if hit != (0, 0, 0):
         hits.append((hit[0], hit[1]))
+        print("hit!")
         if len(hits) == 10:
-            scan_to_map.Map()
+            map.add_points_to_map(hits)
+            hits = []
+            print("show")
+            map.show()
 
     maxForce = p.readUserDebugParameter(maxForceSlider)
     targetVelocity = p.readUserDebugParameter(targetVelocitySlider)
