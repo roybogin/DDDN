@@ -151,7 +151,6 @@ p.resetBasePositionAndOrientation(block, [-0.1, 1, 0.5], [0, 0, 0, 1])
 p.enableJointForceTorqueSensor(block, 0, enableSensor=1)
 
 
-
 # for video recording (works best on Mac and Linux, not well on Windows)
 # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "racecar.mp4")
 p.setRealTimeSimulation(useRealTimeSim)  # either this
@@ -171,7 +170,7 @@ targetVelocitySlider = p.addUserDebugParameter("wheelVelocity", -30, 30, 0)
 maxForceSlider = p.addUserDebugParameter("maxForce", 0, 10, 10)
 steeringSlider = p.addUserDebugParameter("steering", -1, 1, 0)
 
-
+count = 0
 while True:
     hit = rayCast(p, car, [0, 0, 0], [-10, 0, 0])
     if hit != (0, 0, 0):
@@ -180,9 +179,11 @@ while True:
         if len(hits) == 10:
             map.add_points_to_map(hits)
             hits = []
-            print("show")
-            map.show()
-
+            count += 1
+            if count == 10:
+                print("show")
+                map.show()
+                count = 0
     maxForce = p.readUserDebugParameter(maxForceSlider)
     targetVelocity = p.readUserDebugParameter(targetVelocitySlider)
     steeringAngle = p.readUserDebugParameter(steeringSlider)
