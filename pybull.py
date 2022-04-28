@@ -115,9 +115,9 @@ for wheel in inactive_wheels:
 
 steering = [4, 6]
 
-targetVelocitySlider = p.addUserDebugParameter("wheelVelocity", -10, 10, 0)
+targetVelocitySlider = p.addUserDebugParameter("wheelVelocity", -30, 30, 0)
 maxForceSlider = p.addUserDebugParameter("maxForce", 0, 10, 10)
-steeringSlider = p.addUserDebugParameter("steering", -0.5, 0.5, 0)
+steeringSlider = p.addUserDebugParameter("steering", -1, 1, 0)
 
 
 while True:

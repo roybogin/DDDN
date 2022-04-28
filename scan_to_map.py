@@ -1,7 +1,9 @@
 from math import sqrt
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Circle
+
+testing = True
 
 
 class Map:
@@ -11,6 +13,10 @@ class Map:
         self.map = map
         self.epsilon = epsilon
         self.size = size
+
+        ##for testing:
+        if testing:
+            self.points = []
 
     def show(self):
         segments = self.segment_representation()
@@ -51,10 +57,16 @@ class Map:
                         theta * 180 / np.pi,
                     )
                 )
+        for point in self.points:
+            ax.add_patch(Circle(point, 0.01, color="r"))
+        # ax.scatter([a[0] for a in self.points], [a[1] for a in self.points], c="red")
         plt.show()
+
         return
 
     def add_points_to_map(self, points):
+        if testing:
+            self.points += points
         segment_representation = self.segment_representation()
         for point in points:
             for segment in segment_representation:
