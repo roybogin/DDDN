@@ -73,7 +73,17 @@ class Map:
                 if perpendicularDistance(point, segment[0], segment[1]) < self.epsilon:
                     points.remove(point)
                     break
-        self.add(self.points_to_line(points))
+
+        # dividing the points into segments (for when the samples come from 2 diffrent obstacles):
+        segment_to_add = [points[0]]
+        for i in range(len(points) - 1):
+            if dist(points[i], points[i + 1]) > 2 * self.epsilon:
+                self.add(self.points_to_line(segment_to_add))
+                segment_to_add = [points[i + 1]]
+            else:
+                segment_to_add.append(points[i + 1])
+
+        self.add(self.points_to_line(segment_to_add))
 
     def segment_representation(self):
         segments = []
@@ -164,6 +174,10 @@ def euler_length(point1, point2):
     x1, y1 = point1
     x2, y2 = point2
     return sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
+
+def dist(point1, point2):
+    return sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
 
 def perpendicularDistance(point, start_point, end_point):
