@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle, Circle
 
+SAMPLE_DIST = 0.8
 testing = True
 
 
@@ -17,6 +18,7 @@ class Map:
         ##for testing:
         if testing:
             self.points = []
+            self.distances = []
 
     def show(self):
         segments = self.segment_representation()
@@ -62,6 +64,11 @@ class Map:
         # ax.scatter([a[0] for a in self.points], [a[1] for a in self.points], c="red")
         plt.show()
 
+        if testing:
+            print("avrage distance =", sum(self.distances) / len(self.distances))
+            plt.hist(self.distances)
+            plt.show()
+
         return
 
     def add_points_to_map(self, points):
@@ -77,7 +84,9 @@ class Map:
         # dividing the points into segments (for when the samples come from 2 diffrent obstacles):
         segment_to_add = [points[0]]
         for i in range(len(points) - 1):
-            if dist(points[i], points[i + 1]) > 2 * self.epsilon:
+            if testing:
+                self.distances.append(dist(points[i], points[i + 1]))
+            if dist(points[i], points[i + 1]) > SAMPLE_DIST:
                 self.add(self.points_to_line(segment_to_add))
                 segment_to_add = [points[i + 1]]
             else:
