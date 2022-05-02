@@ -1,9 +1,3 @@
-"""Trainer.
-
-@author: Zhenye Na - https://github.com/Zhenye-Na
-@reference: "End to End Learning for Self-Driving Cars", arXiv:1604.07316
-"""
-
 import os
 import torch
 
@@ -53,52 +47,22 @@ class Trainer(object):
             self.model.train()
 
             for local_batch, (centers, lefts, rights) in enumerate(self.trainloader):
-                # Transfer to GPU
-                centers, lefts, rights = toDevice(centers, self.device), toDevice(
-                    lefts, self.device), toDevice(rights, self.device)
 
                 # Model computations
                 self.optimizer.zero_grad()
-                datas = [centers, lefts, rights]
-                for data in datas:
-                    imgs, angles = data
-                    # print("training image: ", imgs.shape)
-                    outputs = self.model(imgs)
-                    loss = self.criterion(outputs, angles.unsqueeze(1))
-                    loss.backward()
-                    self.optimizer.step()
+                
+                outputs = self.model(imgs)
+                loss = self.criterion(outputs, angles.unsqueeze(1))
+                loss.backward()
+                self.optimizer.step()
 
-                    train_loss += loss.data.item()
+                train_loss += loss.data.item()
 
                 if local_batch % 100 == 0:
 
                     print("Training Epoch: {} | Loss: {}".format(
                         epoch, train_loss / (local_batch + 1)))
 
-            # Validation
-            self.model.eval()
-            valid_loss = 0
-            with torch.set_grad_enabled(False):
-                for local_batch, (centers, lefts, rights) in enumerate(self.validationloader):
-                    # Transfer to GPU
-                    centers, lefts, rights = toDevice(centers, self.device), toDevice(
-                        lefts, self.device), toDevice(rights, self.device)
-
-                    # Model computations
-                    self.optimizer.zero_grad()
-                    datas = [centers, lefts, rights]
-                    for data in datas:
-                        imgs, angles = data
-                        outputs = self.model(imgs)
-                        loss = self.criterion(outputs, angles.unsqueeze(1))
-
-                        valid_loss += loss.data.item()
-
-                    if local_batch % 100 == 0:
-                        print("Validation Loss: {}".format(
-                            valid_loss / (local_batch + 1)))
-
-            print()
 
             # Save model
             if epoch % 5 == 0 or epoch == self.epochs + self.start_epoch - 1:

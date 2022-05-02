@@ -11,6 +11,12 @@ from trainer import Trainer
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+added_params = [('curr_loc', 2), ('target_loc', 2), ('curr_speed', 1),
+                ('current_swivel', 1), ('current_orientation', 1),
+                ('current_acc', 1)]
+
+param_size = sum((a[1] for a in added_params))
+
 
 class NeuralNetwork(nn.Module):
     def __init__(self):
@@ -24,9 +30,11 @@ class NeuralNetwork(nn.Module):
         )
         self.get_features = torch.max
         self.calculte_move = nn.Sequential(
-            nn.Linear(4+1024, 512),
+            nn.Linear(param_size + 1024, 512),
+            nn.Sigmoid(),
+            nn.Linear(512, 128),
             nn.ReLU(),
-            nn.Linear(512, 64),
+            nn.Linear(128, 64),
             nn.ReLU(),
             nn.Linear(64, 2),
             nn.Tanh()
@@ -48,8 +56,6 @@ def main():
     optimizer = optim.Adam(model.parameters())
     criterion = nn.MSELoss()
     scheduler = MultiStepLR(optimizer, milestones=[30, 50], gamma=0.1)
-
-
     trainer = Trainer(
         model,
         device,
