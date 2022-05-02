@@ -1,86 +1,32 @@
 import os
 import torch
 
-
-class Trainer(object):
-    """Trainer class."""
-
-    def __init__(self,
-                 model,
-                 device,
-                 epochs,
-                 criterion,
-                 optimizer,
-                 scheduler
-                 ):
-        """Self-Driving car Trainer.
-
-        Args:
-            model: CNN model
-            device: cuda or cpu
-            epochs: epochs to training neural network
-            criterion: nn.MSELoss()
-            optimizer: optim.Adam()
-            start_epoch: 0 or checkpoint['epoch']
-            trainloader: training set loader
-            validationloader: validation set loader
-
-        """
-        super(Trainer, self).__init__()
-
+class Trainer:
+    def __init__(self, model, epochs, population_count, mutation_rate):
+        self.mutation_rate = mutation_rate
         self.model = model
-        self.device = device
         self.epochs = epochs
-        self.start_epoch = 0
-        self.optimizer = optimizer
-        self.criterion = criterion
-        self.scheduler = scheduler
+        self.population_count = population_count
+        self.population = [model() for _ in range(population_count)]
+        
+    def mutate(self):
+        for car in self.population:
+            for param in car.parameters():
+                pass
+    
+    def breed(self):
+        pass
 
-    def train(self):
-        """Training process."""
-        self.model.to(self.device)
-        for epoch in range(self.start_epoch, self.epochs + self.start_epoch):
-            self.scheduler.step()
-
-            # Training
-            train_loss = 0.0
-            self.model.train()
-
-            for local_batch, (centers, lefts, rights) in enumerate(self.trainloader):
-
-                # Model computations
-                self.optimizer.zero_grad()
-                
-                outputs = self.model(imgs)
-                loss = self.criterion(outputs, angles.unsqueeze(1))
-                loss.backward()
-                self.optimizer.step()
-
-                train_loss += loss.data.item()
-
-                if local_batch % 100 == 0:
-
-                    print("Training Epoch: {} | Loss: {}".format(
-                        epoch, train_loss / (local_batch + 1)))
+    def evaluate(self):
+        pass
+            
 
 
-            # Save model
-            if epoch % 5 == 0 or epoch == self.epochs + self.start_epoch - 1:
 
-                print("==> Save checkpoint ...")
 
-                state = {
-                    'epoch': epoch + 1,
-                    'state_dict': self.model.state_dict(),
-                    'optimizer': self.optimizer.state_dict(),
-                    'scheduler': self.scheduler.state_dict(),
-                }
-
-                self.save_checkpoint(state)
-
-    def save_checkpoint(self, state):
-        """Save checkpoint."""
-        if not os.path.exists(self.ckptroot):
-            os.makedirs(self.ckptroot)
-
-        torch.save(state, self.ckptroot + 'model-{}.h5'.format(state['epoch']))
+# def save_checkpoint(self, state):
+#     """Save checkpoint."""
+#     if not os.path.exists(self.ckptroot):
+#         os.makedirs(self.ckptroot)
+#
+#     torch.save(state, self.ckptroot + 'model-{}.h5'.format(state['epoch']))

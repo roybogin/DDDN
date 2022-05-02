@@ -17,7 +17,6 @@ added_params = [('curr_loc', 2), ('target_loc', 2), ('curr_speed', 1),
 
 param_size = sum((a[1] for a in added_params))
 
-
 class NeuralNetwork(nn.Module):
     def __init__(self):
         super(NeuralNetwork, self).__init__()
@@ -41,26 +40,29 @@ class NeuralNetwork(nn.Module):
         )
 
     def forward(self, x):
-        lines = x[2]
+        lines = x[-1]
         lines = self.lines_to_features(lines)
         # maybe max_pool_2d kernel = [num, 1]
         features = self.get_features(lines, dim=1)
 
-        move = self.calculte_move(x[0] + x[1] + features)
+        move = self.calculte_move(x[:-1] + features)
         return move
+
+    def get_weights(self):
+        l1 = [i for i in self.lines_to_features if isinstance(i,nn.Linear)]
+        l2 = [i for i in self.calculte_move if isinstance(i,nn.Linear)]
+        return l1 + l2
 
 
 def main():
+    torch.set_grad_enabled(False)
     EPOCHS = 1000
     model = NeuralNetwork()
-    optimizer = optim.Adam(model.parameters())
-    criterion = nn.MSELoss()
-    scheduler = MultiStepLR(optimizer, milestones=[30, 50], gamma=0.1)
-    trainer = Trainer(
-        model,
-        device,
-        EPOCHS,
-        criterion,
-        optimizer,
-        scheduler)
-    trainer.train()
+    population = 350  # Total Population
+    print(model.get_weights()[0].weight)
+
+    
+    
+
+if __name__ == '__main__':
+    main()
