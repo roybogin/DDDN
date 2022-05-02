@@ -46,7 +46,7 @@ if cid < 0:
 p.resetSimulation()
 p.setGravity(0, 0, -10)
 
-useRealTimeSim = 1
+useRealTimeSim = 0
 
 
 boxHalfLength = 0.05
@@ -202,8 +202,6 @@ while True:
         p.setJointMotorControl2(
             car, steer, p.POSITION_CONTROL, targetPosition=steeringAngle
         )
-
-    steering
     if useRealTimeSim == 0:
         p.stepSimulation()
-    time.sleep(0.01)
+    # time.sleep(0.01)
