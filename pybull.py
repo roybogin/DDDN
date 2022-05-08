@@ -46,7 +46,7 @@ if cid < 0:
 p.resetSimulation()
 p.setGravity(0, 0, -10)
 
-useRealTimeSim = 1
+useRealTimeSim = 0
 
 
 boxHalfLength = 0.05
@@ -123,7 +123,7 @@ indices = [0, 1]
 jointTypes = [p.JOINT_REVOLUTE, p.JOINT_REVOLUTE]
 axis = [[0, 0, 1], [0, 1, 0]]
 basePosition = [0.1, 0, 0.5]
-baseOrientation = [0, 0, 0, 1]
+baseOrientation = [0, 0, 10, 1]
 
 # block creation
 block = p.createMultiBody(
@@ -202,8 +202,6 @@ while True:
         p.setJointMotorControl2(
             car, steer, p.POSITION_CONTROL, targetPosition=steeringAngle
         )
-
-    steering
     if useRealTimeSim == 0:
         p.stepSimulation()
-    time.sleep(0.01)
+    # time.sleep(0.01)
