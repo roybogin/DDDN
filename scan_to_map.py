@@ -214,28 +214,30 @@ if __name__ == "__main__":
     epsilon = 0.1
     new_map = Map([], 10, epsilon)
 
-    ## first ball
-    new_map.add(new_map.points_to_line([(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)]))
+    # ## first ball
+    # new_map.add(new_map.points_to_line([(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)]))
 
-    new_map.add(new_map.points_to_line([]))
+    # new_map.add(new_map.points_to_line([]))
 
-    ## second ball
-    new_map.add([(2.5, 0), (2.5, 1)])
-    new_map.add([(2.5, 0), (3.5, 0)])
-    new_map.add([(3.5, 0), (3.5, 1)])
-    new_map.add([(2.5, 1), (3.5, 1)])
+    # ## second ball
+    # new_map.add([(2.5, 0), (2.5, 1)])
+    # new_map.add([(2.5, 0), (3.5, 0)])
+    # new_map.add([(3.5, 0), (3.5, 1)])
+    # new_map.add([(2.5, 1), (3.5, 1)])
 
-    # shaft
-    new_map.add([(1, 0), (2.5, 0)])
-    new_map.add([(1, 0), (1, 7)])
-    new_map.add([(2.5, 0), (2.5, 7)])
-    new_map.add([(1, 7), (2.5, 7)])
+    # # shaft
+    # new_map.add([(1, 0), (2.5, 0)])
+    # new_map.add([(1, 0), (1, 7)])
+    # new_map.add([(2.5, 0), (2.5, 7)])
+    # new_map.add([(1, 7), s(2.5, 7)])
 
-    # tip
-    new_map.add([(0.75, 7), (2.75, 7)])
-    new_map.add([(0.75, 7), (0.75, 7.7)])
-    new_map.add([(2.75, 7), (2.75, 7.7)])
-    new_map.add([(0.75, 7.7), (2.75, 7.7)])
-    new_map.add([(1.73, 7.48), (1.77, 7.48)])
-
+    # # tip
+    # new_map.add([(0.75, 7), (2.75, 7)])
+    # new_map.add([(0.75, 7), (0.75, 7.7)])
+    # new_map.add([(2.75, 7), (2.75, 7.7)])
+    # new_map.add([(0.75, 7.7), (2.75, 7.7)])
+    # new_map.add([(1.73, 7.48), (1.77, 7.48)])
+    new_map.add_points_to_map(
+        [(0, 0), (0, 0.1), (0, 0.3), (0.1, 0.4), (1, 1), (0.9, 1.1), (0.95, 1)]
+    )
     new_map.show()
