@@ -25,30 +25,19 @@ def distance(p1, p2):
 	return math.sqrt(pow(p1[0]-p2[0],2) + pow(p1[1]-p2[1],2))
 
 def create_poly_wall(p, poly, epsilon):
-	length = distance(poly[0], poly[1])
+	length = distance(poly[0], poly[1]) + 2 * epsilon
 	width = 2 * epsilon
 	angle = math.atan2(poly[1][1] - poly[0][1], poly[1][0] - poly[0][0])
-	bottom_left = angle - math.pi * 5 / 4
-	if bottom_left <= - math.pi:
-		bottom_left  += 2*math.pi
-	x_diff = length / 2 * math.cos(angle) + math.sqrt(2) * epsilon * math.cos(bottom_left)
-	y_diff = length / 2 * math.sin(angle) + math.sqrt(2) * epsilon * math.sin(bottom_left)
 	euler = [0, 0, angle]
 	orientation = p.getQuaternionFromEuler(euler)
-	pos = [poly[0][0]+x_diff, poly[0][1]+y_diff, 0.5]
+	pos = [(poly[0][0] + poly[1][0]) / 2, (poly[0][1] + poly[1][1]) / 2, 0.5]
 	create_wall(p, pos, orientation, length, width)
 	for i in range(1, len(poly) - 1):
 		length = distance(poly[0], poly[1]) + (1-math.sqrt(2))*epsilon
-		width = 2 * epsilon
 		angle = math.atan2(poly[i+1][1] - poly[i][1], poly[i+1][0] - poly[i][0])
-		bottom_left = angle - math.pi * 5 / 4
-		if bottom_left <= - math.pi:
-			bottom_left  += 2*math.pi
-		x_diff = length / 2 * math.cos(angle) + math.sqrt(2) * epsilon * math.cos(bottom_left) + (math.sqrt(2)) * epsilon * math.cos(angle)
-		y_diff = length / 2 * math.sin(angle) + math.sqrt(2) * epsilon * math.sin(bottom_left) + (math.sqrt(2)) * epsilon * math.sin(angle)
 		euler = [0, 0, angle]
 		orientation = p.getQuaternionFromEuler(euler)
-		pos = [poly[i][0]+x_diff, poly[i][1]+y_diff, 0.5]
+		pos = [poly[i][0] + math.cos(angle) * (length / 2 + math.sqrt(2) * epsilon), poly[i][1] + math.sin(angle) * (length / 2 + math.sqrt(2) * epsilon), 0.5]
 		create_wall(p, pos, orientation, length, width)
 
 
@@ -86,8 +75,7 @@ def main():
 	maxForceSlider = p.addUserDebugParameter("maxForce", 0, 10, 10)
 	steeringSlider = p.addUserDebugParameter("steering", -1, 1, 0)
 	epsilon = 0.01
-	create_poly_wall(p, [(1, 1), (1, 2), (2, 2), (2, 1), (1, 1)], epsilon)
-	create_poly_wall(p, [(-1,-1), (-2,-2),(-3,3)], epsilon)
+	create_poly_wall(p, [(-1, 3), (0, 7), (1, 3), (5, 5), (3, 1), (7, 0), (3,-1), (5, -5), (1, -3), (0, -7), (-1, -3), (-5, -5), (-3, -1), (-7, 0), (-3, 1), (-5, 5), (-1, 3)], epsilon)
 
 	while True:
 	    maxForce = p.readUserDebugParameter(maxForceSlider)
