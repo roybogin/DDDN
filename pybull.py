@@ -123,7 +123,7 @@ indices = [0, 1]
 jointTypes = [p.JOINT_REVOLUTE, p.JOINT_REVOLUTE]
 axis = [[0, 0, 1], [0, 1, 0]]
 basePosition = [0.1, 0, 0.5]
-baseOrientation = [0, 0, 0, 1]
+baseOrientation = [0, 0, 10, 1]
 
 # block creation
 block = p.createMultiBody(
