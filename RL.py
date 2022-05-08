@@ -57,12 +57,14 @@ class NeuralNetwork(nn.Module):
 def main():
     torch.set_grad_enabled(False)
     EPOCHS = 1000
-    model = NeuralNetwork()
+    model = NeuralNetwork
     population = 350  # Total Population
-    print(model.get_weights()[0].weight)
+    trainer = Trainer(model, EPOCHS, population, 1, 5)  # change data
+    trainer.mutate()
 
     
-    
+def calculate_score(car):
+    pass
 
 if __name__ == '__main__':
     main()
