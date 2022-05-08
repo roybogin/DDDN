@@ -17,7 +17,8 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 DISTANCE_REWARD = 1.0
 EXPLORATION_REWARD = 1.0
 END_REWARD = 10000.0  # 10^5
-TIME_PENALTY = -5.0
+TIME_PENALTY = -5.0  # at each frame
+CRUSH_PENALTY = -1000000  # once
 
 
 added_params = [
@@ -80,14 +81,15 @@ def main():
 
 
 def calculate_score(car, episode_time_length, training_set):
-    for map in training_set:
-        distance_covered, map_discovered, end_point_reached, time = simulator.run_sim(
-            car, episode_time_length, map
+    for map, starting_point, end_point in training_set:
+        distance_covered, map_discovered, finished, time, crushed = simulator.run_sim(
+            car, episode_time_length, map, starting_point, end_point
         )
         total_reward += distance_covered * DISTANCE_REWARD
         +map_discovered * EXPLORATION_REWARD
-        +end_point_reached * END_REWARD
+        +finished * END_REWARD
         +time * TIME_PENALTY
+        +crushed * CRUSH_PENALTY
     return total_reward / len(training_set)
 
 

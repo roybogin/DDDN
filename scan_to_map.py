@@ -9,7 +9,7 @@ testing = True
 
 class Map:
     # map is a list of segments, the obstacles
-    def __init__(self, map=[], size=30, epsilon=0.001):
+    def __init__(self, map=[], size=40, epsilon=0.001):
         # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
         self.map = map
         self.epsilon = epsilon
