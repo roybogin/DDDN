@@ -59,8 +59,8 @@ def main():
     EPOCHS = 1000
     model = NeuralNetwork
     population = 350  # Total Population
-    trainer = Trainer(model, EPOCHS, population, 1, 5)  # change data
-    trainer.mutate()
+    trainer = Trainer(model, EPOCHS, population, mutatuion_rate=1, max_iter=100, breed_percent=0.5)  # change data
+    
 
     
 def calculate_score(car):
