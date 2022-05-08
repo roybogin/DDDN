@@ -7,15 +7,30 @@ from torch.optim.lr_scheduler import MultiStepLR
 import random
 import math
 import matplotlib.pyplot as plt
+import simulator
 from trainer import Trainer
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-added_params = [('curr_loc', 2), ('target_loc', 2), ('curr_speed', 1),
-                ('current_swivel', 1), ('current_orientation', 1),
-                ('current_acc', 1)]
+
+## reward constants:
+DISTANCE_REWARD = 1.0
+EXPLORATION_REWARD = 1.0
+END_REWARD = 10000.0  # 10^5
+TIME_PENALTY = -5.0
+
+
+added_params = [
+    ("curr_loc", 2),
+    ("target_loc", 2),
+    ("curr_speed", 1),
+    ("current_swivel", 1),
+    ("current_orientation", 1),
+    ("current_acc", 1),
+]
 
 param_size = sum((a[1] for a in added_params))
+
 
 class NeuralNetwork(nn.Module):
     def __init__(self):
@@ -25,7 +40,7 @@ class NeuralNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(64, 128),
             nn.ReLU(),
-            nn.Linear(128, 1024)
+            nn.Linear(128, 1024),
         )
         self.get_features = torch.max
         self.calculte_move = nn.Sequential(
@@ -36,7 +51,7 @@ class NeuralNetwork(nn.Module):
             nn.Linear(128, 64),
             nn.ReLU(),
             nn.Linear(64, 2),
-            nn.Tanh()
+            nn.Tanh(),
         )
 
     def forward(self, x):
@@ -49,8 +64,8 @@ class NeuralNetwork(nn.Module):
         return move
 
     def get_weights(self):
-        l1 = [i for i in self.lines_to_features if isinstance(i,nn.Linear)]
-        l2 = [i for i in self.calculte_move if isinstance(i,nn.Linear)]
+        l1 = [i for i in self.lines_to_features if isinstance(i, nn.Linear)]
+        l2 = [i for i in self.calculte_move if isinstance(i, nn.Linear)]
         return l1 + l2
 
 
@@ -59,12 +74,22 @@ def main():
     EPOCHS = 1000
     model = NeuralNetwork
     population = 350  # Total Population
-    trainer = Trainer(model, EPOCHS, population, mutatuion_rate=1, max_iter=100, breed_percent=0.5)  # change data
-    
+    trainer = Trainer(
+        model, EPOCHS, population, mutatuion_rate=1, max_iter=100, breed_percent=0.5
+    )  # change data
 
-    
-def calculate_score(car):
-    pass
 
-if __name__ == '__main__':
+def calculate_score(car, episode_time_length, training_set):
+    for map in training_set:
+        distance_covered, map_discovered, end_point_reached, time = simulator.run_sim(
+            car, episode_time_length, map
+        )
+        total_reward += distance_covered * DISTANCE_REWARD
+        +map_discovered * EXPLORATION_REWARD
+        +end_point_reached * END_REWARD
+        +time * TIME_PENALTY
+    return total_reward / len(training_set)
+
+
+if __name__ == "__main__":
     main()
