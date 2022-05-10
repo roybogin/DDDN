@@ -49,6 +49,7 @@ class Trainer:
         self.population = next_gen
         for ind in chosen:
             self.population.append(self.breed_models([next_gen[i] for i in ind]))
+        self.mutate()
 
     def breed_models(self, *args):
         new_model = self.model()

@@ -16,7 +16,7 @@ def addLists(lists):
 
 
 def start_simulation():
-    cid = p.connect(p.SHARED_MEMORY)
+    cid = p.connect(p.GUI)
 
     col_id = p.connect(p.DIRECT)
     p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=cid)
@@ -52,7 +52,7 @@ def create_car_model(starting_point):
     return car, wheel, steering
 
 
-def ray_cast(p, car, offset, direction):
+def ray_cast(car, offset, direction):
     pos, quat = p.getBasePositionAndOrientation(car)
     euler = p.getEulerFromQuaternion(quat)
     x = math.cos(euler[2])
@@ -90,6 +90,10 @@ def compute_min_distance(car_model, obstacles, col_id, max_distance=1.0):
     return np.array(distances)
 
 
+def norm(a1, a2):
+    return math.sqrt(sum(((x - y) ** 2 for x, y in zip(a1, a2))))
+
+
 def run_sim(car_brain, steps, map, starting_point, end_point):
 
     swivel = 0
@@ -101,18 +105,20 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
     min_dist_to_target = 0.1
     max_hits_before_calculation = 10
     hits = []
-
+    last_speed = 0
     start_simulation()
-    bodies = map_create.create_map()
+    bodies = map_create.create_map(map, epsilon=0.1)
     car_model, wheels, steering = create_car_model(starting_point)
+    last_pos = starting_point
+
     bodies.append(car_model)
-    map = scan_to_map.map([])
+    map = scan_to_map.Map([])
 
     for i in range(steps):
         if crushed or finished:
             return distance_covered, map_discovered, finished, time, crushed
 
-        hit = ray_cast(p, car_model)
+        hit = ray_cast(car_model, [0, 0, 0], [-10, 0, 0])
         if hit != (0, 0, 0):
             hits.append((hit[0], hit[1]))
             if len(hits) == max_hits_before_calculation:
@@ -124,21 +130,31 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
         rotation = p.getEulerFromQuaternion(quat)[2]
 
         # if this does not work, there is a function that returns velocity, then we can compute norm
-        speed = p.getSpeed(car_model)
+        speed = norm(pos, last_pos)
 
         # if this does not work, can use speed - last_speed... should be okay too
-        acceleration = p.getAcceleration(car_model)
+        acceleration = speed - last_speed
         targetVelocity, steeringAngle = car_brain.forward(
-            pos, end_point, speed, swivel, rotation, acceleration, map
+            [
+                pos,
+                end_point,
+                speed,
+                swivel,
+                rotation,
+                acceleration,
+                [[5, 7, 2, 5], [2, 45, 7, 3]]
+                # map.segment_representation(),
+            ]
         )
 
+        last_pos = pos
         last_speed = speed
 
         if scan_to_map.dist(pos, end_point) < min_dist_to_target:
             finished = True
 
         if check_collision():
-            pass
+            crushed = True
 
         for wheel in wheels:
             p.setJointMotorControl2(

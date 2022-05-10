@@ -8,7 +8,6 @@ import random
 import math
 import matplotlib.pyplot as plt
 import simulator
-from trainer import Trainer
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -19,6 +18,16 @@ EXPLORATION_REWARD = 1.0
 END_REWARD = 10000.0  # 10^5
 TIME_PENALTY = -5.0  # at each frame
 CRUSH_PENALTY = -1000000  # once
+
+
+def flatten(lst):
+    ret = []
+    for o in lst:
+        if hasattr(o, "__iter__"):
+            ret += [a for a in o]
+        else:
+            ret.append(o)
+    return ret
 
 
 added_params = [
@@ -56,28 +65,23 @@ class NeuralNetwork(nn.Module):
         )
 
     def forward(self, x):
-        lines = x[-1]
+        lines = torch.FloatTensor(x[-1])
         lines = self.lines_to_features(lines)
         # maybe max_pool_2d kernel = [num, 1]
-        features = self.get_features(lines, dim=1)
+        features, _ = self.get_features(lines, dim=0)
 
-        move = self.calculte_move(x[:-1] + features)
+        attrib = torch.FloatTensor(flatten(x[:-1]))
+
+        print(attrib, type(attrib))
+        print(features, type(features))
+
+        move = self.calculte_move(attrib + features)
         return move
 
     def get_weights(self):
         l1 = [i for i in self.lines_to_features if isinstance(i, nn.Linear)]
         l2 = [i for i in self.calculte_move if isinstance(i, nn.Linear)]
         return l1 + l2
-
-
-def main():
-    torch.set_grad_enabled(False)
-    EPOCHS = 1000
-    model = NeuralNetwork
-    population = 10  # Total Population
-    trainer = Trainer(
-        model, EPOCHS, population, mutatuion_rate=1, max_iter=100, breed_percent=0.5
-    )  # change data
 
 
 def calculate_score(car, episode_time_length, training_set):
@@ -91,7 +95,3 @@ def calculate_score(car, episode_time_length, training_set):
         +time * TIME_PENALTY
         +crushed * CRUSH_PENALTY
     return total_reward / len(training_set)
-
-
-if __name__ == "__main__":
-    main()
