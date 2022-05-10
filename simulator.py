@@ -93,7 +93,6 @@ def compute_min_distance(car_model, obstacles, col_id, max_distance=1.0):
 def run_sim(car_brain, steps, map, starting_point, end_point):
 
     swivel = 0
-
     distance_covered = 0
     map_discovered = 0
     finished = False
@@ -124,7 +123,9 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
         pos = pos[0:1]
         rotation = p.getEulerFromQuaternion(quat)[2]
 
+        # if this does not work, there is a function that returns velocity, then we can compute norm
         speed = p.getSpeed(car_model)
+
         # if this does not work, can use speed - last_speed... should be okay too
         acceleration = p.getAcceleration(car_model)
         targetVelocity, steeringAngle = car_brain.forward(

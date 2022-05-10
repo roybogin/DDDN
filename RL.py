@@ -74,7 +74,7 @@ def main():
     torch.set_grad_enabled(False)
     EPOCHS = 1000
     model = NeuralNetwork
-    population = 350  # Total Population
+    population = 10  # Total Population
     trainer = Trainer(
         model, EPOCHS, population, mutatuion_rate=1, max_iter=100, breed_percent=0.5
     )  # change data
