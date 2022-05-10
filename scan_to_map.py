@@ -19,6 +19,8 @@ class Map:
         if testing:
             self.points = []
             self.distances = []
+            self.new_segments = []
+            self.number_of_segment = []
 
     def show(self):
         segments = self.segment_representation()
@@ -59,40 +61,59 @@ class Map:
                         theta * 180 / np.pi,
                     )
                 )
-        for point in self.points:
-            ax.add_patch(Circle(point, 0.01, color="r"))
-        # ax.scatter([a[0] for a in self.points], [a[1] for a in self.points], c="red")
-        plt.show()
+        # drawing the scan points:
+        for segment in self.new_segments:
+            for point in segment:
+                ax.add_patch(Circle(point, 0.05, color="r"))
 
-        if testing:
-            print("avrage distance =", sum(self.distances) / len(self.distances))
-            plt.hist(self.distances)
-            plt.show()
+        print("number of segments  = ", len(self.segment_representation()))
+        self.number_of_segment.append(len(self.segment_representation()))
+        plt.show()
+        plt.plot([i + 1 for i in range(len(self.number_of_segment))], self.number_of_segment)
+        print("number of segments after each addition = " ,self.number_of_segment)
+        #plt.show()
+        # if testing:
+        #     print("avrage distance =", sum(self.distances) / len(self.distances))
+        #     plt.hist(self.distances)
+        #     plt.show()
 
         return
 
     def add_points_to_map(self, points):
+        print("before removing lines:", len(points))
+        new_points = []
         if testing:
             self.points += points
+            self.new_segments = []
         segment_representation = self.segment_representation()
         for point in points:
+            should_add = True
             for segment in segment_representation:
                 if perpendicularDistance(point, segment[0], segment[1]) < self.epsilon:
-                    points.remove(point)
-                    break
+                    should_add = False
+            if should_add:
+                new_points.append(point)
 
+        if len(segment_representation) == 0:
+            new_points = points
+        print("after removing lines:", len(new_points))
+        if len(new_points) == 0:
+            return
         # dividing the points into segments (for when the samples come from 2 diffrent obstacles):
-        segment_to_add = [points[0]]
-        for i in range(len(points) - 1):
+        segment_to_add = [new_points[0]]
+        for i in range(len(new_points) - 1):
             if testing:
-                self.distances.append(dist(points[i], points[i + 1]))
-            if dist(points[i], points[i + 1]) > SAMPLE_DIST:
-                self.add(self.points_to_line(segment_to_add))
-                segment_to_add = [points[i + 1]]
+                self.distances.append(dist(new_points[i], new_points[i + 1]))
+            if dist(new_points[i], new_points[i + 1]) > SAMPLE_DIST:
+                new_segment = self.points_to_line(segment_to_add)
+                self.new_segments.append(new_segment)
+                self.add(new_segment)
+                segment_to_add = [new_points[i + 1]]
             else:
-                segment_to_add.append(points[i + 1])
-
-        self.add(self.points_to_line(segment_to_add))
+                segment_to_add.append(new_points[i + 1])
+        new_segment = self.points_to_line(segment_to_add)
+        self.new_segments.append(new_segment)
+        self.add(new_segment)
 
     def segment_representation(self):
         segments = []

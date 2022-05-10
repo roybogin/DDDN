@@ -11,7 +11,7 @@ os.sys.path.insert(0, parentdir)
 from scan_to_map import Map
 import pybullet as p
 import pybullet_data
-
+import map_create
 import time
 
 
@@ -38,7 +38,7 @@ def rayCast(p, car, offset, direction):
 
 
 hits = []
-map = Map([], 10, 0.15)
+map = Map([], 10, 0.4)
 cid = p.connect(p.SHARED_MEMORY)
 if cid < 0:
     p.connect(p.GUI)
@@ -48,75 +48,29 @@ p.setGravity(0, 0, -10)
 
 useRealTimeSim = 0
 
+map_create.create_poly_wall(
+    [
+        (-1, 3),
+        (0, 10),
+        (1, 3),
+        (10, 10),
+        (3, 1),
+        (10, 0),
+        (3, -1),
+        (10, -10),
+        (1, -3),
+        (0, -10),
+        (-1, -3),
+        (-10, -10),
+        (-3, -1),
+        (-10, 0),
+        (-3, 1),
+        (-10, 10),
+        (-2, 4),
+    ],
+    epsilon=0.1,
+)
 
-# boxHalfLength = 0.05
-# boxHalfWidth = 1
-# boxHalfHeight = 0.5
-# body = p.createCollisionShape(
-#     p.GEOM_BOX, halfExtents=[boxHalfLength, boxHalfWidth, boxHalfHeight]
-# )
-# pin = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.05, 0.05, 0.05])
-# wgt = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.05, 0.05, 0.05])
-
-# mass = 10000
-# visualShapeId = -1
-# basePosition = [0, 0, 0.5]
-# baseOrientation = [0, 0, 0, 1]
-
-# # block creation
-# block = p.createMultiBody(
-#     mass,
-#     body,
-#     visualShapeId,
-#     basePosition,
-#     baseOrientation,
-# )
-
-
-# # block set pos and rotation
-# p.resetBasePositionAndOrientation(block, [1, 1, 0.5], [0, 0, 0, 1])
-
-# boxHalfLength = 1
-# boxHalfWidth = 0.05
-# boxHalfHeight = 0.5
-# body = p.createCollisionShape(
-#     p.GEOM_BOX, halfExtents=[boxHalfLength, boxHalfWidth, boxHalfHeight]
-# )
-
-
-# mass = 10000
-# visualShapeId = -1
-# basePosition = [0.1, 0, 0.5]
-# baseOrientation = [0, 0, 0, 1]
-
-# # block creation
-# block = p.createMultiBody(
-#     mass,
-#     body,
-#     visualShapeId,
-#     basePosition,
-#     baseOrientation,
-#     linkMasses=link_Masses,
-#     linkCollisionShapeIndices=linkCollisionShapeIndices,
-#     linkVisualShapeIndices=linkVisualShapeIndices,
-#     linkPositions=linkPositions,
-#     linkOrientations=linkOrientations,
-#     linkInertialFramePositions=linkInertialFramePositions,
-#     linkInertialFrameOrientations=linkInertialFrameOrientations,
-#     linkParentIndices=indices,
-#     linkJointTypes=jointTypes,
-#     linkJointAxis=axis,
-# )
-
-
-# # block set pos and rotation
-# p.resetBasePositionAndOrientation(block, [-0.1, 1, 0.5], [0, 0, 0, 1])
-
-# p.enableJointForceTorqueSensor(block, 0, enableSensor=1)
-
-
-# for video recording (works best on Mac and Linux, not well on Windows)
-# p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "racecar.mp4")
 p.setRealTimeSimulation(useRealTimeSim)  # either this
 # p.loadURDF("plane.urdf")
 p.loadSDF(os.path.join(pybullet_data.getDataPath(), "stadium.sdf"))
@@ -130,21 +84,21 @@ for wheel in inactive_wheels:
 
 steering = [4, 6]
 
-targetVelocitySlider = p.addUserDebugParameter("wheelVelocity", -30, 30, 0)
+targetVelocitySlider = p.addUserDebugParameter("wheelVelocity", -15, 15, 0)
 maxForceSlider = p.addUserDebugParameter("maxForce", 0, 10, 10)
 steeringSlider = p.addUserDebugParameter("steering", -1, 1, 0)
+
 
 count = 0
 while True:
     hit = rayCast(p, car, [0, 0, 0], [-10, 0, 0])
     if hit != (0, 0, 0):
         hits.append((hit[0], hit[1]))
-        print("hit!")
-        if len(hits) == 10:
+        if len(hits) == 500:
             map.add_points_to_map(hits)
             hits = []
             count += 1
-            if count == 10:
+            if count == 1:
                 print("show")
                 map.show()
                 count = 0
