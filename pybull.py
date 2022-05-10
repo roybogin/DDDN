@@ -49,106 +49,70 @@ p.setGravity(0, 0, -10)
 useRealTimeSim = 0
 
 
-boxHalfLength = 0.05
-boxHalfWidth = 1
-boxHalfHeight = 0.5
-body = p.createCollisionShape(
-    p.GEOM_BOX, halfExtents=[boxHalfLength, boxHalfWidth, boxHalfHeight]
-)
-pin = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.05, 0.05, 0.05])
-wgt = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.05, 0.05, 0.05])
+# boxHalfLength = 0.05
+# boxHalfWidth = 1
+# boxHalfHeight = 0.5
+# body = p.createCollisionShape(
+#     p.GEOM_BOX, halfExtents=[boxHalfLength, boxHalfWidth, boxHalfHeight]
+# )
+# pin = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.05, 0.05, 0.05])
+# wgt = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.05, 0.05, 0.05])
 
-mass = 10000
-visualShapeId = -1
-nlnk = 2
-link_Masses = [0, 1]
-linkCollisionShapeIndices = [pin, wgt]
-linkVisualShapeIndices = [-1] * nlnk
-linkPositions = [[0.0, 0.0, 0.0], [1.0, 0, 0]]
-linkOrientations = [[0, 0, 0, 1]] * nlnk
-linkInertialFramePositions = [[0, 0, 0]] * nlnk
-linkInertialFrameOrientations = [[0, 0, 0, 1]] * nlnk
-indices = [0, 1]
-jointTypes = [p.JOINT_REVOLUTE, p.JOINT_REVOLUTE]
-axis = [[0, 0, 1], [0, 1, 0]]
-basePosition = [0, 0, 0.5]
-baseOrientation = [0, 0, 0, 1]
+# mass = 10000
+# visualShapeId = -1
+# basePosition = [0, 0, 0.5]
+# baseOrientation = [0, 0, 0, 1]
 
-# block creation
-block = p.createMultiBody(
-    mass,
-    body,
-    visualShapeId,
-    basePosition,
-    baseOrientation,
-    linkMasses=link_Masses,
-    linkCollisionShapeIndices=linkCollisionShapeIndices,
-    linkVisualShapeIndices=linkVisualShapeIndices,
-    linkPositions=linkPositions,
-    linkOrientations=linkOrientations,
-    linkInertialFramePositions=linkInertialFramePositions,
-    linkInertialFrameOrientations=linkInertialFrameOrientations,
-    linkParentIndices=indices,
-    linkJointTypes=jointTypes,
-    linkJointAxis=axis,
-)
+# # block creation
+# block = p.createMultiBody(
+#     mass,
+#     body,
+#     visualShapeId,
+#     basePosition,
+#     baseOrientation,
+# )
 
 
-# block set pos and rotation
-p.resetBasePositionAndOrientation(block, [1, 1, 0.5], [0, 0, 0, 1])
+# # block set pos and rotation
+# p.resetBasePositionAndOrientation(block, [1, 1, 0.5], [0, 0, 0, 1])
 
-p.enableJointForceTorqueSensor(block, 0, enableSensor=1)
-
-
-boxHalfLength = 1
-boxHalfWidth = 0.05
-boxHalfHeight = 0.5
-body = p.createCollisionShape(
-    p.GEOM_BOX, halfExtents=[boxHalfLength, boxHalfWidth, boxHalfHeight]
-)
-pin = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.05, 0.05, 0.05])
-wgt = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.05, 0.05, 0.05])
-
-mass = 10000
-visualShapeId = -1
-nlnk = 2
-link_Masses = [0, 1]
-linkCollisionShapeIndices = [pin, wgt]
-linkVisualShapeIndices = [-1] * nlnk
-linkPositions = [[0.0, 0.0, 0.0], [1.0, 0, 0]]
-linkOrientations = [[0, 0, 0, 1]] * nlnk
-linkInertialFramePositions = [[0, 0, 0]] * nlnk
-linkInertialFrameOrientations = [[0, 0, 0, 1]] * nlnk
-indices = [0, 1]
-jointTypes = [p.JOINT_REVOLUTE, p.JOINT_REVOLUTE]
-axis = [[0, 0, 1], [0, 1, 0]]
-basePosition = [0.1, 0, 0.5]
-baseOrientation = [0, 0, 10, 1]
-
-# block creation
-block = p.createMultiBody(
-    mass,
-    body,
-    visualShapeId,
-    basePosition,
-    baseOrientation,
-    linkMasses=link_Masses,
-    linkCollisionShapeIndices=linkCollisionShapeIndices,
-    linkVisualShapeIndices=linkVisualShapeIndices,
-    linkPositions=linkPositions,
-    linkOrientations=linkOrientations,
-    linkInertialFramePositions=linkInertialFramePositions,
-    linkInertialFrameOrientations=linkInertialFrameOrientations,
-    linkParentIndices=indices,
-    linkJointTypes=jointTypes,
-    linkJointAxis=axis,
-)
+# boxHalfLength = 1
+# boxHalfWidth = 0.05
+# boxHalfHeight = 0.5
+# body = p.createCollisionShape(
+#     p.GEOM_BOX, halfExtents=[boxHalfLength, boxHalfWidth, boxHalfHeight]
+# )
 
 
-# block set pos and rotation
-p.resetBasePositionAndOrientation(block, [-0.1, 1, 0.5], [0, 0, 0, 1])
+# mass = 10000
+# visualShapeId = -1
+# basePosition = [0.1, 0, 0.5]
+# baseOrientation = [0, 0, 0, 1]
 
-p.enableJointForceTorqueSensor(block, 0, enableSensor=1)
+# # block creation
+# block = p.createMultiBody(
+#     mass,
+#     body,
+#     visualShapeId,
+#     basePosition,
+#     baseOrientation,
+#     linkMasses=link_Masses,
+#     linkCollisionShapeIndices=linkCollisionShapeIndices,
+#     linkVisualShapeIndices=linkVisualShapeIndices,
+#     linkPositions=linkPositions,
+#     linkOrientations=linkOrientations,
+#     linkInertialFramePositions=linkInertialFramePositions,
+#     linkInertialFrameOrientations=linkInertialFrameOrientations,
+#     linkParentIndices=indices,
+#     linkJointTypes=jointTypes,
+#     linkJointAxis=axis,
+# )
+
+
+# # block set pos and rotation
+# p.resetBasePositionAndOrientation(block, [-0.1, 1, 0.5], [0, 0, 0, 1])
+
+# p.enableJointForceTorqueSensor(block, 0, enableSensor=1)
 
 
 # for video recording (works best on Mac and Linux, not well on Windows)
