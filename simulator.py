@@ -68,11 +68,9 @@ def ray_cast(car, offset, direction):
 def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
     for ob in obstacles:
         closest_points = p.getClosestPoints(
-            car_model,
-            ob,
-            distance=max_distance,
-            physicsClientId=col_id
+            car_model, ob, distance=max_distance, physicsClientId=col_id
         )
+        # print("closest points = ", closest_points)
         if len(closest_points) != 0:
             dist = np.min([pt[8] for pt in closest_points])
             if dist < margin:
@@ -105,6 +103,7 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
     map = scan_to_map.Map([])
 
     for i in range(steps):
+        # print("step", i)
         if crushed or finished:
             return distance_covered, map_discovered, finished, time, crushed
 
@@ -119,10 +118,8 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
         pos = pos[:2]
         rotation = p.getEulerFromQuaternion(quat)[2]
 
-        # if this does not work, there is a function that returns velocity, then we can compute norm
         speed = norm(pos, last_pos)
 
-        # if this does not work, can use speed - last_speed... should be okay too
         acceleration = speed - last_speed
         targetVelocity, steeringAngle = car_brain.forward(
             [
@@ -132,7 +129,7 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
                 swivel,
                 rotation,
                 acceleration,
-                [[5, 7, 2, 5], [2, 45, 7, 3]]   #TODO: add real map
+                [[5, 7, 2, 5], [2, 45, 7, 3]]  # TODO: add real map
                 # map.segment_representation(),
             ]
         )
@@ -141,9 +138,11 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
         last_speed = speed
 
         if scan_to_map.dist(pos, end_point) < min_dist_to_target:
+            # print("finished")
             finished = True
 
         if check_collision(car_model, bodies, col_id):
+            # print("collided")
             crushed = True
 
         for wheel in wheels:
@@ -160,8 +159,10 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
                 car_model, steer, p.POSITION_CONTROL, targetPosition=steeringAngle
             )
         swivel = steeringAngle
+        time += 1
+        distance_covered += speed
 
         p.stepSimulation()
     p.disconnect()
-
+    # print("did all steps without collision or getting to target")
     return distance_covered, map_discovered, finished, time, crushed

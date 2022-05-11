@@ -7,17 +7,17 @@ def main():
     torch.set_grad_enabled(False)
     EPOCHS = 1000
     model = NeuralNetwork
-    population = 10  # Total Population
+    population = 100  # Total Population
     trainer = Trainer(
         model,
         EPOCHS,
         population,
         mutation_rate=1,
-        episode_time_length=100,
+        episode_time_length=1000,
         breed_percent=0.5,
         training_set=[(([], [0, 0, 0], [1, 1, 1]))],
     )  # change data
-    for _ in range(3):
+    for _ in range(100):
         trainer.breed()
 
 

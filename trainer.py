@@ -54,14 +54,18 @@ class Trainer:
 
     def breed_models(self, *args):
         args = args[0]
+
         def get_module_by_name(module, access_string):
-            names = access_string.split(sep='.')
+            names = access_string.split(sep=".")
             return reduce(getattr, names, module)
+
         new_model = self.model()
         for k, v in new_model.named_parameters():
             weights = torch.empty(len(args), *v.size())
             for i, car in enumerate(args):
-                weights[i] = get_module_by_name(car, k).data  # probably doesnt work - fuck you dvir
+                weights[i] = get_module_by_name(
+                    car, k
+                ).data  # probably doesnt work - fuck you dvir
             v.data = weights.mean(dim=0)  # maybe wrong dim - fuck you dvir
         return new_model
 
@@ -71,10 +75,10 @@ class Trainer:
             score = calculate_score(
                 car, self.episode_time_length, self.training_set
             )  # need to implement
-            print(score)
             self.evaluations.append((car, score))
         self.evaluations.sort(key=lambda x: x[1], reverse=True)
-        
+        print("best:", self.evaluations[0][1])
+        print("worst:", self.evaluations[-1][1])
 
 
 # def save_checkpoint(self, state):

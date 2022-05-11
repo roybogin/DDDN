@@ -84,13 +84,30 @@ class NeuralNetwork(nn.Module):
 
 def calculate_score(car, episode_time_length, training_set):
     total_reward = 0
+    i = 0
     for map, starting_point, end_point in training_set:
+        i += 1
         distance_covered, map_discovered, finished, time, crushed = simulator.run_sim(
             car, episode_time_length, map, starting_point, end_point
         )
-        total_reward += distance_covered * DISTANCE_REWARD
-        +map_discovered * EXPLORATION_REWARD
-        +finished * END_REWARD
-        +time * TIME_PENALTY
-        +crushed * CRUSH_PENALTY
+        # if crushed:
+        #     print("in calc score, crushed")
+        #     print("penalty:", crushed * CRUSH_PENALTY)
+        # if finished:
+        #     print("in calc score, finished")
+        total_reward += (
+            (distance_covered * DISTANCE_REWARD)
+            + (map_discovered * EXPLORATION_REWARD)
+            + (finished * END_REWARD)
+            + (time * TIME_PENALTY)
+            + (crushed * CRUSH_PENALTY)
+        )
+
+        # print(i, "* DISTANCE_REWARD = ", distance_covered * DISTANCE_REWARD)
+        # print(i, "EXPLORATION_REWARD = ", map_discovered * DISTANCE_REWARD)
+        # print(i, "END_REWARD = ", finished * END_REWARD)
+        # print(i, " TIME_PENALTY = ", time * TIME_PENALTY)
+        # print(i, "CRUSH_PENALTY = ", crushed * CRUSH_PENALTY)
+
+        # print(i, "total = ", total_reward)
     return total_reward / len(training_set)
