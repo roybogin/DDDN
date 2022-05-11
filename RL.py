@@ -71,12 +71,10 @@ class NeuralNetwork(nn.Module):
         features, _ = self.get_features(lines, dim=0)
 
         attrib = torch.FloatTensor(flatten(x[:-1]))
+        net_inp = torch.cat((attrib, features))
 
-        print(attrib, type(attrib))
-        print(features, type(features))
-
-        move = self.calculte_move(attrib + features)
-        return move
+        move = self.calculte_move(net_inp)
+        return move.numpy()
 
     def get_weights(self):
         l1 = [i for i in self.lines_to_features if isinstance(i, nn.Linear)]
@@ -85,6 +83,7 @@ class NeuralNetwork(nn.Module):
 
 
 def calculate_score(car, episode_time_length, training_set):
+    total_reward = 0
     for map, starting_point, end_point in training_set:
         distance_covered, map_discovered, finished, time, crushed = simulator.run_sim(
             car, episode_time_length, map, starting_point, end_point

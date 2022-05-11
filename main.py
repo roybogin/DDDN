@@ -17,8 +17,8 @@ def main():
         breed_percent=0.5,
         training_set=[(([], [0, 0, 0], [1, 1, 1]))],
     )  # change data
-
-    trainer.breed()
+    for _ in range(3):
+        trainer.breed()
 
 
 if __name__ == "__main__":

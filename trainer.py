@@ -1,8 +1,8 @@
-import os
 import torch
 import numpy as np
 from RL import calculate_score
 from itertools import combinations
+from functools import reduce
 
 
 class Trainer:
@@ -30,10 +30,10 @@ class Trainer:
         for car in self.population:
             self.mutate_one(car)
 
-    def mutatue_one(self, model):
+    def mutate_one(self, model):
         for _, v in model.named_parameters():
             v.data = v.data + torch.normal(
-                torch.zeros_like(v.data), torch.full(v.data.size, self.mutation_rate)
+                torch.zeros_like(v.data), torch.full(v.data.size(), self.mutation_rate)
             )
 
     def breed(self):
@@ -44,19 +44,24 @@ class Trainer:
         next_gen = [a[0] for a in best_cars]
         car_cnt = len(next_gen)
         add_amt = self.population_count - car_cnt
-        options = list(combinations(range(car_cnt), 2))
-        chosen = np.random.choice(options, add_amt)
+        options = np.array(list(combinations(range(car_cnt), 2)))
+        chosen_idx = np.random.choice(len(options), add_amt)
+        chosen = options[chosen_idx]
         self.population = next_gen
         for ind in chosen:
             self.population.append(self.breed_models([next_gen[i] for i in ind]))
-        self.mutate()
+        # self.mutate()
 
     def breed_models(self, *args):
+        args = args[0]
+        def get_module_by_name(module, access_string):
+            names = access_string.split(sep='.')
+            return reduce(getattr, names, module)
         new_model = self.model()
         for k, v in new_model.named_parameters():
-            weights = torch.empty(len(args), *v.size)
+            weights = torch.empty(len(args), *v.size())
             for i, car in enumerate(args):
-                weights[i] = car[k].data  # probably doesnt work - fuck you dvir
+                weights[i] = get_module_by_name(car, k).data  # probably doesnt work - fuck you dvir
             v.data = weights.mean(dim=0)  # maybe wrong dim - fuck you dvir
         return new_model
 
@@ -66,8 +71,10 @@ class Trainer:
             score = calculate_score(
                 car, self.episode_time_length, self.training_set
             )  # need to implement
+            print(score)
             self.evaluations.append((car, score))
         self.evaluations.sort(key=lambda x: x[1], reverse=True)
+        
 
 
 # def save_checkpoint(self, state):

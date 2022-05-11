@@ -5,6 +5,7 @@ import map_create
 import math
 import scan_to_map
 import numpy as np
+import consts
 
 
 def addLists(lists):
@@ -16,19 +17,17 @@ def addLists(lists):
 
 
 def start_simulation():
-    cid = p.connect(p.GUI)
+    if consts.is_visual:
+        cid = p.connect(p.GUI)
+        p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=cid)
 
     col_id = p.connect(p.DIRECT)
-    p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=cid)
-
-    if cid < 0:
-        p.connect(p.GUI)
+    p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=col_id)
 
     p.resetSimulation()
     p.setGravity(0, 0, -10)
-    useRealTimeSim = 0
 
-    p.setRealTimeSimulation(useRealTimeSim)
+    p.setRealTimeSimulation(consts.use_real_time)
     # p.loadURDF("plane.urdf")
     p.loadSDF(os.path.join(pybullet_data.getDataPath(), "stadium.sdf"))
 
@@ -49,7 +48,7 @@ def create_car_model(starting_point):
 
     p.resetBasePositionAndOrientation(car, starting_point, [0, 0, 0, 1])
 
-    return car, wheel, steering
+    return car, wheels, steering
 
 
 def ray_cast(car, offset, direction):
@@ -66,28 +65,19 @@ def ray_cast(car, offset, direction):
     return p.rayTest(addLists([pos, offset]), addLists([pos, offset, direction]))[0][3]
 
 
-def check_collision(car_model, obstacles, col_id, margin=0):
-
-    ds = compute_min_distance(car_model, obstacles, col_id)
-    return (ds < margin).any()
-
-
-def compute_min_distance(car_model, obstacles, col_id, max_distance=1.0):
-    distances = []
+def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
     for ob in obstacles:
-        closest_points = p.getClosestPoint(
-            car_model.body_uid,
-            ob.body_uid,
+        closest_points = p.getClosestPoints(
+            car_model,
+            ob,
             distance=max_distance,
-            linkIndexA=car_model.link_uid,
-            linkIndexB=ob.link_uid,
-            physicsClientId=col_id,
+            physicsClientId=col_id
         )
-    if len(closest_points) == 0:
-        distances.append(max_distance)
-    else:
-        distances.append(np.min([pt[8] for pt in closest_points]))
-    return np.array(distances)
+        if len(closest_points) != 0:
+            dist = np.min([pt[8] for pt in closest_points])
+            if dist < margin:
+                return True
+    return False
 
 
 def norm(a1, a2):
@@ -106,7 +96,7 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
     max_hits_before_calculation = 10
     hits = []
     last_speed = 0
-    start_simulation()
+    col_id = start_simulation()
     bodies = map_create.create_map(map, epsilon=0.1)
     car_model, wheels, steering = create_car_model(starting_point)
     last_pos = starting_point
@@ -126,7 +116,7 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
                 hits = []
 
         pos, quat = p.getBasePositionAndOrientation(car_model)
-        pos = pos[0:1]
+        pos = pos[:2]
         rotation = p.getEulerFromQuaternion(quat)[2]
 
         # if this does not work, there is a function that returns velocity, then we can compute norm
@@ -137,12 +127,12 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
         targetVelocity, steeringAngle = car_brain.forward(
             [
                 pos,
-                end_point,
+                end_point[:2],
                 speed,
                 swivel,
                 rotation,
                 acceleration,
-                [[5, 7, 2, 5], [2, 45, 7, 3]]
+                [[5, 7, 2, 5], [2, 45, 7, 3]]   #TODO: add real map
                 # map.segment_representation(),
             ]
         )
@@ -153,7 +143,7 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
         if scan_to_map.dist(pos, end_point) < min_dist_to_target:
             finished = True
 
-        if check_collision():
+        if check_collision(car_model, bodies, col_id):
             crushed = True
 
         for wheel in wheels:
@@ -172,5 +162,6 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
         swivel = steeringAngle
 
         p.stepSimulation()
+    p.disconnect()
 
     return distance_covered, map_discovered, finished, time, crushed
