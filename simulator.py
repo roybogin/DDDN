@@ -6,6 +6,7 @@ import math
 import scan_to_map
 import numpy as np
 import consts
+import time as t
 
 
 def addLists(lists):
@@ -70,8 +71,9 @@ def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
         closest_points = p.getClosestPoints(
             car_model, ob, distance=max_distance, physicsClientId=col_id
         )
-        # print("closest points = ", closest_points)
+        closest_points = [a for a in closest_points if not (a[1] == a[2] == car_model)]
         if len(closest_points) != 0:
+            print("closest points = ", closest_points)
             dist = np.min([pt[8] for pt in closest_points])
             if dist < margin:
                 return True
@@ -121,6 +123,8 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
         speed = norm(pos, last_pos)
 
         acceleration = speed - last_speed
+        # print("speed", speed)
+        # print("eccel", acceleration)
         targetVelocity, steeringAngle = car_brain.forward(
             [
                 pos,
@@ -133,6 +137,7 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
                 # map.segment_representation(),
             ]
         )
+        # print("swivel:", steeringAngle, "targetVelocity", targetVelocity)
 
         last_pos = pos
         last_speed = speed
@@ -141,8 +146,10 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
             # print("finished")
             finished = True
 
+        # print("position:", pos, "last_position:", last_pos)
+
         if check_collision(car_model, bodies, col_id):
-            # print("collided")
+            # 0print("collided")
             crushed = True
 
         for wheel in wheels:
@@ -150,19 +157,20 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
                 car_model,
                 wheel,
                 p.VELOCITY_CONTROL,
-                targetVelocity=targetVelocity,
+                targetVelocity=10,  # targetVelocity,
                 force=10,
             )
 
         for steer in steering:
             p.setJointMotorControl2(
-                car_model, steer, p.POSITION_CONTROL, targetPosition=steeringAngle
+                car_model, steer, p.POSITION_CONTROL, targetPosition=0  # steeringAngle
             )
         swivel = steeringAngle
         time += 1
+        print("speed = ", speed)
         distance_covered += speed
-
+        # print("------------------------")
         p.stepSimulation()
     p.disconnect()
-    # print("did all steps without collision or getting to target")
+    print("did all steps without collision or getting to target")
     return distance_covered, map_discovered, finished, time, crushed

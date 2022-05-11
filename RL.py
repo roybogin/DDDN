@@ -109,5 +109,5 @@ def calculate_score(car, episode_time_length, training_set):
         # print(i, " TIME_PENALTY = ", time * TIME_PENALTY)
         # print(i, "CRUSH_PENALTY = ", crushed * CRUSH_PENALTY)
 
-        # print(i, "total = ", total_reward)
+    print("total = ", total_reward)
     return total_reward / len(training_set)
