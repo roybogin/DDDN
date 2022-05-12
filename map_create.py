@@ -57,9 +57,9 @@ def create_poly_wall(poly, epsilon):
 
         elif -math.pi / 2 < diff < math.pi / 2:
             if diff > 0:
-                length_from = math.sqrt(2) * epsilon * cos(math.pi / 4 - diff)
+                length_from = math.sqrt(2) * epsilon * math.cos(math.pi / 4 - diff)
             else:
-                length_from = math.sqrt(2) * epsilon * cos(math.pi / 4 + diff)
+                length_from = math.sqrt(2) * epsilon * math.cos(math.pi / 4 + diff)
         else:
             if diff > 0:
                 length_from += epsilon / math.tan(math.pi - diff)

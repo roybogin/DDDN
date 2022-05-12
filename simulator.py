@@ -5,6 +5,8 @@ import map_create
 import math
 import scan_to_map
 import numpy as np
+import consts
+import time as t
 
 
 def addLists(lists):
@@ -16,19 +18,17 @@ def addLists(lists):
 
 
 def start_simulation():
-    cid = p.connect(p.SHARED_MEMORY)
+    if consts.is_visual:
+        cid = p.connect(p.GUI)
+        p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=cid)
 
     col_id = p.connect(p.DIRECT)
-    p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=cid)
-
-    if cid < 0:
-        p.connect(p.GUI)
+    p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=col_id)
 
     p.resetSimulation()
     p.setGravity(0, 0, -10)
-    useRealTimeSim = 0
 
-    p.setRealTimeSimulation(useRealTimeSim)
+    p.setRealTimeSimulation(consts.use_real_time)
     # p.loadURDF("plane.urdf")
     p.loadSDF(os.path.join(pybullet_data.getDataPath(), "stadium.sdf"))
 
@@ -49,10 +49,10 @@ def create_car_model(starting_point):
 
     p.resetBasePositionAndOrientation(car, starting_point, [0, 0, 0, 1])
 
-    return car, wheel, steering
+    return car, wheels, steering
 
 
-def ray_cast(p, car, offset, direction):
+def ray_cast(car, offset, direction):
     pos, quat = p.getBasePositionAndOrientation(car)
     euler = p.getEulerFromQuaternion(quat)
     x = math.cos(euler[2])
@@ -66,32 +66,27 @@ def ray_cast(p, car, offset, direction):
     return p.rayTest(addLists([pos, offset]), addLists([pos, offset, direction]))[0][3]
 
 
-def check_collision(car_model, obstacles, col_id, margin=0):
-
-    ds = compute_min_distance(car_model, obstacles, col_id)
-    return (ds < margin).any()
-
-
-def compute_min_distance(car_model, obstacles, col_id, max_distance=1.0):
-    distances = []
+def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
     for ob in obstacles:
-        closest_points = p.getClosestPoint(
-            car_model.body_uid,
-            ob.body_uid,
-            distance=max_distance,
-            linkIndexA=car_model.link_uid,
-            linkIndexB=ob.link_uid,
-            physicsClientId=col_id,
+        closest_points = p.getClosestPoints(
+            car_model, ob, distance=max_distance, physicsClientId=col_id
         )
-    if len(closest_points) == 0:
-        distances.append(max_distance)
-    else:
-        distances.append(np.min([pt[8] for pt in closest_points]))
-    return np.array(distances)
+        closest_points = [a for a in closest_points if not (a[1] == a[2] == car_model)]
+        if len(closest_points) != 0:
+            # print("closest points = ", closest_points)
+            dist = np.min([pt[8] for pt in closest_points])
+            if dist < margin:
+                return True
+    return False
+
+
+def norm(a1, a2):
+    return math.sqrt(sum(((x - y) ** 2 for x, y in zip(a1, a2))))
 
 
 def run_sim(car_brain, steps, map, starting_point, end_point):
-
+    targetVelocity = 0
+    steeringAngle = 0
     swivel = 0
     distance_covered = 0
     map_discovered = 0
@@ -101,18 +96,33 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
     min_dist_to_target = 0.1
     max_hits_before_calculation = 10
     hits = []
-
-    start_simulation()
-    bodies = map_create.create_map()
+    last_speed = 0
+    col_id = start_simulation()
+    # t.sleep(1)
+    bodies = map_create.create_map(map, epsilon=0.1)
     car_model, wheels, steering = create_car_model(starting_point)
+    last_pos = starting_point
+
     bodies.append(car_model)
-    map = scan_to_map.map([])
+    map = scan_to_map.Map([])
 
     for i in range(steps):
+        if consts.debug_sim:
+            pos, qat = p.getBasePositionAndOrientation(car_model)
+            if pos[2] > 0.1:
+                print("step", i)
+                print("pos", pos)
+                print("last_pos", last_pos)
+                print("speed", speed)
+                print("acceleration", acceleration)
+                print("swivel:", steeringAngle)
+                print("targetVelocity", targetVelocity)
+                print()
+
         if crushed or finished:
             return distance_covered, map_discovered, finished, time, crushed
 
-        hit = ray_cast(p, car_model)
+        hit = ray_cast(car_model, [0, 0, 0], [-10, 0, 0])
         if hit != (0, 0, 0):
             hits.append((hit[0], hit[1]))
             if len(hits) == max_hits_before_calculation:
@@ -120,25 +130,44 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
                 hits = []
 
         pos, quat = p.getBasePositionAndOrientation(car_model)
-        pos = pos[0:1]
+        pos = pos[:2]
         rotation = p.getEulerFromQuaternion(quat)[2]
 
-        # if this does not work, there is a function that returns velocity, then we can compute norm
-        speed = p.getSpeed(car_model)
+        speed = norm(pos, last_pos)
 
-        # if this does not work, can use speed - last_speed... should be okay too
-        acceleration = p.getAcceleration(car_model)
-        targetVelocity, steeringAngle = car_brain.forward(
-            pos, end_point, speed, swivel, rotation, acceleration, map
+        acceleration = speed - last_speed
+
+        changeTargetVelocity, changeSteeringAngle = car_brain.forward(
+            [
+                pos,
+                end_point[:2],
+                speed,
+                swivel,
+                rotation,
+                acceleration,
+                [[5, 7, 2, 5], [2, 45, 7, 3]]  # TODO: add real map
+                # map.segment_representation(),
+            ]
         )
-
+        targetVelocity += changeTargetVelocity * consts.speed_scalar
+        steeringAngle += changeSteeringAngle * consts.steer_scalar
+        if abs(steeringAngle) > consts.max_steer:
+            steeringAngle = (
+                consts.max_steer * steeringAngle / abs(steeringAngle)
+            )  # sets to +-consts.max_steer if too big
+        if abs(targetVelocity) > consts.max_velocity:
+            targetVelocity = consts.max_steer * targetVelocity / abs(targetVelocity)
+        last_pos = pos
         last_speed = speed
 
         if scan_to_map.dist(pos, end_point) < min_dist_to_target:
+            # print("finished")
             finished = True
 
-        if check_collision():
-            pass
+        # print("position:", pos, "last_position:", last_pos)
+
+        if check_collision(car_model, bodies, col_id):
+            crushed = True
 
         for wheel in wheels:
             p.setJointMotorControl2(
@@ -154,7 +183,11 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
                 car_model, steer, p.POSITION_CONTROL, targetPosition=steeringAngle
             )
         swivel = steeringAngle
-
+        time += 1
+        # print("speed = ", speed)
+        distance_covered += speed
+        # print("------------------------")
         p.stepSimulation()
-
+    p.disconnect()
+    # print("did all steps without collision or getting to target")
     return distance_covered, map_discovered, finished, time, crushed

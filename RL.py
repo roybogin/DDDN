@@ -8,7 +8,6 @@ import random
 import math
 import matplotlib.pyplot as plt
 import simulator
-from trainer import Trainer
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -19,6 +18,16 @@ EXPLORATION_REWARD = 1.0
 END_REWARD = 10000.0  # 10^5
 TIME_PENALTY = -5.0  # at each frame
 CRUSH_PENALTY = -1000000  # once
+
+
+def flatten(lst):
+    ret = []
+    for o in lst:
+        if hasattr(o, "__iter__"):
+            ret += [a for a in o]
+        else:
+            ret.append(o)
+    return ret
 
 
 added_params = [
@@ -56,13 +65,16 @@ class NeuralNetwork(nn.Module):
         )
 
     def forward(self, x):
-        lines = x[-1]
+        lines = torch.FloatTensor(x[-1])
         lines = self.lines_to_features(lines)
         # maybe max_pool_2d kernel = [num, 1]
-        features = self.get_features(lines, dim=1)
+        features, _ = self.get_features(lines, dim=0)
 
-        move = self.calculte_move(x[:-1] + features)
-        return move
+        attrib = torch.FloatTensor(flatten(x[:-1]))
+        net_inp = torch.cat((attrib, features))
+
+        move = self.calculte_move(net_inp)
+        return move.numpy()
 
     def get_weights(self):
         l1 = [i for i in self.lines_to_features if isinstance(i, nn.Linear)]
@@ -70,28 +82,28 @@ class NeuralNetwork(nn.Module):
         return l1 + l2
 
 
-def main():
-    torch.set_grad_enabled(False)
-    EPOCHS = 1000
-    model = NeuralNetwork
-    population = 10  # Total Population
-    trainer = Trainer(
-        model, EPOCHS, population, mutatuion_rate=1, max_iter=100, breed_percent=0.5
-    )  # change data
-
-
 def calculate_score(car, episode_time_length, training_set):
+    total_reward = 0
+    i = 0
     for map, starting_point, end_point in training_set:
+        i += 1
         distance_covered, map_discovered, finished, time, crushed = simulator.run_sim(
             car, episode_time_length, map, starting_point, end_point
         )
-        total_reward += distance_covered * DISTANCE_REWARD
-        +map_discovered * EXPLORATION_REWARD
-        +finished * END_REWARD
-        +time * TIME_PENALTY
-        +crushed * CRUSH_PENALTY
+
+        total_reward += (
+            (distance_covered * DISTANCE_REWARD)
+            + (map_discovered * EXPLORATION_REWARD)
+            + (finished * END_REWARD)
+            + (time * TIME_PENALTY)
+            + (crushed * CRUSH_PENALTY)
+        )
+
+        # print(i, "* DISTANCE_REWARD = ", distance_covered * DISTANCE_REWARD)
+        # print(i, "EXPLORATION_REWARD = ", map_discovered * DISTANCE_REWARD)
+        # print(i, "END_REWARD = ", finished * END_REWARD)
+        # print(i, " TIME_PENALTY = ", time * TIME_PENALTY)
+        # print(i, "CRUSH_PENALTY = ", crushed * CRUSH_PENALTY)
+
+    # print("total = ", total_reward)
     return total_reward / len(training_set)
-
-
-if __name__ == "__main__":
-    main()
