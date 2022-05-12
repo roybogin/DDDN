@@ -98,7 +98,7 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
     hits = []
     last_speed = 0
     col_id = start_simulation()
-    t.sleep(1)
+    # t.sleep(1)
     bodies = map_create.create_map(map, epsilon=0.1)
     car_model, wheels, steering = create_car_model(starting_point)
     last_pos = starting_point
@@ -155,7 +155,7 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
             steeringAngle = (
                 consts.max_steer * steeringAngle / abs(steeringAngle)
             )  # sets to +-consts.max_steer if too big
-        if targetVelocity > consts.max_velocity:
+        if abs(targetVelocity) > consts.max_velocity:
             targetVelocity = consts.max_steer * targetVelocity / abs(targetVelocity)
         last_pos = pos
         last_speed = speed

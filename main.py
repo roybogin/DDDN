@@ -18,12 +18,12 @@ def main():
         EPOCHS,
         population,
         mutation_rate=1,
-        episode_time_length=1000,
+        episode_time_length=700,
         breed_percent=0.5,
         training_set=[(([], [0, 0, 0], [1, 1, 0]))],
     )  # change data
 
-    for i in range(1):
+    for i in range(3):
         t = time.localtime()
         current_time = time.strftime("%H:%M:%S", t)
         print(i, "th iteration, time: ", current_time)
@@ -37,7 +37,7 @@ def main():
     plt.plot([1], [1])
     plt.show()  # use this to stop the last simulation
     consts.debug_sim = True
-    print(calculate_score(trainer.population[0], 1000, trainer.training_set))
+    print(calculate_score(trainer.population[0], 10000, trainer.training_set))
 
 
 if __name__ == "__main__":
