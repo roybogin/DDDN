@@ -37,6 +37,7 @@ added_params = [
     ("current_swivel", 1),
     ("current_orientation", 1),
     ("current_acc", 1),
+    ("time", 1),
 ]
 
 param_size = sum((a[1] for a in added_params))
@@ -67,7 +68,6 @@ class NeuralNetwork(nn.Module):
     def forward(self, x):
         lines = torch.FloatTensor(x[-1])
         lines = self.lines_to_features(lines)
-        # maybe max_pool_2d kernel = [num, 1]
         features, _ = self.get_features(lines, dim=0)
 
         attrib = torch.FloatTensor(flatten(x[:-1]))
