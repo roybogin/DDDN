@@ -6,6 +6,7 @@ import math
 import scan_to_map
 import numpy as np
 import consts
+from scan_to_map import Map
 import time as t
 
 
@@ -84,7 +85,7 @@ def norm(a1, a2):
     return math.sqrt(sum(((x - y) ** 2 for x, y in zip(a1, a2))))
 
 
-def run_sim(car_brain, steps, map, starting_point, end_point):
+def run_sim(car_brain, steps, maze, starting_point, end_point):
     targetVelocity = 0
     steeringAngle = 0
     swivel = 0
@@ -93,18 +94,18 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
     finished = False
     time = 0
     crushed = False
-    min_dist_to_target = 0.1
     max_hits_before_calculation = 10
     hits = []
     last_speed = 0
     col_id = start_simulation()
     # t.sleep(1)
-    bodies = map_create.create_map(map, epsilon=0.1)
+    bodies = map_create.create_map(maze, epsilon=0.1)
+    map = Map(consts.map_borders)
     car_model, wheels, steering = create_car_model(starting_point)
     last_pos = starting_point
 
     bodies.append(car_model)
-    map = scan_to_map.Map([])
+    maze = scan_to_map.Map([])
 
     for i in range(steps):
         if consts.debug_sim:
@@ -145,8 +146,7 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
                 swivel,
                 rotation,
                 acceleration,
-                [[5, 7, 2, 5], [2, 45, 7, 3]]  # TODO: add real map
-                # map.segment_representation(),
+                map.segment_representation_as_points(),
             ]
         )
         targetVelocity += changeTargetVelocity * consts.speed_scalar
@@ -160,7 +160,7 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
         last_pos = pos
         last_speed = speed
 
-        if scan_to_map.dist(pos, end_point) < min_dist_to_target:
+        if scan_to_map.dist(pos, end_point) < consts.min_dist_to_target:
             # print("finished")
             finished = True
 

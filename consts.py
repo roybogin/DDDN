@@ -5,3 +5,5 @@ speed_scalar = 1
 steer_scalar = 0.1
 max_steer = 0.7
 max_velocity = 18
+map_borders = [[(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)]]
+min_dist_to_target = 0.5

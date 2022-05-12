@@ -69,9 +69,11 @@ class Map:
         print("number of segments  = ", len(self.segment_representation()))
         self.number_of_segment.append(len(self.segment_representation()))
         plt.show()
-        plt.plot([i + 1 for i in range(len(self.number_of_segment))], self.number_of_segment)
-        print("number of segments after each addition = " ,self.number_of_segment)
-        #plt.show()
+        plt.plot(
+            [i + 1 for i in range(len(self.number_of_segment))], self.number_of_segment
+        )
+        print("number of segments after each addition = ", self.number_of_segment)
+        # plt.show()
         # if testing:
         #     print("avrage distance =", sum(self.distances) / len(self.distances))
         #     plt.hist(self.distances)
@@ -80,7 +82,6 @@ class Map:
         return
 
     def add_points_to_map(self, points):
-        print("before removing lines:", len(points))
         new_points = []
         if testing:
             self.points += points
@@ -96,7 +97,6 @@ class Map:
 
         if len(segment_representation) == 0:
             new_points = points
-        print("after removing lines:", len(new_points))
         if len(new_points) == 0:
             return
         # dividing the points into segments (for when the samples come from 2 diffrent obstacles):
@@ -120,6 +120,16 @@ class Map:
         for i in range(len(self.map)):
             for j in range(1, len((self.map[i]))):
                 segments.append((self.map[i][j - 1], self.map[i][j]))
+
+        return segments
+
+    def segment_representation_as_points(self):
+        segments = []
+        for i in range(len(self.map)):
+            for j in range(1, len((self.map[i]))):
+                x1, y1 = self.map[i][j - 1]
+                x2, y2 = self.map[i][j]
+                segments.append((x1, y1, x2, y2))
 
         return segments
 

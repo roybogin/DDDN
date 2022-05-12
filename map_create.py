@@ -69,7 +69,6 @@ def create_poly_wall(poly, epsilon):
                 length_from += epsilon / math.sin(math.pi + diff)
 
         length -= length_from
-        print(i, diff / math.pi, "pi", length, length_from)
         pos = [
             poly[i][0] + math.cos(angle) * (length / 2 + length_from),
             poly[i][1] + math.sin(angle) * (length / 2 + length_from),
@@ -146,7 +145,6 @@ def main():
         maxForce = p.readUserDebugParameter(maxForceSlider)
         targetVelocity = p.readUserDebugParameter(targetVelocitySlider)
         steeringAngle = p.readUserDebugParameter(steeringSlider)
-        # print(targetVelocity)
 
         for wheel in wheels:
             p.setJointMotorControl2(
