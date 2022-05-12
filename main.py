@@ -83,18 +83,18 @@ def main():
     torch.set_grad_enabled(False)
     EPOCHS = 1000
     model = NeuralNetwork
-    population = 200  # Total Population
+    population = 10  # Total Population
     trainer = Trainer(
         model,
         EPOCHS,
         population,
         mutation_rate=1,
-        episode_time_length=1200,
+        episode_time_length=120,
         breed_percent=0.5,
         training_set=[default_data_set[1]],
     )  # change data
 
-    for i in range(10):
+    for i in range(20):
         t = time.localtime()
         current_time = time.strftime("%H:%M:%S", t)
         print(i, "th iteration, time: ", current_time)

@@ -123,7 +123,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
         if crushed or finished:
             return distance_covered, map_discovered, finished, time, crushed
 
-        hit = ray_cast(car_model, [0, 0, 0], [-10, 0, 0])
+        hit = ray_cast(car_model, [0, 0, 0], [-consts.ray_length, 0, 0])
         if hit != (0, 0, 0):
             hits.append((hit[0], hit[1]))
             if len(hits) == max_hits_before_calculation:
@@ -159,7 +159,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
             targetVelocity = consts.max_steer * targetVelocity / abs(targetVelocity)
         last_pos = pos
         last_speed = speed
-
+        map_discovered = map.map_length()
         if scan_to_map.dist(pos, end_point) < consts.min_dist_to_target:
             # print("finished")
             finished = True

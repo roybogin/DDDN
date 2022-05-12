@@ -123,6 +123,12 @@ class Map:
 
         return segments
 
+    def map_length(self):
+        total_length = 0
+        for segment in self.segment_representation():
+            total_length += dist(segment[0], segment[1])
+        return total_length
+
     def segment_representation_as_points(self):
         segments = []
         for i in range(len(self.map)):

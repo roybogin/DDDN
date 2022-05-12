@@ -27,7 +27,7 @@ class Trainer:
         self.training_set = training_set
 
     def mutate(self):
-        for car in self.population:
+        for car in self.population[1:]:
             self.mutate_one(car)
 
     def mutate_one(self, model):
