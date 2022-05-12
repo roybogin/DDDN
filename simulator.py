@@ -73,7 +73,7 @@ def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
         )
         closest_points = [a for a in closest_points if not (a[1] == a[2] == car_model)]
         if len(closest_points) != 0:
-            print("closest points = ", closest_points)
+            # print("closest points = ", closest_points)
             dist = np.min([pt[8] for pt in closest_points])
             if dist < margin:
                 return True
@@ -85,7 +85,8 @@ def norm(a1, a2):
 
 
 def run_sim(car_brain, steps, map, starting_point, end_point):
-
+    targetVelocity = 0
+    steeringAngle = 0
     swivel = 0
     distance_covered = 0
     map_discovered = 0
@@ -97,6 +98,7 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
     hits = []
     last_speed = 0
     col_id = start_simulation()
+    t.sleep(1)
     bodies = map_create.create_map(map, epsilon=0.1)
     car_model, wheels, steering = create_car_model(starting_point)
     last_pos = starting_point
@@ -105,7 +107,18 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
     map = scan_to_map.Map([])
 
     for i in range(steps):
-        # print("step", i)
+        if consts.debug_sim:
+            pos, qat = p.getBasePositionAndOrientation(car_model)
+            if pos[2] > 0.1:
+                print("step", i)
+                print("pos", pos)
+                print("last_pos", last_pos)
+                print("speed", speed)
+                print("acceleration", acceleration)
+                print("swivel:", steeringAngle)
+                print("targetVelocity", targetVelocity)
+                print()
+
         if crushed or finished:
             return distance_covered, map_discovered, finished, time, crushed
 
@@ -123,9 +136,8 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
         speed = norm(pos, last_pos)
 
         acceleration = speed - last_speed
-        # print("speed", speed)
-        # print("eccel", acceleration)
-        targetVelocity, steeringAngle = car_brain.forward(
+
+        changeTargetVelocity, changeSteeringAngle = car_brain.forward(
             [
                 pos,
                 end_point[:2],
@@ -137,8 +149,14 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
                 # map.segment_representation(),
             ]
         )
-        # print("swivel:", steeringAngle, "targetVelocity", targetVelocity)
-
+        targetVelocity += changeTargetVelocity * consts.speed_scalar
+        steeringAngle += changeSteeringAngle * consts.steer_scalar
+        if abs(steeringAngle) > consts.max_steer:
+            steeringAngle = (
+                consts.max_steer * steeringAngle / abs(steeringAngle)
+            )  # sets to +-consts.max_steer if too big
+        if targetVelocity > consts.max_velocity:
+            targetVelocity = consts.max_steer * targetVelocity / abs(targetVelocity)
         last_pos = pos
         last_speed = speed
 
@@ -149,7 +167,6 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
         # print("position:", pos, "last_position:", last_pos)
 
         if check_collision(car_model, bodies, col_id):
-            # 0print("collided")
             crushed = True
 
         for wheel in wheels:
@@ -157,20 +174,20 @@ def run_sim(car_brain, steps, map, starting_point, end_point):
                 car_model,
                 wheel,
                 p.VELOCITY_CONTROL,
-                targetVelocity=10,  # targetVelocity,
+                targetVelocity=targetVelocity,
                 force=10,
             )
 
         for steer in steering:
             p.setJointMotorControl2(
-                car_model, steer, p.POSITION_CONTROL, targetPosition=0  # steeringAngle
+                car_model, steer, p.POSITION_CONTROL, targetPosition=steeringAngle
             )
         swivel = steeringAngle
         time += 1
-        print("speed = ", speed)
+        # print("speed = ", speed)
         distance_covered += speed
         # print("------------------------")
         p.stepSimulation()
     p.disconnect()
-    print("did all steps without collision or getting to target")
+    # print("did all steps without collision or getting to target")
     return distance_covered, map_discovered, finished, time, crushed

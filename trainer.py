@@ -78,7 +78,7 @@ class Trainer:
             self.evaluations.append((car, score))
         self.evaluations.sort(key=lambda x: x[1], reverse=True)
         print("best:", self.evaluations[0][1])
-        print("worst:", self.evaluations[-1][1])
+        # print("worst:", self.evaluations[-1][1])
 
 
 # def save_checkpoint(self, state):

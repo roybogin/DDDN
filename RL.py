@@ -90,11 +90,7 @@ def calculate_score(car, episode_time_length, training_set):
         distance_covered, map_discovered, finished, time, crushed = simulator.run_sim(
             car, episode_time_length, map, starting_point, end_point
         )
-        # if crushed:
-        #     print("in calc score, crushed")
-        #     print("penalty:", crushed * CRUSH_PENALTY)
-        # if finished:
-        #     print("in calc score, finished")
+
         total_reward += (
             (distance_covered * DISTANCE_REWARD)
             + (map_discovered * EXPLORATION_REWARD)
@@ -109,5 +105,5 @@ def calculate_score(car, episode_time_length, training_set):
         # print(i, " TIME_PENALTY = ", time * TIME_PENALTY)
         # print(i, "CRUSH_PENALTY = ", crushed * CRUSH_PENALTY)
 
-    print("total = ", total_reward)
+    # print("total = ", total_reward)
     return total_reward / len(training_set)
