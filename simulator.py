@@ -30,8 +30,14 @@ def start_simulation():
     p.setGravity(0, 0, -10)
 
     p.setRealTimeSimulation(consts.use_real_time)
-    # p.loadURDF("plane.urdf")
     p.loadSDF(os.path.join(pybullet_data.getDataPath(), "stadium.sdf"))
+    p.resetDebugVisualizerCamera(
+        cameraDistance=consts.cameraDistance,
+        cameraYaw=consts.cameraYaw,
+        cameraPitch=consts.cameraPitch,
+        cameraTargetPosition=consts.cameraTargetPosition,
+    )
+    p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
 
     return col_id
 
@@ -74,7 +80,6 @@ def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
         )
         closest_points = [a for a in closest_points if not (a[1] == a[2] == car_model)]
         if len(closest_points) != 0:
-            # print("closest points = ", closest_points)
             dist = np.min([pt[8] for pt in closest_points])
             if dist < margin:
                 return True
@@ -98,13 +103,15 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
     hits = []
     last_speed = 0
     col_id = start_simulation()
-    # t.sleep(1)
     bodies = map_create.create_map(maze, epsilon=0.1)
-    map = Map(consts.map_borders)
+    map = Map(consts.map_borders.copy())
     car_model, wheels, steering = create_car_model(starting_point)
     last_pos = starting_point
+    maze = scan_to_map.Map([])
 
     for i in range(steps):
+        if consts.record:
+            log_id = p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, consts.video_name)
         if consts.debug_sim:
             pos, qat = p.getBasePositionAndOrientation(car_model)
             if pos[2] > 0.1:
@@ -120,19 +127,27 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
         if crushed or finished:
             return distance_covered, map_discovered, finished, time, crushed
 
+        # updating map
         hit = ray_cast(car_model, [0, 0, 0], [-consts.ray_length, 0, 0])
         if hit != (0, 0, 0):
             hits.append((hit[0], hit[1]))
             if len(hits) == max_hits_before_calculation:
                 map.add_points_to_map(hits)
+
                 hits = []
 
+        map_discovered = map.map_length() - 279
+
+        # checking if collided or finished
+        if check_collision(car_model, bodies, col_id):
+            crushed = True
+        if scan_to_map.dist(last_pos, end_point) < consts.min_dist_to_target:
+            finished = True
+        # getting values for NN
         pos, quat = p.getBasePositionAndOrientation(car_model)
         pos = pos[:2]
         rotation = p.getEulerFromQuaternion(quat)[2]
-
         speed = norm(pos, last_pos)
-
         acceleration = speed - last_speed
 
         changeTargetVelocity, changeSteeringAngle = car_brain.forward(
@@ -143,30 +158,25 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
                 swivel,
                 rotation,
                 acceleration,
+                time,
                 map.segment_representation_as_points(),
             ]
         )
+
+        # updating target velocity and steering angle
         targetVelocity += changeTargetVelocity * consts.speed_scalar
         steeringAngle += changeSteeringAngle * consts.steer_scalar
         if abs(steeringAngle) > consts.max_steer:
-            steeringAngle = (
-                consts.max_steer * steeringAngle / abs(steeringAngle)
-            )  # sets to +-consts.max_steer if too big
+            steeringAngle = consts.max_steer * steeringAngle / abs(steeringAngle)
         if abs(targetVelocity) > consts.max_velocity:
             targetVelocity = consts.max_steer * targetVelocity / abs(targetVelocity)
+
+        # saving for later
+        swivel = steeringAngle
         last_pos = pos
         last_speed = speed
-        map_discovered = map.map_length()
-        print(map_discovered)
-        if scan_to_map.dist(pos, end_point) < consts.min_dist_to_target:
-            # print("finished")
-            finished = True
 
-        # print("position:", pos, "last_position:", last_pos)
-
-        if check_collision(car_model, bodies, col_id):
-            crushed = True
-
+        # moving
         for wheel in wheels:
             p.setJointMotorControl2(
                 car_model,
@@ -180,13 +190,17 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
             p.setJointMotorControl2(
                 car_model, steer, p.POSITION_CONTROL, targetPosition=steeringAngle
             )
-        swivel = steeringAngle
+
         time += 1
-        # print("speed = ", speed)
         distance_covered += speed
-        # print("------------------------")
         p.stepSimulation()
-    map.show()
+    if consts.record:
+        p.stopStateLogging(log_id)
     p.disconnect()
-    # print("did all steps without collision or getting to target")
+    if consts.print_reward_breakdown:
+        print("map_discoverd", map_discovered)
+        print("distance_covered", distance_covered)
+        print("time", time)
+        map.show()
+
     return distance_covered, map_discovered, finished, time, crushed
