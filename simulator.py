@@ -104,9 +104,6 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
     car_model, wheels, steering = create_car_model(starting_point)
     last_pos = starting_point
 
-    bodies.append(car_model)
-    maze = scan_to_map.Map([])
-
     for i in range(steps):
         if consts.debug_sim:
             pos, qat = p.getBasePositionAndOrientation(car_model)
@@ -160,6 +157,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
         last_pos = pos
         last_speed = speed
         map_discovered = map.map_length()
+        print(map_discovered)
         if scan_to_map.dist(pos, end_point) < consts.min_dist_to_target:
             # print("finished")
             finished = True
@@ -188,6 +186,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
         distance_covered += speed
         # print("------------------------")
         p.stepSimulation()
+    map.show()
     p.disconnect()
     # print("did all steps without collision or getting to target")
     return distance_covered, map_discovered, finished, time, crushed

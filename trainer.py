@@ -3,6 +3,9 @@ import numpy as np
 from RL import calculate_score
 from itertools import combinations
 from functools import reduce
+from scipy import sparse
+from scipy import stats
+import consts
 
 
 class Trainer:
@@ -26,15 +29,25 @@ class Trainer:
         self.episode_time_length = episode_time_length
         self.training_set = training_set
 
+    def mutation_density(self):
+        return consts.initial_mutation_density
+
     def mutate(self):
         for car in self.population[1:]:
             self.mutate_one(car)
 
     def mutate_one(self, model):
         for _, v in model.named_parameters():
-            v.data = v.data + torch.normal(
-                torch.zeros_like(v.data), torch.full(v.data.size(), self.mutation_rate)
-            )
+            mat_size = list(v.size())
+            if len(mat_size) == 1:
+                mat_size = [1] + mat_size
+            rvs = stats.norm(loc=0, scale=self.mutation_rate).rvs
+            mutation = sparse.random(mat_size[0], mat_size[1], self.mutation_density(), data_rvs=rvs).todense()
+            mutation_tensor = torch.from_numpy(mutation).squeeze().to(dtype=torch.float32)
+            v.data = v.data + mutation_tensor.data
+            
+            
+            
 
     def breed(self):
         self.evaluate()

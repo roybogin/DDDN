@@ -24,6 +24,15 @@ default_data_set = [
     (
         [
             [(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)],
+            [(1.5, -1.5), (1.5, 1.5)],
+            [(2, 0), (5, 0)],
+        ],
+        [0, 0, 0],
+        [5, 0, 0],
+    ),  # T shape with hidden wall
+    (
+        [
+            [(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)],
             [(-4, 0), (0, 4)],
             [(-3, 5), (3, 5)],
             [(-7, 4), (-3, 3)],
@@ -89,12 +98,12 @@ def main():
         EPOCHS,
         population,
         mutation_rate=1,
-        episode_time_length=120,
+        episode_time_length=1200,
         breed_percent=0.5,
-        training_set=[default_data_set[1]],
+        training_set=[default_data_set[2]],
     )  # change data
 
-    for i in range(20):
+    for i in range(5):
         t = time.localtime()
         current_time = time.strftime("%H:%M:%S", t)
         print(i, "th iteration, time: ", current_time)
