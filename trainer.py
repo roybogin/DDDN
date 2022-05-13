@@ -3,6 +3,7 @@ import numpy as np
 from RL import calculate_score
 from itertools import combinations
 from functools import reduce
+import matplotlib.pyplot as plt
 
 
 class Trainer:
@@ -78,7 +79,14 @@ class Trainer:
             self.evaluations.append((car, score))
         self.evaluations.sort(key=lambda x: x[1], reverse=True)
         print("best:", self.evaluations[0][1])
-        # print("worst:", self.evaluations[-1][1])
+        lst = [self.evaluations[i][1] for i in range(len(self.evaluations))]
+        # print("list:", lst)
+        print("average:", sum(lst) / len(lst))
+        plt.plot(
+            [i + 1 for i in range(len(self.evaluations))],
+            lst,
+        )
+        plt.show()
 
 
 # def save_checkpoint(self, state):
