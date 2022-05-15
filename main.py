@@ -143,7 +143,7 @@ def get_run_res(trainer, episode_time, number_of_examples):
 def main():
 
     trainer1 = run_full_ses(
-        population=20, epsiode_length=1200, maze_index=2, number_of_breeds=5
+        population=200, epsiode_length=10000, maze_index=2, number_of_breeds=10
     )
     # trainer2 = run_full_ses(
     #     population=400, epsiode_length=1200, maze_index=2, number_of_breeds=15
@@ -160,7 +160,7 @@ def main():
     # print("finished first training ,time: ", current_time)
     # consts.record = True
     # consts.video_name = "wow"
-    get_run_res(trainer1, 1200, 3)
+    get_run_res(trainer1, trainer1.episode_time_length, 3)
     # get_run_res(trainer2, 1200, 3)
     # get_run_res(trainer3, 1200, 3)
     # get_run_res(trainer4, 1200, 3)

@@ -1,3 +1,5 @@
+import torch
+
 is_visual = False
 use_real_time = 0
 debug_sim = False
@@ -16,3 +18,10 @@ cameraPitch = -89.9
 cameraTargetPosition = [0, 0, 0]
 record = False
 video_name = "vid"
+device_name = "cuda" if torch.cuda.is_available() else "cpu"
+device = torch.device(device_name)
+
+
+# breeding options
+breed_same_pair = False
+breed_with_self = False
