@@ -78,16 +78,15 @@ class NeuralNetwork(nn.Module):
         move = self.calculte_move(net_inp)
         return move.numpy()
 
-    def save(self):
-        f = open(consts.path_to_save, "w")
-        torch.save(self.state_dict(), consts.path_to_save)
-        f.close()
-    def load(self):
-        if os.path.isfile(consts.path_to_save) and os.stat(consts.path_to_save).st_size != 0:
-            f = open(consts.path_to_save, "r")
-            self.load_state_dict(torch.load(consts.path_to_save))
-            self.eval()
-            f.close()
+    def save(self, id):
+        with open(consts.path_to_save+str(id), "w") as f:
+            torch.save(self.state_dict(), consts.path_to_save+str(id))
+
+    def load(self,id):
+        if os.path.isfile(consts.path_to_save+str(id)) and os.stat(consts.path_to_save+str(id)).st_size != 0:
+            with open(consts.path_to_save+str(id), "r") as r:
+                self.load_state_dict(torch.load(consts.path_to_save+str(id)))
+                self.eval()
 
 def calculate_score(car, episode_time_length, training_set):
     total_reward = 0
