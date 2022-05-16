@@ -30,15 +30,25 @@ def distance(p1, p2):
 
 
 def create_poly_wall(poly, epsilon):
+    walls = []
+    start = 1
+    prev_angle = 0
+    if len(poly) < 2 or (len(poly) == 2 and poly[0] == poly[1]):
+        print("Illegal polygonal wall")
+        return
     length = distance(poly[0], poly[1]) + 2 * epsilon
     width = 2 * epsilon
-    prev_angle = math.atan2(poly[1][1] - poly[0][1], poly[1][0] - poly[0][0])
-    euler = [0, 0, prev_angle]
-    orientation = p.getQuaternionFromEuler(euler)
-    pos = [(poly[0][0] + poly[1][0]) / 2, (poly[0][1] + poly[1][1]) / 2, 0.5]
-    create_wall(pos, orientation, length, width)
-    walls = []
-    for i in range(1, len(poly) - 1):
+    if poly[0] != poly[-1]:
+        prev_angle = math.atan2(poly[1][1] - poly[0][1], poly[1][0] - poly[0][0])
+        euler = [0, 0, prev_angle]
+        orientation = p.getQuaternionFromEuler(euler)
+        pos = [(poly[0][0] + poly[1][0]) / 2, (poly[0][1] + poly[1][1]) / 2, 0.5]
+        walls.append(create_wall(pos, orientation, length, width))
+    else:
+        start = 0
+        prev_angle = math.atan2(poly[-1][1] - poly[-2][1], poly[-1][0] - poly[-2][0])
+    
+    for i in range(start, len(poly) - 1):
         length = distance(poly[i], poly[i + 1]) + epsilon
         angle = math.atan2(poly[i + 1][1] - poly[i][1], poly[i + 1][0] - poly[i][0])
         diff = angle - prev_angle
@@ -136,7 +146,7 @@ def main():
             (-10, 0),
             (-3, 1),
             (-10, 10),
-            (-2, 4),
+            (-1, 3),
         ],
         epsilon,
     )
