@@ -10,7 +10,7 @@ max_velocity = 18
 map_borders = [[(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)]]
 min_dist_to_target = 0.5
 ray_length = 10
-initial_mutation_density = 0.1
+initial_mutation_density = 0.005  # what percent of weights is mutated (at beginning)
 print_reward_breakdown = False
 cameraDistance = 7
 cameraYaw = -89.9
@@ -23,5 +23,6 @@ device = torch.device(device_name)
 
 
 # breeding options
-breed_same_pair = False
-breed_with_self = False
+breed_same_pair = True  # can a pair be chosen more than once
+breed_with_self = True  # can a car be chosen with itself
+duplicate_best = True   # do we duplicate and mutate the best car

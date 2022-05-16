@@ -31,8 +31,8 @@ class Trainer:
         self.episode_time_length = episode_time_length
         self.training_set = training_set
 
-    def mutation_density(self):
-        return consts.initial_mutation_density
+    def mutation_density(self, size):
+        return max(consts.initial_mutation_density, 1/size)
 
     def mutate(self):
         for car in self.population[1:]:
@@ -44,7 +44,7 @@ class Trainer:
             if len(mat_size) == 1:
                 mat_size = [1] + mat_size
             rvs = stats.norm(loc=0, scale=self.mutation_rate).rvs
-            mutation = sparse.random(mat_size[0], mat_size[1], self.mutation_density(), data_rvs=rvs).todense()
+            mutation = sparse.random(mat_size[0], mat_size[1], self.mutation_density(mat_size[0] * mat_size[1]), data_rvs=rvs).todense()
             mutation_tensor = torch.from_numpy(mutation).squeeze().to(dtype=torch.float32).to(consts.device)
             # print(consts.device_name)
             # print(mutation_tensor.is_cuda)
@@ -59,6 +59,8 @@ class Trainer:
         next_gen = [a[0] for a in best_cars]
         car_cnt = len(next_gen)
         add_amt = self.population_count - car_cnt
+        if consts.duplicate_best:
+            add_amt -= 1
         best_scores = np.array([a[1] for a in best_cars])
         best_scores -= np.min(best_scores)
         best_scores /= np.max(best_scores)  # normaize between 0 and 1
@@ -93,6 +95,10 @@ class Trainer:
         self.population = next_gen
         for ind in chosen:
             self.population.append(self.breed_models([next_gen[i] for i in ind]))
+
+        if consts.duplicate_best:
+            self.population.append(self.breed_models([self.population[0]]))
+
         self.mutate()
 
     def breed_models(self, models):
@@ -107,8 +113,8 @@ class Trainer:
             for i, car in enumerate(models):
                 weights[i] = get_module_by_name(
                     car, k
-                ).data  # probably doesnt work - fuck you dvir
-            v.data = weights.mean(dim=0)  # maybe wrong dim - fuck you dvir
+                ).data
+            v.data = weights.mean(dim=0)
         return new_model
 
     def evaluate(self):
@@ -118,6 +124,8 @@ class Trainer:
                 car, self.episode_time_length, self.training_set
             )  # need to implement
             self.evaluations.append((car, score))
+        print('mutation of best', self.evaluations[-1][1])
+        print('last oter_best best', self.evaluations[0][1])
         self.evaluations.sort(key=lambda x: x[1], reverse=True)
         print("best:", self.evaluations[0][1])
         lst = [self.evaluations[i][1] for i in range(len(self.evaluations))]
