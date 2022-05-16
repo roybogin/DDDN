@@ -15,3 +15,4 @@ cameraPitch = -89.9
 cameraTargetPosition = [0, 0, 0]
 record = False
 video_name = "vid"
+path_to_save = "saved_run.txt"

@@ -8,6 +8,8 @@ import random
 import math
 import matplotlib.pyplot as plt
 import simulator
+import consts
+import os
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -76,11 +78,16 @@ class NeuralNetwork(nn.Module):
         move = self.calculte_move(net_inp)
         return move.numpy()
 
-    def get_weights(self):
-        l1 = [i for i in self.lines_to_features if isinstance(i, nn.Linear)]
-        l2 = [i for i in self.calculte_move if isinstance(i, nn.Linear)]
-        return l1 + l2
-
+    def save(self):
+        f = open(consts.path_to_save, "w")
+        torch.save(self.state_dict(), consts.path_to_save)
+        f.close()
+    def load(self):
+        if os.path.isfile(consts.path_to_save) and os.stat(consts.path_to_save).st_size != 0:
+            f = open(consts.path_to_save, "r")
+            self.load_state_dict(torch.load(consts.path_to_save))
+            self.eval()
+            f.close()
 
 def calculate_score(car, episode_time_length, training_set):
     total_reward = 0

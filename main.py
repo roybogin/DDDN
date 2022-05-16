@@ -124,7 +124,6 @@ def get_run_res(trainer, episode_time, number_of_examples):
 
 
 def main():
-
     trainer1 = run_full_ses(
         population=20, epsiode_length=12, maze_index=2, number_of_breeds=3
     )
