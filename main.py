@@ -81,11 +81,9 @@ default_training_set = [
 
 def run_full_ses(population=10, epsiode_length=1, maze_index=0, number_of_breeds=1):
     torch.set_grad_enabled(False)
-    EPOCHS = 1000
     model = NeuralNetwork
     trainer = Trainer(
         model,
-        EPOCHS,
         population,
         mutation_rate=1,
         episode_time_length=epsiode_length,
