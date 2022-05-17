@@ -33,7 +33,7 @@ class Trainer:
         return max(consts.initial_mutation_density, 1/size)
 
     def mutate(self):
-        for car in self.population[1:]:
+        for car in self.population[consts.amount_to_save:]:
             self.mutate_one(car)
 
     def mutate_one(self, model):
@@ -56,9 +56,7 @@ class Trainer:
         ]
         next_gen = [a[0] for a in best_cars]
         car_cnt = len(next_gen)
-        add_amt = self.population_count - car_cnt
-        if consts.duplicate_best:
-            add_amt -= 1
+        add_amt = self.population_count - car_cnt - consts.amount_to_save
         best_scores = np.array([a[1] for a in best_cars])
         best_scores -= np.min(best_scores)
         best_scores /= np.max(best_scores)  # normaize between 0 and 1
@@ -94,8 +92,8 @@ class Trainer:
         for ind in chosen:
             self.population.append(self.breed_models([next_gen[i] for i in ind]))
 
-        if consts.duplicate_best:
-            self.population.append(self.breed_models([self.population[0]]))
+        for i in range(consts.amount_to_save):
+            self.population.append(self.breed_models([self.population[i]]))
 
         self.mutate()
 
