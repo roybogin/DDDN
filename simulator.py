@@ -75,9 +75,7 @@ def ray_cast(car, offset, direction):
 
 def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
     for ob in obstacles:
-        closest_points = p.getClosestPoints(
-            car_model, ob, distance=max_distance, physicsClientId=col_id
-        )
+        closest_points = p.getClosestPoints(car_model, ob, distance=max_distance)
         closest_points = [a for a in closest_points if not (a[1] == a[2] == car_model)]
         if len(closest_points) != 0:
             dist = np.min([pt[8] for pt in closest_points])
@@ -113,18 +111,17 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
         if consts.record:
             log_id = p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, consts.video_name)
         if consts.debug_sim:
-            pos, qat = p.getBasePositionAndOrientation(car_model)
-            if pos[2] > 0.1:
-                print("step", i)
-                print("pos", pos)
-                print("last_pos", last_pos)
-                print("speed", speed)
-                print("acceleration", acceleration)
-                print("swivel:", steeringAngle)
-                print("targetVelocity", targetVelocity)
-                print()
+            print("step", i)
+            print("pos", pos)
+            print("last_pos", last_pos)
+            print("speed", speed)
+            print("acceleration", acceleration)
+            print("swivel:", steeringAngle)
+            print("targetVelocity", targetVelocity)
+            print()
 
         if crushed or finished:
+            p.disconnect()
             return distance_covered, map_discovered, finished, time, crushed
 
         # updating map
@@ -145,6 +142,9 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
             finished = True
         # getting values for NN
         pos, quat = p.getBasePositionAndOrientation(car_model)
+        if pos[2] > 0.1:
+            crushed = True
+
         pos = pos[:2]
         rotation = p.getEulerFromQuaternion(quat)[2]
         speed = norm(pos, last_pos)
@@ -183,7 +183,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
                 wheel,
                 p.VELOCITY_CONTROL,
                 targetVelocity=targetVelocity,
-                force=10,
+                force=consts.max_force,
             )
 
         for steer in steering:
