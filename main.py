@@ -11,7 +11,7 @@ default_data_set = [
     (
         [[(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)]],
         [0, 0, 0],
-        [1, 1, 0],
+        [3, 4, 0],
     ),  # empty
     (
         [
@@ -139,8 +139,10 @@ def get_run_res(trainer, episode_time, number_of_examples):
 
 def main():
     trainer1 = run_full_ses(
-        population=20, epsiode_length=1200, maze_index=1, number_of_breeds=1
+        population=200, epsiode_length=3000, maze_index=0, number_of_breeds=30
     )
+    get_run_res(trainer1, trainer1.episode_time_length, 30)
+
     # trainer2 = run_full_ses(
     #     population=400, epsiode_length=1200, maze_index=2, number_of_breeds=15
     # )
@@ -156,7 +158,7 @@ def main():
     # print("finished first training ,time: ", current_time)
     # consts.record = True
     # consts.video_name = "wow"
-    get_run_res(trainer1, trainer1.episode_time_length, 3)
+
     # get_run_res(trainer2, 1200, 3)
     # get_run_res(trainer3, 1200, 3)
     # get_run_res(trainer4, 1200, 3)
