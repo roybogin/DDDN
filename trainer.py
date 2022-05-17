@@ -13,17 +13,15 @@ import matplotlib.pyplot as plt
 class Trainer:
     def __init__(
         self,
-        model,
-        epochs,
-        population_count,
-        mutation_rate,
-        breed_percent,
+        model,  # the NN class
+        population_count,   # amount of models each step
+        mutation_rate,  # variancce of mutation matrix
+        breed_percent,  # percent of population to keep for the next iteration
         training_set=None,
-        episode_time_length=1000,
+        episode_time_length=1000,   # how many steps for each simulation
     ):
         self.mutation_rate = mutation_rate
         self.model = model
-        self.epochs = epochs
         self.population_count = population_count
         self.population = [model().to(consts.device) for _ in range(population_count)]
         self.evaluations = None
