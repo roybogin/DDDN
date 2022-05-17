@@ -49,8 +49,11 @@ class Trainer:
             v.data = v.data + mutation_tensor.data 
             
 
-    def breed(self):
+    def breed(self, is_last_round):
         self.evaluate()
+        if is_last_round:
+            self.population = [a[0] for a in self.evaluations]
+            return 
         best_cars = self.evaluations[
             : (int)(self.breed_percent * self.population_count)
         ]
@@ -94,7 +97,7 @@ class Trainer:
 
         for i in range(consts.amount_to_save):
             self.population.append(self.breed_models([self.population[i]]))
-
+        
         self.mutate()
 
     def breed_models(self, models):
