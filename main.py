@@ -139,11 +139,7 @@ def get_run_res(trainer, episode_time, number_of_examples):
 
 def main():
     trainer1 = run_full_ses(
-<<<<<<< HEAD
         population=40, epsiode_length=10000, maze_index=2, number_of_breeds=20
-=======
-        population=20, epsiode_length=1200, maze_index=1, number_of_breeds=1
->>>>>>> master
     )
     # trainer2 = run_full_ses(
     #     population=400, epsiode_length=1200, maze_index=2, number_of_breeds=15
