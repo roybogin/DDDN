@@ -107,12 +107,13 @@ class Trainer:
 
         new_model = self.model().to(consts.device)
         for k, v in new_model.named_parameters():
-            weights = torch.empty(len(models), *v.size()).to(consts.device)
+            indices = np.random.randint(len(models), size=tuple(v.size()))
+            new_weight = torch.zeros_like(v.data).to(consts.device)
             for i, car in enumerate(models):
-                weights[i] = get_module_by_name(
+                new_weight += get_module_by_name(
                     car, k
-                ).data
-            v.data = weights.mean(dim=0)
+                ).data * (indices == i)
+            v.data = new_weight
         return new_model
 
     def evaluate(self):

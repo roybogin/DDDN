@@ -169,7 +169,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
         if abs(steeringAngle) > consts.max_steer:
             steeringAngle = consts.max_steer * steeringAngle / abs(steeringAngle)
         if abs(targetVelocity) > consts.max_velocity:
-            targetVelocity = consts.max_steer * targetVelocity / abs(targetVelocity)
+            targetVelocity = consts.max_velocity * targetVelocity / abs(targetVelocity)
 
         # saving for later
         swivel = steeringAngle
