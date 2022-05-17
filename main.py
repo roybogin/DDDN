@@ -24,7 +24,16 @@ default_data_set = [
     (
         [
             [(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)],
-            [(-4, 0), (-0.75, 3)],
+            [(1.5, -1.5), (1.5, 1.5)],
+            [(2, 0), (5, 0)],
+        ],
+        [0, 0, 0],
+        [5, 0, 0],
+    ),  # T shape with hidden wall
+    (
+        [
+            [(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)],
+            [(-4, 0), (0, 4)],
             [(-3, 5), (3, 5)],
             [(-7, 4), (-3, 3)],
         ],
@@ -81,11 +90,9 @@ default_training_set = [
 
 def run_full_ses(population=10, epsiode_length=1, maze_index=0, number_of_breeds=1):
     torch.set_grad_enabled(False)
-    EPOCHS = 1000
     model = NeuralNetwork
     trainer = Trainer(
         model,
-        EPOCHS,
         population,
         mutation_rate=1,
         episode_time_length=epsiode_length,
@@ -132,9 +139,8 @@ def get_run_res(trainer, episode_time, number_of_examples):
 
 
 def main():
-
     trainer1 = run_full_ses(
-        population=20, epsiode_length=1200, maze_index=2, number_of_breeds=5
+        population=200, epsiode_length=10000, maze_index=2, number_of_breeds=30
     )
     # trainer2 = run_full_ses(
     #     population=400, epsiode_length=1200, maze_index=2, number_of_breeds=15
@@ -151,7 +157,7 @@ def main():
     # print("finished first training ,time: ", current_time)
     # consts.record = True
     # consts.video_name = "wow"
-    get_run_res(trainer1, 1200, 3)
+    get_run_res(trainer1, trainer1.episode_time_length, 3)
     # get_run_res(trainer2, 1200, 3)
     # get_run_res(trainer3, 1200, 3)
     # get_run_res(trainer4, 1200, 3)

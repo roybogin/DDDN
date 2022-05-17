@@ -2,15 +2,14 @@ from calendar import EPOCH
 import torch
 from torch import nn, optim
 from collections import namedtuple, deque
-from torch.optim.lr_scheduler import MultiStepLR
+import consts
 
 import random
 import math
 import matplotlib.pyplot as plt
 import simulator
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
+import consts
+import os
 
 ## reward constants:
 DISTANCE_REWARD = 1.0
@@ -66,21 +65,25 @@ class NeuralNetwork(nn.Module):
         )
 
     def forward(self, x):
-        lines = torch.FloatTensor(x[-1])
+        lines = torch.FloatTensor(x[-1]).to(consts.device)
         lines = self.lines_to_features(lines)
         features, _ = self.get_features(lines, dim=0)
 
-        attrib = torch.FloatTensor(flatten(x[:-1]))
-        net_inp = torch.cat((attrib, features))
+        attrib = torch.FloatTensor(flatten(x[:-1])).to(consts.device)
+        net_inp = torch.cat((attrib, features)).to(consts.device)
 
         move = self.calculte_move(net_inp)
         return move.numpy()
 
-    def get_weights(self):
-        l1 = [i for i in self.lines_to_features if isinstance(i, nn.Linear)]
-        l2 = [i for i in self.calculte_move if isinstance(i, nn.Linear)]
-        return l1 + l2
+    def save(self, id):
+        with open(consts.path_to_save+str(id), "w") as f:
+            torch.save(self.state_dict(), consts.path_to_save+str(id))
 
+    def load(self,id):
+        if os.path.isfile(consts.path_to_save+str(id)) and os.stat(consts.path_to_save+str(id)).st_size != 0:
+            with open(consts.path_to_save+str(id), "r") as r:
+                self.load_state_dict(torch.load(consts.path_to_save+str(id)))
+                self.eval()
 
 def calculate_score(car, episode_time_length, training_set):
     total_reward = 0
