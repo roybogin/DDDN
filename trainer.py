@@ -124,8 +124,8 @@ class Trainer:
                 car, self.episode_time_length, self.training_set
             )  # need to implement
             self.evaluations.append((car, score))
-        print('mutation of best', self.evaluations[-1][1])
-        print('last oter_best best', self.evaluations[0][1])
+        # print('mutation of best', self.evaluations[-1][1])
+        # print('last oter_best best', self.evaluations[0][1])
         self.evaluations.sort(key=lambda x: x[1], reverse=True)
         print("best:", self.evaluations[0][1])
         lst = [self.evaluations[i][1] for i in range(len(self.evaluations))]
