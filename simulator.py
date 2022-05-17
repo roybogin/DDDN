@@ -162,8 +162,6 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
                 map.segment_representation_as_points(),
             ]
         )
-        changeTargetVelocity = 1
-        changeSteeringAngle = 0
 
         # updating target velocity and steering angle
         targetVelocity += changeTargetVelocity * consts.speed_scalar
