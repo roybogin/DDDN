@@ -100,26 +100,63 @@ def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
 def norm(a1, a2):
     return math.sqrt(sum(((x - y) ** 2 for x, y in zip(a1, a2))))
 
+def plot_line_low(x0, y0, x1, y1, discovered_matrix):
+    dx = x1 - x0
+    dy = y1 - y0
+    yi = 1
+    if dy < 0:
+        yi = -1
+        dy = -dy
+
+    D = (2 * dy) - dx
+    y = y0
+
+    for x in range (x0, x1+1):
+        discovered_matrix[x][y] = 1
+        if D > 0:
+            y = y + yi
+            D = D + (2 * (dy - dx))
+        else:
+            D = D + 2*dy
+
+def plot_line_high(x0, y0, x1, y1, discovered_matrix):
+    dx = x1 - x0
+    dy = y1 - y0
+    xi = 1
+    if dx < 0:
+        xi = -1
+        dx = -dx
+
+    D = (2 * dx) - dy
+    x = x0
+
+    for y in range(y0, y1+1):
+        discovered_matrix[x][y] = 1
+        if D > 0:
+            x = x + xi
+            D = D + (2 * (dx - dy))
+        else:
+            D = D + 2*dx
+
+def plot_line(x0, y0, x1, y1, discovered_matrix):
+    if abs(y1 - y0) < abs(x1 - x0):
+        if x0 > x1:
+            plot_line_low(x1, y1, x0, y0, discovered_matrix)
+        else:
+            plot_line_low(x0, y0, x1, y1, discovered_matrix)
+    else:
+        if y0 > y1:
+            plot_line_high(x1, y1, x0, y0, discovered_matrix)
+        else:
+            plot_line_high(x0, y0, x1, y1, discovered_matrix)
 
 def add_disovered_list(discovered_matrix, start, end):
-    iter_list = start
-    ray = [end[i] - start[i] for i in range(2)]
-    ray_length = int(norm(end, start))
-    dist_between_points = int(ray_length / consts.block_size)
-    if dist_between_points == 0:
-        dist_between_points = 1
-    to_add = multiply_list_by_scalar(
-        ray,
-        1 / dist_between_points,
-    )
-    x = int((iter_list[0] + consts.size_map_quarter) / consts.block_size)
-    y = int((iter_list[1] + consts.size_map_quarter) / consts.block_size)
-    discovered_matrix[x][y] = 1
-    for i in range(int(ray_length / consts.block_size) - 1):
-        iter_list = addLists([iter_list, to_add])
-        x = int((iter_list[0] + consts.size_map_quarter) / consts.block_size)
-        y = int((iter_list[1] + consts.size_map_quarter) / consts.block_size)
-        discovered_matrix[x][y] = 1
+    x0 = int((start[0] + consts.size_map_quarter) / consts.block_size)
+    y0 = int((start[1] + consts.size_map_quarter) / consts.block_size)
+    x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
+    y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
+
+    plot_line(x0, y0, x1, y1, discovered_matrix)  
 
     return (
         sum([sum(discovered_matrix[i]) for i in range(len(discovered_matrix))])
@@ -173,8 +210,8 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
     last_pos = starting_point
     maze = scan_to_map.Map([])
     discovered = [
-        [0 for x in range(int((2 * consts.size_map_quarter) // consts.block_size))]
-        for y in range(int((2 * consts.size_map_quarter) // consts.block_size))
+        [0 for x in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
+        for y in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))
     ]
 
     for i in range(steps):
