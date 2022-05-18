@@ -8,6 +8,9 @@ import numpy as np
 import consts
 from scan_to_map import Map
 import time as t
+import matplotlib.pyplot as plt
+
+from matplotlib.colors import ListedColormap
 
 
 def addLists(lists):
@@ -17,8 +20,10 @@ def addLists(lists):
             ret[i] += l[i]
     return ret
 
+
 def multiply_list_by_scalar(list, scalar):
     return [scalar * elem for elem in list]
+
 
 def start_simulation():
     if consts.is_visual:
@@ -74,8 +79,11 @@ def ray_cast(car, offset, direction):
     ]
     start = addLists([pos, offset])
     end = addLists([pos, offset, direction])
-
-    return p.rayTest(start, end)[0][3], start[:2], end[:2]
+    ray_test = p.rayTest(start, end)
+    if ray_test[0][3] == (0, 0, 0):
+        return (0, 0, 0), start[:2], end[:2]
+    else:
+        return ray_test[0][3], start[:2], ray_test[0][3]
 
 
 def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
@@ -91,6 +99,33 @@ def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
 
 def norm(a1, a2):
     return math.sqrt(sum(((x - y) ** 2 for x, y in zip(a1, a2))))
+
+
+def add_disovered_list(discovered_matrix, start, end):
+    iter_list = start
+    to_add = multiply_list_by_scalar(
+        [start[i] - end[i] for i in range(2)],
+        1 / int(consts.ray_length / consts.block_size),
+    )
+    x = int((iter_list[0] + consts.size_map_quarter) / consts.block_size)
+    y = int((iter_list[1] + consts.size_map_quarter) / consts.block_size)
+    discovered_matrix[x][y] = 1
+    for i in range(int(consts.ray_length / consts.block_size)):
+        iter_list = addLists([iter_list, to_add])
+        x = int((iter_list[0] + consts.size_map_quarter) / consts.block_size)
+        y = int((iter_list[1] + consts.size_map_quarter) / consts.block_size)
+        discovered_matrix[x][y] = 1
+
+    return (
+        sum([sum(discovered_matrix[i]) for i in range(len(discovered_matrix))])
+        / len(discovered_matrix) ** 2
+    )
+
+
+def draw_discovered_matrix(discovered_matrix):
+    cmap = ListedColormap(["b", "g"])
+    matrix = np.array(discovered_matrix, dtype=np.uint8)
+    plt.imshow(matrix, cmap=cmap)
 
 
 def run_sim(car_brain, steps, maze, starting_point, end_point):
@@ -111,7 +146,11 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
     car_model, wheels, steering = create_car_model(starting_point)
     last_pos = starting_point
     maze = scan_to_map.Map([])
-    discovered = [[0 for x in range(((2*consts.size_map_quarter)//consts.block_size))] for y in range(((2*consts.size_map_quarter)//consts.block_size))]
+    discovered = [
+        [0 for x in range(int((2 * consts.size_map_quarter) // consts.block_size))]
+        for y in range(int((2 * consts.size_map_quarter) // consts.block_size))
+    ]
+
     for i in range(steps):
         if consts.record:
             log_id = p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, consts.video_name)
@@ -137,18 +176,8 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
                 map.add_points_to_map(hits)
 
                 hits = []
-        
-        iter_list = start
-        to_add = multiply_list_by_scalar(end, 1/int(consts.ray_length))
-        x = int((iter_list[0]+consts.size_map_quarter)/consts.block_size)
-        y = int((iter_list[1]+consts.size_map_quarter)/consts.block_size)
-        discovered[x][y] = 1
-        for i in range(int(consts.ray_length)):
-            iter_list = addLists([iter_list, to_add])
-            x = int((iter_list[0]+consts.size_map_quarter)/consts.block_size)
-            y = int((iter_list[1]+consts.size_map_quarter)/consts.block_size)
-            discovered[x][y] = 1
-        map_discovered = map.map_length() - 279
+
+        map_discovered = add_disovered_list(discovered, start, end)
 
         # checking if collided or finished
         if check_collision(car_model, bodies, col_id):
@@ -216,6 +245,8 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
         print("map_discoverd", map_discovered)
         print("distance_covered", distance_covered)
         print("time", time)
+        draw_discovered_matrix(discovered)
+
         map.show()
 
     return distance_covered, map_discovered, finished, time, crushed

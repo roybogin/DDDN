@@ -1,14 +1,14 @@
 import torch
 
 # pybullet simulation
-is_visual = False   # do we want to see visual footage
-use_real_time = 0   # is the simulation running in real time - probably should always be 0
+is_visual = False  # do we want to see visual footage
+use_real_time = (
+    0  # is the simulation running in real time - probably should always be 0
+)
 debug_sim = False
 speed_scalar = 1
 steer_scalar = 1
 max_steer = 0.7
-max_velocity = 30
-max_force = 50
 map_borders = [[(35, 35), (35, -35), (-35, -35), (-35, 35), (35, 35)]]
 min_dist_to_target = 0.5
 ray_length = 10
@@ -24,14 +24,16 @@ cameraTargetPosition = [0, 0, 0]
 speed_scalar = 1
 steer_scalar = 0.1
 max_steer = 0.7
-max_velocity = 18
+max_velocity = 30
+max_force = 50
 
 
-min_dist_to_target = 0.5    # distance from target that is treated as success
-ray_length = 10 # length of ray
+min_dist_to_target = 0.5  # distance from target that is treated as success
+ray_length = 10  # length of ray
 print_reward_breakdown = False
 size_map_quarter = 35
-block_size = 5
+block_size = 0.1
+
 
 record = False
 video_name = "vid"
@@ -42,5 +44,5 @@ device = torch.device(device_name)
 # breeding options
 breed_same_pair = True  # can a pair be chosen more than once
 breed_with_self = True  # can a car be chosen with itself
-duplicate_best = True   # do we duplicate and mutate the best car
+duplicate_best = True  # do we duplicate and mutate the best car
 path_to_save = "saved_run.txt"

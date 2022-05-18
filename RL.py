@@ -13,7 +13,7 @@ import os
 
 ## reward constants:
 DISTANCE_REWARD = 1.0
-EXPLORATION_REWARD = 1.0
+EXPLORATION_REWARD = 500.0
 END_REWARD = 10000.0  # 10^5
 TIME_PENALTY = -5.0  # at each frame
 CRUSH_PENALTY = -1000000  # once
@@ -76,14 +76,18 @@ class NeuralNetwork(nn.Module):
         return move.numpy()
 
     def save(self, id):
-        with open(consts.path_to_save+str(id), "w") as f:
-            torch.save(self.state_dict(), consts.path_to_save+str(id))
+        with open(consts.path_to_save + str(id), "w") as f:
+            torch.save(self.state_dict(), consts.path_to_save + str(id))
 
-    def load(self,id):
-        if os.path.isfile(consts.path_to_save+str(id)) and os.stat(consts.path_to_save+str(id)).st_size != 0:
-            with open(consts.path_to_save+str(id), "r") as r:
-                self.load_state_dict(torch.load(consts.path_to_save+str(id)))
+    def load(self, id):
+        if (
+            os.path.isfile(consts.path_to_save + str(id))
+            and os.stat(consts.path_to_save + str(id)).st_size != 0
+        ):
+            with open(consts.path_to_save + str(id), "r") as r:
+                self.load_state_dict(torch.load(consts.path_to_save + str(id)))
                 self.eval()
+
 
 def calculate_score(car, episode_time_length, training_set):
     total_reward = 0
