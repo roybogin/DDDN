@@ -6,7 +6,7 @@ import math
 import scan_to_map
 import numpy as np
 import consts
-from scan_to_map import Map
+from scan_to_map import Map, dist
 import time as t
 
 
@@ -93,6 +93,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
     steeringAngle = 0
     swivel = 0
     distance_covered = 0
+    min_distance_to_target = dist(starting_point[:2], end_point[:2])
     map_discovered = 0
     finished = False
     time = 0
@@ -122,7 +123,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
 
         if crushed or finished:
             p.disconnect()
-            return distance_covered, map_discovered, finished, time, crushed
+            return distance_covered, map_discovered, finished, time, crushed, min_distance_to_target
 
         # updating map
         hit = ray_cast(car_model, [0, 0, 0], [-consts.ray_length, 0, 0])
@@ -193,6 +194,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
 
         time += 1
         distance_covered += speed
+        min_distance_to_target = min(min_distance_to_target, dist(pos, end_point[:2]))
         p.stepSimulation()
     if consts.record:
         p.stopStateLogging(log_id)
@@ -202,5 +204,4 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
         print("distance_covered", distance_covered)
         print("time", time)
         map.show()
-
-    return distance_covered, map_discovered, finished, time, crushed
+    return distance_covered, map_discovered, finished, time, crushed, min_distance_to_target

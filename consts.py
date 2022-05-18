@@ -37,10 +37,19 @@ record = False
 video_name = "vid"
 device_name = "cuda" if torch.cuda.is_available() else "cpu"
 device = torch.device(device_name)
-
+path_to_save = "saved_run"
+path_extentions = ".txt"
 
 # breeding options
 breed_same_pair = True  # can a pair be chosen more than once
 breed_with_self = False  # can a car be chosen with itself
 amount_to_save = 1   # how many of the best to save
-path_to_save = "saved_run.txt"
+
+
+## reward constants:
+DISTANCE_REWARD = 1.0
+EXPLORATION_REWARD = 1.0
+MIN_DIST_PENALTY = -10.0
+END_REWARD = 10000.0  # 10^5
+TIME_PENALTY = -5.0  # at each frame
+CRUSH_PENALTY = -1000000  # once

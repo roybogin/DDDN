@@ -11,14 +11,6 @@ import simulator
 import consts
 import os
 
-## reward constants:
-DISTANCE_REWARD = 1.0
-EXPLORATION_REWARD = 1.0
-END_REWARD = 10000.0  # 10^5
-TIME_PENALTY = -5.0  # at each frame
-CRUSH_PENALTY = -1000000  # once
-
-
 def flatten(lst):
     ret = []
     for o in lst:
@@ -63,6 +55,7 @@ class NeuralNetwork(nn.Module):
             nn.Linear(64, 2),
             nn.Tanh(),
         )
+        # self.eval() - maybe would speed up time be not remembering gradients
 
     def forward(self, x):
         lines = torch.FloatTensor(x[-1]).to(consts.device)
@@ -76,13 +69,15 @@ class NeuralNetwork(nn.Module):
         return move.numpy()
 
     def save(self, id):
-        with open(consts.path_to_save+str(id), "w") as f:
-            torch.save(self.state_dict(), consts.path_to_save+str(id))
+        file_name = consts.path_to_save+str(id)+consts.path_extentions
+        with open(file_name, "w") as f:
+            torch.save(self.state_dict(), file_name)
 
     def load(self,id):
-        if os.path.isfile(consts.path_to_save+str(id)) and os.stat(consts.path_to_save+str(id)).st_size != 0:
-            with open(consts.path_to_save+str(id), "r") as r:
-                self.load_state_dict(torch.load(consts.path_to_save+str(id)))
+        file_name = consts.path_to_save+str(id)+consts.path_extentions
+        if os.path.isfile(file_name) and os.stat(file_name).st_size != 0:
+            with open(file_name, "r") as r:
+                self.load_state_dict(torch.load(file_name))
                 self.eval()
 
 def calculate_score(car, episode_time_length, training_set):
@@ -90,16 +85,17 @@ def calculate_score(car, episode_time_length, training_set):
     i = 0
     for map, starting_point, end_point in training_set:
         i += 1
-        distance_covered, map_discovered, finished, time, crushed = simulator.run_sim(
+        distance_covered, map_discovered, finished, time, crushed, min_dist_to_target = simulator.run_sim(
             car, episode_time_length, map, starting_point, end_point
         )
 
         total_reward += (
-            (distance_covered * DISTANCE_REWARD)
-            + (map_discovered * EXPLORATION_REWARD)
-            + (finished * END_REWARD)
-            + (time * TIME_PENALTY)
-            + (crushed * CRUSH_PENALTY)
+            (distance_covered * consts.DISTANCE_REWARD)
+            + (map_discovered * consts.EXPLORATION_REWARD)
+            + (finished * consts.END_REWARD)
+            + (time * consts.TIME_PENALTY)
+            + (crushed * consts.CRUSH_PENALTY)
+            + (min_dist_to_target * consts.MIN_DIST_PENALTY)
         )
 
         # print(i, "* DISTANCE_REWARD = ", distance_covered * DISTANCE_REWARD)
