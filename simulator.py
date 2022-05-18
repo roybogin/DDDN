@@ -17,7 +17,7 @@ def addLists(lists):
             ret[i] += l[i]
     return ret
 
-def multiply_list_by_scalar(list, scalar)
+def multiply_list_by_scalar(list, scalar):
     return [scalar * elem for elem in list]
 
 def start_simulation():
@@ -111,7 +111,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
     car_model, wheels, steering = create_car_model(starting_point)
     last_pos = starting_point
     maze = scan_to_map.Map([])
-    discovered = ([0] * (consts.size_map//consts.block_size)) * (consts.size_map//consts.block_size)
+    discovered = [[0 for x in range(((2*consts.size_map_quarter)//consts.block_size))] for y in range(((2*consts.size_map_quarter)//consts.block_size))]
     for i in range(steps):
         if consts.record:
             log_id = p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, consts.video_name)
@@ -140,15 +140,14 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
         
         iter_list = start
         to_add = multiply_list_by_scalar(end, 1/int(consts.ray_length))
-        x = numpy.floor((iter_list[0]+consts.size_map_quarter)/consts.block_size)
-        y = numpy.floor((iter_list[1]+consts.size_map_quarter)/consts.block_size)
+        x = int((iter_list[0]+consts.size_map_quarter)/consts.block_size)
+        y = int((iter_list[1]+consts.size_map_quarter)/consts.block_size)
         discovered[x][y] = 1
         for i in range(int(consts.ray_length)):
-            iter_list = addLists(iter_list, to_add)
-            x = numpy.floor((iter_list[0]+consts.size_map_quarter)/consts.block_size)
-            y = numpy.floor((iter_list[1]+consts.size_map_quarter)/consts.block_size)
+            iter_list = addLists([iter_list, to_add])
+            x = int((iter_list[0]+consts.size_map_quarter)/consts.block_size)
+            y = int((iter_list[1]+consts.size_map_quarter)/consts.block_size)
             discovered[x][y] = 1
-            
         map_discovered = map.map_length() - 279
 
         # checking if collided or finished

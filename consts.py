@@ -31,7 +31,7 @@ min_dist_to_target = 0.5    # distance from target that is treated as success
 ray_length = 10 # length of ray
 print_reward_breakdown = False
 size_map_quarter = 35
-block_size = 1
+block_size = 5
 
 record = False
 video_name = "vid"
