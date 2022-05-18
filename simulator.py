@@ -17,6 +17,8 @@ def addLists(lists):
             ret[i] += l[i]
     return ret
 
+def multiply_list_by_scalar(list, scalar)
+    return [scalar * elem for elem in list]
 
 def start_simulation():
     if consts.is_visual:
@@ -70,7 +72,10 @@ def ray_cast(car, offset, direction):
         x * direction[1] + y * direction[0],
         direction[2],
     ]
-    return p.rayTest(addLists([pos, offset]), addLists([pos, offset, direction]))[0][3]
+    start = addLists([pos, offset])
+    end = addLists([pos, offset, direction])
+
+    return p.rayTest(start, end)[0][3], start[:2], end[:2]
 
 
 def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
@@ -106,7 +111,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
     car_model, wheels, steering = create_car_model(starting_point)
     last_pos = starting_point
     maze = scan_to_map.Map([])
-
+    discovered = ([0] * (consts.size_map//consts.block_size)) * (consts.size_map//consts.block_size)
     for i in range(steps):
         if consts.record:
             log_id = p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, consts.video_name)
@@ -125,14 +130,25 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
             return distance_covered, map_discovered, finished, time, crushed
 
         # updating map
-        hit = ray_cast(car_model, [0, 0, 0], [-consts.ray_length, 0, 0])
+        hit, start, end = ray_cast(car_model, [0, 0, 0], [-consts.ray_length, 0, 0])
         if hit != (0, 0, 0):
             hits.append((hit[0], hit[1]))
             if len(hits) == max_hits_before_calculation:
                 map.add_points_to_map(hits)
 
                 hits = []
-
+        
+        iter_list = start
+        to_add = multiply_list_by_scalar(end, 1/int(consts.ray_length))
+        x = numpy.floor((iter_list[0]+consts.size_map_quarter)/consts.block_size)
+        y = numpy.floor((iter_list[1]+consts.size_map_quarter)/consts.block_size)
+        discovered[x][y] = 1
+        for i in range(int(consts.ray_length)):
+            iter_list = addLists(iter_list, to_add)
+            x = numpy.floor((iter_list[0]+consts.size_map_quarter)/consts.block_size)
+            y = numpy.floor((iter_list[1]+consts.size_map_quarter)/consts.block_size)
+            discovered[x][y] = 1
+            
         map_discovered = map.map_length() - 279
 
         # checking if collided or finished

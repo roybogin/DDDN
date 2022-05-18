@@ -9,7 +9,7 @@ steer_scalar = 1
 max_steer = 0.7
 max_velocity = 30
 max_force = 50
-map_borders = [[(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)]]
+map_borders = [[(35, 35), (35, -35), (-35, -35), (-35, 35), (35, 35)]]
 min_dist_to_target = 0.5
 ray_length = 10
 initial_mutation_density = 0.005  # what percent of weights is mutated (at beginning)
@@ -27,11 +27,11 @@ max_steer = 0.7
 max_velocity = 18
 
 
-map_borders = [[(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)]]
 min_dist_to_target = 0.5    # distance from target that is treated as success
 ray_length = 10 # length of ray
 print_reward_breakdown = False
-
+size_map_quarter = 35
+block_size = 1
 
 record = False
 video_name = "vid"
