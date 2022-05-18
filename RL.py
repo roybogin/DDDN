@@ -80,6 +80,7 @@ class NeuralNetwork(nn.Module):
                 self.load_state_dict(torch.load(file_name))
                 self.eval()
 
+
 def calculate_score(car, episode_time_length, training_set):
     total_reward = 0
     i = 0

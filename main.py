@@ -11,7 +11,7 @@ default_data_set = [
     (
         [[(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)]],
         [0, 0, 0],
-        [1, 1, 0],
+        [3, 4, 0],
     ),  # empty
     (
         [
@@ -113,10 +113,15 @@ def run_full_ses(population=10, epsiode_length=1, maze_index=0, number_of_breeds
             current_time = time.strftime("%H:%M:%S", t)
             print(i, "th iteration, time: ", current_time)
             trainer.breed(i==number_of_breeds-1)
+        
+    finally:
         t = time.localtime()
         end_time = time.strftime("%H:%M:%S", t)
         print("starting time: ", start_time, "finished", end_time)
-    finally:
+        plt.plot([i for i in range(len(consts.best_scores))], consts.best_scores)
+        plt.show()
+        plt.plot([i for i in range(len(consts.average_scores))], consts.average_scores)
+        plt.show()
         return trainer
 
 
@@ -144,30 +149,9 @@ def get_run_res(trainer, episode_time, number_of_examples):
 def main():
     
     trainer1 = run_full_ses(
-    population=5, epsiode_length=10000, maze_index=0, number_of_breeds=0, cars_to_load=[0, 1]
+        population=20, epsiode_length=1500, maze_index=2, number_of_breeds=5, cars_to_load=None
     )
-    
-    # for i in range(5):
-    #     trainer1.population[0].save(i)
-    # trainer2 = run_full_ses(
-    #     population=400, epsiode_length=1200, maze_index=2, number_of_breeds=15
-    # )
-
-    # trainer3 = run_full_ses(
-    #     population=200, epsiode_length=1200, maze_index=1, number_of_breeds=20
-    # )
-    # trainer4 = run_full_ses(
-    #     population=200, epsiode_length=1200, maze_index=3, number_of_breeds=20
-    # )
-    # t = time.localtime()
-    # current_time = time.strftime("%H:%M:%S", t)
-    # print("finished first training ,time: ", current_time)
-    # consts.record = True
-    # consts.video_name = "wow"
-    get_run_res(trainer1, trainer1.episode_time_length, 3)
-    # get_run_res(trainer2, 1200, 3)
-    # get_run_res(trainer3, 1200, 3)
-    # get_run_res(trainer4, 1200, 3)
+    get_run_res(trainer1, trainer1.episode_time_length, 4)
 
 
 if __name__ == "__main__":

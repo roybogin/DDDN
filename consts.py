@@ -1,17 +1,14 @@
 import torch
 
 # pybullet simulation
-is_visual = False   # do we want to see visual footage
-use_real_time = 0   # is the simulation running in real time - probably should always be 0
+is_visual = False  # do we want to see visual footage
+use_real_time = (
+    0  # is the simulation running in real time - probably should always be 0
+)
 debug_sim = False
-speed_scalar = 1
-steer_scalar = 1
-max_steer = 0.7
-max_velocity = 30
-max_force = 50
-map_borders = [[(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)]]
+map_borders = [[(35, 35), (35, -35), (-35, -35), (-35, 35), (35, 35)]]
 min_dist_to_target = 0.5
-ray_length = 10
+
 initial_mutation_density = 0.01  # what percent of weights is mutated (at beginning)
 print_reward_breakdown = False
 
@@ -24,13 +21,16 @@ cameraTargetPosition = [0, 0, 0]
 speed_scalar = 1
 steer_scalar = 0.1
 max_steer = 0.7
-max_velocity = 18
+max_velocity = 30
+max_force = 50
 
 
 map_borders = [[(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)]]
-min_dist_to_target = 0.5    # distance from target that is treated as success
-ray_length = 10 # length of ray
+min_dist_to_target = 0.5  # distance from target that is treated as success
+ray_length = 10  # length of ray
 print_reward_breakdown = False
+size_map_quarter = 35
+block_size = 0.1
 
 
 record = False
@@ -45,7 +45,6 @@ breed_same_pair = True  # can a pair be chosen more than once
 breed_with_self = False  # can a car be chosen with itself
 amount_to_save = 1   # how many of the best to save
 
-
 ## reward constants:
 DISTANCE_REWARD = 1.0
 EXPLORATION_REWARD = 1.0
@@ -53,3 +52,7 @@ MIN_DIST_PENALTY = -10.0
 END_REWARD = 10000.0  # 10^5
 TIME_PENALTY = -5.0  # at each frame
 CRUSH_PENALTY = -1000000  # once
+
+# scores or smthng
+best_scores = []  # a list of the best scores, built through simulations
+average_scores = []  # averages of populations
