@@ -108,11 +108,14 @@ def run_full_ses(population=10, epsiode_length=1, maze_index=0, number_of_breeds
         t = time.localtime()
         current_time = time.strftime("%H:%M:%S", t)
         print(i, "th iteration, time: ", current_time)
-        trainer.breed(i==number_of_breeds-1)
+        trainer.breed(i == number_of_breeds - 1)
     t = time.localtime()
     end_time = time.strftime("%H:%M:%S", t)
     print("starting time: ", start_time, "finished", end_time)
-
+    plt.plot([i for i in range(len(consts.best_scores))], consts.best_scores)
+    plt.show()
+    plt.plot([i for i in range(len(consts.average_scores))], consts.average_scores)
+    plt.show()
     return trainer
 
 
@@ -139,17 +142,10 @@ def get_run_res(trainer, episode_time, number_of_examples):
 
 def main():
     trainer1 = run_full_ses(
-<<<<<<< HEAD
-        population=80, epsiode_length=10000, maze_index=2, number_of_breeds=10
-    )
-    for i in range(5):
-        trainer1.population[0].save(i)
-=======
         population=200, epsiode_length=3000, maze_index=0, number_of_breeds=30
     )
-    get_run_res(trainer1, trainer1.episode_time_length, 30)
+    get_run_res(trainer1, trainer1.episode_time_length, 20)
 
->>>>>>> master
     # trainer2 = run_full_ses(
     #     population=400, epsiode_length=1200, maze_index=2, number_of_breeds=15
     # )
