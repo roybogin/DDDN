@@ -2,6 +2,7 @@ from math import sqrt
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle, Circle
+import consts
 
 SAMPLE_DIST = 0.8
 testing = True
@@ -9,7 +10,7 @@ testing = True
 
 class Map:
     # map is a list of segments, the obstacles
-    def __init__(self, map=[], size=40, epsilon=0.1):
+    def __init__(self, map=[], size=int(consts.size_map_quarter * 1.2), epsilon=0.1):
         # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
         self.map = map
         self.epsilon = epsilon

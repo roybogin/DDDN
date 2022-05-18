@@ -21,17 +21,22 @@ cameraTargetPosition = [0, 0, 0]
 speed_scalar = 1
 steer_scalar = 0.1
 max_steer = 0.7
-max_velocity = 30
-max_force = 50
+max_velocity = 70
+max_force = 100
 
 
-map_borders = [[(35, 35), (35, -35), (-35, -35), (-35, 35), (34.5, 35)]]
 min_dist_to_target = 0.5  # distance from target that is treated as success
 ray_length = 10  # length of ray
 print_reward_breakdown = False
-size_map_quarter = 35
-block_size = 0.1
-
+size_map_quarter = 5
+block_size = 1
+map_borders = [
+    (size_map_quarter, size_map_quarter),
+    (size_map_quarter, -size_map_quarter),
+    (-size_map_quarter, -size_map_quarter),
+    (-size_map_quarter, size_map_quarter),
+    (size_map_quarter, size_map_quarter),
+]
 
 record = False
 video_name = "vid"
@@ -43,7 +48,7 @@ path_extentions = ".txt"
 # breeding options
 breed_same_pair = True  # can a pair be chosen more than once
 breed_with_self = False  # can a car be chosen with itself
-amount_to_save = 1   # how many of the best to save
+amount_to_save = 1  # how many of the best to save
 
 ## reward constants:
 DISTANCE_REWARD = 1.0

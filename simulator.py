@@ -81,9 +81,9 @@ def ray_cast(car, offset, direction):
     end = addLists([pos, offset, direction])
     ray_test = p.rayTest(start, end)
     if ray_test[0][3] == (0, 0, 0):
-        return (0, 0, 0), start[:2], end[:2]
+        return False, start[:2], end[:2]
     else:
-        return ray_test[0][3], start[:2], ray_test[0][3]
+        return True, start[:2], ray_test[0][3]
 
 
 def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
@@ -103,14 +103,19 @@ def norm(a1, a2):
 
 def add_disovered_list(discovered_matrix, start, end):
     iter_list = start
+    ray = [end[i] - start[i] for i in range(2)]
+    ray_length = int(norm(end, start))
+    dist_between_points = int(ray_length / consts.block_size)
+    if dist_between_points == 0:
+        dist_between_points = 1
     to_add = multiply_list_by_scalar(
-        [start[i] - end[i] for i in range(2)],
-        1 / int(consts.ray_length / consts.block_size),
+        ray,
+        1 / dist_between_points,
     )
     x = int((iter_list[0] + consts.size_map_quarter) / consts.block_size)
     y = int((iter_list[1] + consts.size_map_quarter) / consts.block_size)
     discovered_matrix[x][y] = 1
-    for i in range(int(consts.ray_length / consts.block_size)):
+    for i in range(int(ray_length / consts.block_size) - 1):
         iter_list = addLists([iter_list, to_add])
         x = int((iter_list[0] + consts.size_map_quarter) / consts.block_size)
         y = int((iter_list[1] + consts.size_map_quarter) / consts.block_size)
@@ -128,6 +133,26 @@ def draw_discovered_matrix(discovered_matrix):
     plt.imshow(matrix, cmap=cmap)
 
 
+def print_reward_breakdown(
+    distance_covered,
+    map_discovered,
+    finished,
+    time,
+    crushed,
+    min_distance_to_target,
+    discovered,
+    map,
+):
+    print("got to target", finished)
+    print("min_distance_to_target", min_distance_to_target)
+    print("crushed", crushed)
+    print("map_discoverd", map_discovered)
+    print("distance_covered", distance_covered)
+    print("time", time)
+    draw_discovered_matrix(discovered)
+    map.show()
+
+
 def run_sim(car_brain, steps, maze, starting_point, end_point):
     targetVelocity = 0
     steeringAngle = 0
@@ -143,7 +168,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
     last_speed = 0
     col_id = start_simulation()
     bodies = map_create.create_map(maze, epsilon=0.1)
-    map = Map(consts.map_borders.copy())
+    map = Map([consts.map_borders.copy()])
     car_model, wheels, steering = create_car_model(starting_point)
     last_pos = starting_point
     maze = scan_to_map.Map([])
@@ -167,15 +192,32 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
 
         if crushed or finished:
             p.disconnect()
-            return distance_covered, map_discovered, finished, time, crushed, min_distance_to_target
+            if consts.print_reward_breakdown:
+                print_reward_breakdown(
+                    distance_covered,
+                    map_discovered,
+                    finished,
+                    time,
+                    crushed,
+                    min_distance_to_target,
+                    discovered,
+                    map,
+                )
+            return (
+                distance_covered,
+                map_discovered,
+                finished,
+                time,
+                crushed,
+                min_distance_to_target,
+            )
 
         # updating map
-        hit, start, end = ray_cast(car_model, [0, 0, 0], [-consts.ray_length, 0, 0])
-        if hit != (0, 0, 0):
-            hits.append((hit[0], hit[1]))
+        did_hit, start, end = ray_cast(car_model, [0, 0, 0], [-consts.ray_length, 0, 0])
+        if did_hit:
+            hits.append((end[0], end[1]))
             if len(hits) == max_hits_before_calculation:
                 map.add_points_to_map(hits)
-
                 hits = []
 
         map_discovered = add_disovered_list(discovered, start, end)
@@ -243,11 +285,24 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
     if consts.record:
         p.stopStateLogging(log_id)
     p.disconnect()
-    if consts.print_reward_breakdown:
-        print("map_discoverd", map_discovered)
-        print("distance_covered", distance_covered)
-        print("time", time)
-        draw_discovered_matrix(discovered)
 
-        map.show()
-    return distance_covered, map_discovered, finished, time, crushed, min_distance_to_target
+    if consts.print_reward_breakdown:
+        print_reward_breakdown(
+            distance_covered,
+            map_discovered,
+            finished,
+            time,
+            crushed,
+            min_distance_to_target,
+            discovered,
+            map,
+        )
+
+    return (
+        distance_covered,
+        map_discovered,
+        finished,
+        time,
+        crushed,
+        min_distance_to_target,
+    )
