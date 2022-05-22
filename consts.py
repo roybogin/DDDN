@@ -12,7 +12,7 @@ min_dist_to_target = 0.5
 initial_mutation_density = 0.01  # what percent of weights is mutated (at beginning)
 print_reward_breakdown = False
 
-cameraDistance = 7
+cameraDistance = 11
 cameraYaw = -89.9
 cameraPitch = -89.9
 cameraTargetPosition = [0, 0, 0]
@@ -28,8 +28,8 @@ max_force = 100
 min_dist_to_target = 0.5  # distance from target that is treated as success
 ray_length = 10  # length of ray
 print_reward_breakdown = False
-size_map_quarter = 5
-block_size = 1
+size_map_quarter = 10
+block_size = 0.3
 map_borders = [
     (size_map_quarter, size_map_quarter),
     (size_map_quarter, -size_map_quarter),

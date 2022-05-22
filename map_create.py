@@ -47,7 +47,7 @@ def create_poly_wall(poly, epsilon):
     else:
         start = 0
         prev_angle = math.atan2(poly[-1][1] - poly[-2][1], poly[-1][0] - poly[-2][0])
-    
+
     for i in range(start, len(poly) - 1):
         length = distance(poly[i], poly[i + 1]) + epsilon
         angle = math.atan2(poly[i + 1][1] - poly[i][1], poly[i + 1][0] - poly[i][0])
@@ -89,10 +89,12 @@ def create_poly_wall(poly, epsilon):
     return walls
 
 
-def create_map(in_map, epsilon):
+def create_map(in_map, end_point, epsilon):
     walls = []
     for poly in in_map:
         walls += create_poly_wall(poly, epsilon)
+    end = [end_point[0], end_point[1], 0.5]
+    create_wall(end, p.getQuaternionFromEuler([0, 0, 0]), epsilon / 2, epsilon / 2)
     return walls
 
 

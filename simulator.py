@@ -100,6 +100,7 @@ def check_collision(car_model, obstacles, col_id, margin=0, max_distance=1.0):
 def norm(a1, a2):
     return math.sqrt(sum(((x - y) ** 2 for x, y in zip(a1, a2))))
 
+
 def plot_line_low(x0, y0, x1, y1, discovered_matrix):
     dx = x1 - x0
     dy = y1 - y0
@@ -111,13 +112,18 @@ def plot_line_low(x0, y0, x1, y1, discovered_matrix):
     D = (2 * dy) - dx
     y = y0
 
-    for x in range (x0, x1+1):
-        discovered_matrix[x][y] = 1
+    for x in range(x0, x1 + 1):
+        if x < len(discovered_matrix) and y < len(discovered_matrix):
+            discovered_matrix[x][y] = 1
+        else:
+            pass
+            # print("illegal", x, y)
         if D > 0:
             y = y + yi
             D = D + (2 * (dy - dx))
         else:
-            D = D + 2*dy
+            D = D + 2 * dy
+
 
 def plot_line_high(x0, y0, x1, y1, discovered_matrix):
     dx = x1 - x0
@@ -130,13 +136,18 @@ def plot_line_high(x0, y0, x1, y1, discovered_matrix):
     D = (2 * dx) - dy
     x = x0
 
-    for y in range(y0, y1+1):
-        discovered_matrix[x][y] = 1
+    for y in range(y0, y1 + 1):
+        if x < len(discovered_matrix) and y < len(discovered_matrix):
+            discovered_matrix[x][y] = 1
+        else:
+            # print("illegal", x, y)
+            pass
         if D > 0:
             x = x + xi
             D = D + (2 * (dx - dy))
         else:
-            D = D + 2*dx
+            D = D + 2 * dx
+
 
 def plot_line(x0, y0, x1, y1, discovered_matrix):
     if abs(y1 - y0) < abs(x1 - x0):
@@ -150,13 +161,14 @@ def plot_line(x0, y0, x1, y1, discovered_matrix):
         else:
             plot_line_high(x0, y0, x1, y1, discovered_matrix)
 
+
 def add_disovered_list(discovered_matrix, start, end):
     x0 = int((start[0] + consts.size_map_quarter) / consts.block_size)
     y0 = int((start[1] + consts.size_map_quarter) / consts.block_size)
     x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
     y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
 
-    plot_line(x0, y0, x1, y1, discovered_matrix)  
+    plot_line(x0, y0, x1, y1, discovered_matrix)
 
     return (
         sum([sum(discovered_matrix[i]) for i in range(len(discovered_matrix))])
@@ -186,8 +198,8 @@ def print_reward_breakdown(
     print("map_discoverd", map_discovered)
     print("distance_covered", distance_covered)
     print("time", time)
-    draw_discovered_matrix(discovered)
-    map.show()
+    # draw_discovered_matrix(discovered)
+    # map.show()
 
 
 def run_sim(car_brain, steps, maze, starting_point, end_point):
@@ -204,7 +216,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
     hits = []
     last_speed = 0
     col_id = start_simulation()
-    bodies = map_create.create_map(maze, epsilon=0.1)
+    bodies = map_create.create_map(maze, end_point, epsilon=0.1)
     map = Map([consts.map_borders.copy()])
     car_model, wheels, steering = create_car_model(starting_point)
     last_pos = starting_point
@@ -286,7 +298,6 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
                 map.segment_representation_as_points(),
             ]
         )
-
         # updating target velocity and steering angle
         targetVelocity += changeTargetVelocity * consts.speed_scalar
         steeringAngle += changeSteeringAngle * consts.steer_scalar
