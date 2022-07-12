@@ -78,15 +78,16 @@ def get_run_res(trainer, episode_time, number_of_examples):
 def main():
 
     trainer1 = run_full_ses(
-        population=50,
-        epsiode_length=1000,
-        mazes=mazes.empty_set,
-        number_of_breeds=3,
-        cars_to_load=["empty." + str(i) for i in range(40)],
+        population=4,
+        epsiode_length=100,
+        mazes=[mazes.default_training_set[0]],
+        number_of_breeds=0,
+        cars_to_load=[],
     )
-    get_run_res(trainer1, trainer1.episode_time_length, 2)
-    for i in range(40):
-        trainer1.population[i].save("empty." + str(i))
+    consts.print_reward_breakdown = True
+    get_run_res(trainer1, trainer1.episode_time_length, 1)
+    # for i in range(100):
+    #     trainer1.population[i].save("empty." + str(i))
 
 
 if __name__ == "__main__":

@@ -20,8 +20,8 @@ cameraTargetPosition = [0, 0, 0]
 # interpreting NN outputs
 speed_scalar = 1
 steer_scalar = 0.1
-max_steer = 0.7
-max_velocity = 70
+max_steer = 0.3
+max_velocity = 30
 max_force = 100
 
 
@@ -38,8 +38,8 @@ map_borders = [
     (size_map_quarter, size_map_quarter),
 ]
 
-record = False
-video_name = "vid"
+record = True
+video_name = "vid.mp4"
 device_name = "cuda" if torch.cuda.is_available() else "cpu"
 device = torch.device(device_name)
 path_to_save = "saved_run"

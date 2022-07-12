@@ -198,8 +198,8 @@ def print_reward_breakdown(
     print("map_discoverd", map_discovered)
     print("distance_covered", distance_covered)
     print("time", time)
-    # draw_discovered_matrix(discovered)
-    # map.show()
+    draw_discovered_matrix(discovered)
+    map.show()
 
 
 def run_sim(car_brain, steps, maze, starting_point, end_point):
@@ -214,13 +214,14 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
     crushed = False
     max_hits_before_calculation = 10
     hits = []
-    last_speed = 0
+
     col_id = start_simulation()
     bodies = map_create.create_map(maze, end_point, epsilon=0.1)
     map = Map([consts.map_borders.copy()])
     car_model, wheels, steering = create_car_model(starting_point)
     last_pos = starting_point
-    maze = scan_to_map.Map([])
+    last_speed = 0
+
     discovered = [
         [0 for x in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
         for y in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))
@@ -345,7 +346,7 @@ def run_sim(car_brain, steps, maze, starting_point, end_point):
             discovered,
             map,
         )
-
+    map.show()
     return (
         distance_covered,
         map_discovered,

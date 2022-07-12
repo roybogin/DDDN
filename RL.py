@@ -11,6 +11,7 @@ import simulator
 import consts
 import os
 
+
 def flatten(lst):
     ret = []
     for o in lst:
@@ -69,12 +70,12 @@ class NeuralNetwork(nn.Module):
         return move.numpy()
 
     def save(self, id):
-        file_name = consts.path_to_save+str(id)+consts.path_extentions
+        file_name = consts.path_to_save + str(id) + consts.path_extentions
         with open(file_name, "w") as f:
             torch.save(self.state_dict(), file_name)
 
-    def load(self,id):
-        file_name = consts.path_to_save+str(id)+consts.path_extentions
+    def load(self, id):
+        file_name = consts.path_to_save + str(id) + consts.path_extentions
         if os.path.isfile(file_name) and os.stat(file_name).st_size != 0:
             with open(file_name, "r") as r:
                 self.load_state_dict(torch.load(file_name))
@@ -86,9 +87,14 @@ def calculate_score(car, episode_time_length, training_set):
     i = 0
     for map, starting_point, end_point in training_set:
         i += 1
-        distance_covered, map_discovered, finished, time, crushed, min_dist_to_target = simulator.run_sim(
-            car, episode_time_length, map, starting_point, end_point
-        )
+        (
+            distance_covered,
+            map_discovered,
+            finished,
+            time,
+            crushed,
+            min_dist_to_target,
+        ) = simulator.run_sim(car, episode_time_length, map, starting_point, end_point)
 
         total_reward += (
             (distance_covered * consts.DISTANCE_REWARD)
