@@ -29,10 +29,7 @@ class CarEnv(gym.Env):
                 "swivel": spaces.Box(
                     -consts.max_steer, consts.max_steer, shape=(1,), dtype=float
                 ),
-                "swivel": spaces.Box(
-                    -consts.max_steer, consts.max_steer, shape=(1,), dtype=float
-                ),
-                "rotation": spaces.Box(-360, 360, shape=(2,), dtype=float),
+                "rotation": spaces.Box(-360, 360, shape=(1,), dtype=float),
                 "acceleration": spaces.Box(-1000, 1000, shape=(1,), dtype=float),
                 "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int),
                 "map": spaces.Box(
@@ -244,7 +241,7 @@ class CarEnv(gym.Env):
         )
 
     def calculate_reward(self):
-        reward += (self.speed * consts.DISTANCE_REWARD) + (
+        reward = (self.speed * consts.DISTANCE_REWARD) + (
             self.discovery_difference * consts.EXPLORATION_REWARD
         )
         return reward
@@ -267,12 +264,12 @@ class CarEnv(gym.Env):
         runs the simulation one step and returns the reward, the observation and if we are done.
         """
 
-        if crushed or finished:
+        if self.crushed or self.finished:
             if consts.print_reward_breakdown:
                 self.print_reward_breakdown()
-            if finished:
+            if self.finished:
                 return self.get_observation(), consts.END_REWARD, True
-            if crushed:
+            if self.crushed:
                 return self.get_observation(), consts.CRUSH_PENALTY, True
 
         # updating map
@@ -291,32 +288,32 @@ class CarEnv(gym.Env):
 
         # checking if collided or finished
         if self.check_collision(self.car_model, self.bodies, self.col_id):
-            crushed = True
+            self.crushed = True
         if scan_to_map.dist(self.last_pos, self.end_point) < self.min_dist_to_target:
-            finished = True
+            self.finished = True
         # # getting values for NN
         self.pos, quat = p.getBasePositionAndOrientation(self.car_model)
         if self.pos[2] > 0.1:
-            crushed = True
+            self.crushed = True
 
         self.pos = self.pos[:2]
         self.rotation = p.getEulerFromQuaternion(quat)[2]
         self.speed = norm(self.pos, self.last_pos)
         self.acceleration = self.speed - self.last_speed
 
-        changeSteeringAngle = action["steerChange"]
-        changeTargetVelocity = action["VelocityChange"]
+        changeSteeringAngle = action["steerChange"] * consts.max_steer
+        changeTargetVelocity = action["velocityChange"] * consts.max_velocity
 
         # updating target velocity and steering angle
-        targetVelocity += changeTargetVelocity * consts.speed_scalar
-        steeringAngle += changeSteeringAngle * consts.steer_scalar
-        if abs(steeringAngle) > consts.max_steer:
-            steeringAngle = consts.max_steer * steeringAngle / abs(steeringAngle)
-        if abs(targetVelocity) > consts.max_velocity:
-            targetVelocity = consts.max_velocity * targetVelocity / abs(targetVelocity)
+        self.targetVelocity += changeTargetVelocity * consts.speed_scalar
+        self.steeringAngle += changeSteeringAngle * consts.steer_scalar
+        if abs(self.steeringAngle) > consts.max_steer:
+            self.steeringAngle = consts.max_steer * self.steeringAngle / abs(self.steeringAngle)
+        if abs(self.targetVelocity) > consts.max_velocity:
+            self.targetVelocity = consts.max_velocity * self.targetVelocity / abs(self.targetVelocity)
 
         # saving for later
-        self.swivel = steeringAngle
+        self.swivel = self.steeringAngle
         self.last_pos = self.pos
         self.last_speed = self.speed
 
@@ -326,19 +323,19 @@ class CarEnv(gym.Env):
                 self.car_model,
                 wheel,
                 p.VELOCITY_CONTROL,
-                targetVelocity=targetVelocity,
+                targetVelocity=self.targetVelocity,
                 force=consts.max_force,
             )
 
         for steer in self.steering:
             p.setJointMotorControl2(
-                self.car_model, steer, p.POSITION_CONTROL, targetPosition=steeringAngle
+                self.car_model, steer, p.POSITION_CONTROL, targetPosition=self.steeringAngle
             )
 
         self.time += 1
         self.distance_covered += self.speed
-        min_distance_to_target = min(
-            min_distance_to_target, dist(self.pos, self.end_point[:2])
+        self.min_distance_to_target = min(
+            self.min_distance_to_target, dist(self.pos, self.end_point[:2])
         )
         p.stepSimulation()
 
@@ -350,11 +347,10 @@ class CarEnv(gym.Env):
             "goal": self.end_point[:2],
             "speed": self.speed,
             "swivel": self.swivel,
-            "swivel": self.rotation,
             "rotation": self.rotation,
             "acceleration": self.acceleration,
             "time": self.time,
-            "map": self.map.segment_representation_as_points(),
+            "map": 1 # self.map.segment_representation_as_points(),
         }
 
     def set_car_position(self, starting_point):
@@ -453,5 +449,16 @@ def norm(a1, a2):
 
 
 if __name__ == "__main__":
+    
+    forw = 1
     env = CarEnv()
-    check_env(env)
+    obs = env.reset()
+    for i in range(20000):
+        obs, rewards, done = env.step({"steerChange":0, "velocityChange":forw})
+        if obs['position'][0] > 3:
+            forw = -1
+
+        print(obs)
+        if done:
+            print("aAAAAAA")
+            break
