@@ -133,7 +133,7 @@ class Map:
         return total_length
 
     def segment_representation_as_points(self):
-        segments = []
+        segments = ()
         for i in range(len(self.map)):
             for j in range(1, len((self.map[i]))):
                 x1, y1 = self.map[i][j - 1]
