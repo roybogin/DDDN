@@ -1,6 +1,7 @@
 import pybullet as p
 import os
 import pybullet_data
+
 import consts
 import map_create
 from scan_to_map import Map, dist
@@ -11,7 +12,6 @@ import scan_to_map
 import gym
 
 from matplotlib.colors import ListedColormap
-from gym.utils.env_checker import check_env
 
 from gym.envs.registration import register
 from gym import spaces
@@ -20,29 +20,58 @@ from gym import spaces
 # car api to use with the DDPG algorithem
 class CarEnv(gym.Env):
     def __init__(self, size=10):
+        super(CarEnv, self).__init__()
+        self.speed = None
+        self.rotation = None
+        self.pos = None
+        self.start_point = None
+        self.discovered = None
+        self.map = None
+        self.bodies = None
+        self.hits = None
+        self.last_speed = None
+        self.last_pos = None
+        self.time = None
+        self.finished = None
+        self.map_discovered = None
+        self.crushed = None
+        self.min_distance_to_target = None
+        self.distance_covered = None
+        self.swivel = None
+        self.steeringAngle = None
+        self.targetVelocity = None
+        self.acceleration = None
+        self.end_point = None
+        self.maze = None
+        self.done = None
+        self.borders = None
+        self.col_id = None
+        self.wanted_observation = {'position': 2,
+                                   'goal': 2,
+                                   'speed': 1,
+                                   'swivel': 1,
+                                   'rotation': 1,
+                                   'acceleration': 1,
+                                   'time': 1}  # TODO: add map
+        self.observation_len = sum(self.wanted_observation.values())
 
         self.observation_space = spaces.Dict(
             {
-                "position": spaces.Box(-size, size, shape=(2,), dtype=float),
-                "goal": spaces.Box(-size, size, shape=(2,), dtype=float),
-                "speed": spaces.Box(0, consts.max_velocity, shape=(1,), dtype=float),
+                "position": spaces.Box(-size, size, shape=(2,), dtype=np.float32),
+                "goal": spaces.Box(-size, size, shape=(2,), dtype=np.float32),
+                "speed": spaces.Box(0, consts.max_velocity, shape=(1,),
+                                    dtype=np.float32),
                 "swivel": spaces.Box(
-                    -consts.max_steer, consts.max_steer, shape=(1,), dtype=float
+                    -consts.max_steer, consts.max_steer, shape=(1,), dtype=np.float32
                 ),
-                "rotation": spaces.Box(-360, 360, shape=(1,), dtype=float),
-                "acceleration": spaces.Box(-1000, 1000, shape=(1,), dtype=float),
-                "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int),
-                "map": spaces.Box(
-                    0, consts.max_time, shape=(1,), dtype=int
-                ),  # very much wrong
+                "rotation": spaces.Box(-360, 360, shape=(1,), dtype=np.float32),
+                "acceleration": spaces.Box(-1000, 1000, shape=(1,),
+                                           dtype=np.float32),
+                "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int)
+                # TODO: add map
             }
         )
-        self.action_space = spaces.Dict(
-            {
-                "steerChange": spaces.Box(-1, 1, shape=(1,), dtype=float),
-                "velocityChange": spaces.Box(-1, 1, shape=(1,), dtype=float),
-            }
-        )
+        self.action_space = spaces.Box(-1, 1, shape=(2,), dtype=np.float32)
 
         self.min_dist_to_target = consts.min_dist_to_target
         self.max_hits_before_calculation = consts.max_hits_before_calculation
@@ -56,7 +85,8 @@ class CarEnv(gym.Env):
 
     def start_env(self):
         col_id = p.connect(p.DIRECT)
-        p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=col_id)
+        p.setAdditionalSearchPath(pybullet_data.getDataPath(),
+                                  physicsClientId=col_id)
 
         p.resetSimulation()
         p.setGravity(0, 0, -10)
@@ -81,7 +111,7 @@ class CarEnv(gym.Env):
         start = [0, 0, 0]
         end = [0, 1, 0]
         maze = []
-        return (maze, end, start)
+        return maze, end, start
 
     def add_borders(self):
         """
@@ -107,6 +137,9 @@ class CarEnv(gym.Env):
         self.targetVelocity = 0
         self.steeringAngle = 0
         self.swivel = 0
+        self.speed = 0
+        self.acceleration = 0
+        self.rotation = 0
         self.distance_covered = 0
         self.min_distance_to_target = dist(self.start_point[:2], self.end_point[:2])
         self.map_discovered = 0
@@ -115,9 +148,11 @@ class CarEnv(gym.Env):
         self.crushed = False
         self.hits = []
         self.last_pos = self.start_point
+        self.pos = self.start_point
         self.last_speed = 0
 
-        self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1)
+        self.obstacles = map_create.create_map(self.maze, self.end_point,
+                                               epsilon=0.1)
         self.bodies = self.borders + self.obstacles
         self.map = Map([consts.map_borders.copy()])
         self.set_car_position(self.start_point)
@@ -125,11 +160,13 @@ class CarEnv(gym.Env):
             [
                 0
                 for x in range(
-                    int((2 * consts.size_map_quarter + 1) // consts.block_size)
-                )
+                int((2 * consts.size_map_quarter + 1) // consts.block_size)
+            )
             ]
-            for y in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))
+            for y in
+            range(int((2 * consts.size_map_quarter + 1) // consts.block_size))
         ]
+        return self.get_observation()
 
     def ray_cast(self, car, offset, direction):
         pos, quat = p.getBasePositionAndOrientation(car)
@@ -154,25 +191,15 @@ class CarEnv(gym.Env):
         else:
             return True, start[:2], ray_test[0][3]
 
-    def print_reward_breakdown(
-        self,
-        distance_covered,
-        map_discovered,
-        finished,
-        time,
-        crushed,
-        min_distance_to_target,
-        discovered,
-        map,
-    ):
-        print("got to target", finished)
-        print("min_distance_to_target", min_distance_to_target)
-        print("crushed", crushed)
-        print("map_discoverd", map_discovered)
-        print("distance_covered", distance_covered)
-        print("time", time)
-        self.draw_discovered_matrix(discovered)
-        map.show()
+    def print_reward_breakdown(self):
+        print("got to target", self.finished)
+        print("min_distance_to_target", self.min_distance_to_target)
+        print("crushed", self.crushed)
+        print("map_discoverd", self.map_discovered)
+        print("distance_covered", self.distance_covered)
+        print("time", self.time)
+        self.draw_discovered_matrix(self.discovered)
+        self.map.show()
 
     def draw_discovered_matrix(self, discovered_matrix):
         cmap = ListedColormap(["b", "g"])
@@ -188,17 +215,19 @@ class CarEnv(gym.Env):
         plot_line(x0, y0, x1, y1, discovered_matrix)
 
         return (
-            sum([sum(discovered_matrix[i]) for i in range(len(discovered_matrix))])
-            / len(discovered_matrix) ** 2
+                sum([sum(discovered_matrix[i]) for i in
+                     range(len(discovered_matrix))])
+                / len(discovered_matrix) ** 2
         )
 
     def calculate_reward(self):
         reward = (self.speed * consts.DISTANCE_REWARD) + (
-            self.discovery_difference * consts.EXPLORATION_REWARD
+                self.discovery_difference * consts.EXPLORATION_REWARD
         )
         return reward
 
-    def check_collision(self, car_model, obstacles, col_id, margin=0, max_distance=1.0):
+    def check_collision(self, car_model, obstacles, col_id, margin=0,
+                        max_distance=1.0):
         for ob in obstacles:
             closest_points = p.getClosestPoints(car_model, ob, distance=max_distance)
             closest_points = [
@@ -215,14 +244,15 @@ class CarEnv(gym.Env):
         the step function, gets an action (tuple of speedchange and steerchange)
         runs the simulation one step and returns the reward, the observation and if we are done.
         """
-
-        if self.crushed or self.finished:
+        print(self.time)
+        if self.crushed or self.finished or self.time == consts.max_time:
             if consts.print_reward_breakdown:
                 self.print_reward_breakdown()
             if self.finished:
-                return self.get_observation(), consts.END_REWARD, True
+                return self.get_observation(), consts.END_REWARD, True, {}
             if self.crushed:
-                return self.get_observation(), consts.CRUSH_PENALTY, True
+                return self.get_observation(), consts.CRUSH_PENALTY, True, {}
+            return self.get_observation(), 0, True, {}
 
         # updating map
         did_hit, start, end = self.ray_cast(
@@ -253,16 +283,18 @@ class CarEnv(gym.Env):
         self.speed = norm(self.pos, self.last_pos)
         self.acceleration = self.speed - self.last_speed
 
-        changeSteeringAngle = action["steerChange"] * consts.max_steer
-        changeTargetVelocity = action["velocityChange"] * consts.max_velocity
+        changeSteeringAngle = action[0] * consts.max_steer
+        changeTargetVelocity = action[1] * consts.max_velocity
 
         # updating target velocity and steering angle
         self.targetVelocity += changeTargetVelocity * consts.speed_scalar
         self.steeringAngle += changeSteeringAngle * consts.steer_scalar
         if abs(self.steeringAngle) > consts.max_steer:
-            self.steeringAngle = consts.max_steer * self.steeringAngle / abs(self.steeringAngle)
+            self.steeringAngle = consts.max_steer * self.steeringAngle / abs(
+                self.steeringAngle)
         if abs(self.targetVelocity) > consts.max_velocity:
-            self.targetVelocity = consts.max_velocity * self.targetVelocity / abs(self.targetVelocity)
+            self.targetVelocity = consts.max_velocity * self.targetVelocity / abs(
+                self.targetVelocity)
 
         # saving for later
         self.swivel = self.steeringAngle
@@ -281,7 +313,8 @@ class CarEnv(gym.Env):
 
         for steer in self.steering:
             p.setJointMotorControl2(
-                self.car_model, steer, p.POSITION_CONTROL, targetPosition=self.steeringAngle
+                self.car_model, steer, p.POSITION_CONTROL,
+                targetPosition=self.steeringAngle
             )
 
         self.time += 1
@@ -291,22 +324,23 @@ class CarEnv(gym.Env):
         )
         p.stepSimulation()
 
-        return self.get_observation(), self.calculate_reward(), self.done
+        return self.get_observation(), self.calculate_reward(), self.done, {}
 
     def get_observation(self):
-        return {
-            "position": self.pos,
-            "goal": self.end_point[:2],
-            "speed": self.speed,
-            "swivel": self.swivel,
-            "rotation": self.rotation,
-            "acceleration": self.acceleration,
-            "time": self.time,
-            "map": 1 # self.map.segment_representation_as_points(),
-        }
+
+        observation = {"position": np.array(self.pos[:2], dtype=np.float32),
+                       "goal": np.array(self.end_point[:2], dtype=np.float32),
+                       "speed": np.array([self.speed], dtype=np.float32),
+                       "swivel": np.array([self.swivel], dtype=np.float32),
+                       "rotation": np.array([self.rotation], dtype=np.float32),
+                       "acceleration": np.array([self.acceleration], dtype=np.float32),
+                       "time": np.array([self.time], dtype=int)
+                       }
+        return observation
 
     def set_car_position(self, starting_point):
-        p.resetBasePositionAndOrientation(self.car_model, starting_point, [0, 0, 0, 1])
+        p.resetBasePositionAndOrientation(self.car_model, starting_point,
+                                          [0, 0, 0, 1])
 
     def create_car_model(self):
         car = p.loadURDF(
@@ -402,8 +436,7 @@ def norm(a1, a2):
 
 if __name__ == "__main__":
     from stable_baselines3 import DDPG
-    env = CarEnv()
-    env.reset()
-    model = DDPG("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=200)
 
+    env = CarEnv()
+    model = DDPG("MultiInputPolicy", env, verbose=1)
+    model.learn(total_timesteps=consts.max_time)
