@@ -94,13 +94,11 @@ class CarEnv(gym.Env):
             p.removeBody(obstacle)
         self.obstacles = []
 
-    def reset(self, seed=None, options=dict()):
+    def reset(self):
         """
         resets the environment
         options can be used to specify "how to reset" (like with an empty maze/one obstacle etc)
         """
-        super().reset(seed=seed)
-
         self.done = False
         self.remove_all_obstacles()
 
@@ -180,52 +178,6 @@ class CarEnv(gym.Env):
         cmap = ListedColormap(["b", "g"])
         matrix = np.array(discovered_matrix, dtype=np.uint8)
         plt.imshow(matrix, cmap=cmap)
-
-    def plot_line_low(x0, y0, x1, y1, discovered_matrix):
-        dx = x1 - x0
-        dy = y1 - y0
-        yi = 1
-        if dy < 0:
-            yi = -1
-            dy = -dy
-
-        D = (2 * dy) - dx
-        y = y0
-
-        for x in range(x0, x1 + 1):
-            if x < len(discovered_matrix) and y < len(discovered_matrix):
-                discovered_matrix[x][y] = 1
-            else:
-                pass
-                # print("illegal", x, y)
-            if D > 0:
-                y = y + yi
-                D = D + (2 * (dy - dx))
-            else:
-                D = D + 2 * dy
-
-    def plot_line_high(x0, y0, x1, y1, discovered_matrix):
-        dx = x1 - x0
-        dy = y1 - y0
-        xi = 1
-        if dx < 0:
-            xi = -1
-            dx = -dx
-
-        D = (2 * dx) - dy
-        x = x0
-
-        for y in range(y0, y1 + 1):
-            if x < len(discovered_matrix) and y < len(discovered_matrix):
-                discovered_matrix[x][y] = 1
-            else:
-                # print("illegal", x, y)
-                pass
-            if D > 0:
-                x = x + xi
-                D = D + (2 * (dx - dy))
-            else:
-                D = D + 2 * dx
 
     def add_disovered_list(self, discovered_matrix, start, end):
         x0 = int((start[0] + consts.size_map_quarter) / consts.block_size)
@@ -449,16 +401,9 @@ def norm(a1, a2):
 
 
 if __name__ == "__main__":
-    
-    forw = 1
+    from stable_baselines3 import DDPG
     env = CarEnv()
-    obs = env.reset()
-    for i in range(20000):
-        obs, rewards, done = env.step({"steerChange":0, "velocityChange":forw})
-        if obs['position'][0] > 3:
-            forw = -1
+    env.reset()
+    model = DDPG("MlpPolicy", env, verbose=1)
+    model.learn(total_timesteps=200)
 
-        print(obs)
-        if done:
-            print("aAAAAAA")
-            break
