@@ -64,3 +64,5 @@ average_scores = []  # averages of populations
 
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
 max_time = 10000  # time before forcing a new maze
+
+num_processes = 4

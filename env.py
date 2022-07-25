@@ -1,6 +1,7 @@
 import pybullet as p
 import os
-import pybullet_data
+import pybullet_data as pd
+from pybullet_utils import bullet_client
 
 import consts
 import map_create
@@ -16,10 +17,9 @@ from matplotlib.colors import ListedColormap
 from gym.envs.registration import register
 from gym import spaces
 
-
 # car api to use with the DDPG algorithem
 class CarEnv(gym.Env):
-    def __init__(self, size=10):
+    def __init__(self, index, size=10):
         super(CarEnv, self).__init__()
         self.speed = None
         self.rotation = None
@@ -45,7 +45,8 @@ class CarEnv(gym.Env):
         self.maze = None
         self.done = None
         self.borders = None
-        self.col_id = None
+        self.p1 = None
+        self.index = index
         self.wanted_observation = {'position': 2,
                                    'goal': 2,
                                    'speed': 1,
@@ -84,25 +85,21 @@ class CarEnv(gym.Env):
         self.reset()
 
     def start_env(self):
-        col_id = p.connect(p.DIRECT)
-        p.setAdditionalSearchPath(pybullet_data.getDataPath(),
-                                  physicsClientId=col_id)
+        self.p1 = bullet_client.BulletClient(self.p1.DIRECT)
+        self.p1.setAdditionalSearchPath(pd.getDataPath())
+        self.p1.setGravity(0, 0, -10)
 
-        p.resetSimulation()
-        p.setGravity(0, 0, -10)
-
-        p.setRealTimeSimulation(consts.use_real_time)
-        p.loadSDF(os.path.join(pybullet_data.getDataPath(), "stadium.sdf"))
-        p.resetDebugVisualizerCamera(
+        self.p1.setRealTimeSimulation(consts.use_real_time)
+        self.p1.loadSDF(os.path.join(pd.getDataPath(), "stadium.sdf"))
+        self.p1.resetDebugVisualizerCamera(
             cameraDistance=consts.cameraDistance,
             cameraYaw=consts.cameraYaw,
             cameraPitch=consts.cameraPitch,
             cameraTargetPosition=consts.cameraTargetPosition,
         )
-        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+        self.p1.configureDebugVisualizer(self.p1.COV_ENABLE_GUI, 0)
         self.add_borders()
         self.car_model, self.wheels, self.steering = self.create_car_model()
-        self.col_id = col_id
 
     def get_new_maze(self):
         """
@@ -121,7 +118,7 @@ class CarEnv(gym.Env):
 
     def remove_all_obstacles(self):
         for obstacle in self.obstacles:
-            p.removeBody(obstacle)
+            self.p1.removeBody(obstacle)
         self.obstacles = []
 
     def reset(self):
@@ -169,8 +166,8 @@ class CarEnv(gym.Env):
         return self.get_observation()
 
     def ray_cast(self, car, offset, direction):
-        pos, quat = p.getBasePositionAndOrientation(car)
-        euler = p.getEulerFromQuaternion(quat)
+        pos, quat = self.p1.getBasePositionAndOrientation(car)
+        euler = self.p1.getEulerFromQuaternion(quat)
         x = math.cos(euler[2])
         y = math.sin(euler[2])
         offset = [
@@ -185,7 +182,7 @@ class CarEnv(gym.Env):
         ]
         start = addLists([pos, offset])
         end = addLists([pos, offset, direction])
-        ray_test = p.rayTest(start, end)
+        ray_test = self.p1.rayTest(start, end)
         if ray_test[0][3] == (0, 0, 0):
             return False, start[:2], end[:2]
         else:
@@ -199,7 +196,8 @@ class CarEnv(gym.Env):
         print("distance_covered", self.distance_covered)
         print("time", self.time)
         self.draw_discovered_matrix(self.discovered)
-        self.map.show()
+        self.maself.p1.show()
+        self.maself.p1.show()
 
     def draw_discovered_matrix(self, discovered_matrix):
         cmap = ListedColormap(["b", "g"])
@@ -226,10 +224,10 @@ class CarEnv(gym.Env):
         )
         return reward
 
-    def check_collision(self, car_model, obstacles, col_id, margin=0,
+    def check_collision(self, car_model, obstacles, margin=0,
                         max_distance=1.0):
         for ob in obstacles:
-            closest_points = p.getClosestPoints(car_model, ob, distance=max_distance)
+            closest_points = self.p1.getClosestPoints(car_model, ob, distance=max_distance)
             closest_points = [
                 a for a in closest_points if not (a[1] == a[2] == car_model)
             ]
@@ -269,17 +267,17 @@ class CarEnv(gym.Env):
         self.map_discovered = new_map_discovered
 
         # checking if collided or finished
-        if self.check_collision(self.car_model, self.bodies, self.col_id):
+        if self.check_collision(self.car_model, self.bodies):
             self.crushed = True
         if scan_to_map.dist(self.last_pos, self.end_point) < self.min_dist_to_target:
             self.finished = True
         # # getting values for NN
-        self.pos, quat = p.getBasePositionAndOrientation(self.car_model)
+        self.pos, quat = self.p1.getBasePositionAndOrientation(self.car_model)
         if self.pos[2] > 0.1:
             self.crushed = True
 
         self.pos = self.pos[:2]
-        self.rotation = p.getEulerFromQuaternion(quat)[2]
+        self.rotation = self.p1.getEulerFromQuaternion(quat)[2]
         self.speed = norm(self.pos, self.last_pos)
         self.acceleration = self.speed - self.last_speed
 
@@ -303,17 +301,17 @@ class CarEnv(gym.Env):
 
         # moving
         for wheel in self.wheels:
-            p.setJointMotorControl2(
+            self.p1.setJointMotorControl2(
                 self.car_model,
                 wheel,
-                p.VELOCITY_CONTROL,
+                self.p1.VELOCITY_CONTROL,
                 targetVelocity=self.targetVelocity,
                 force=consts.max_force,
             )
 
         for steer in self.steering:
-            p.setJointMotorControl2(
-                self.car_model, steer, p.POSITION_CONTROL,
+            self.p1.setJointMotorControl2(
+                self.car_model, steer, self.p1.POSITION_CONTROL,
                 targetPosition=self.steeringAngle
             )
 
@@ -322,7 +320,7 @@ class CarEnv(gym.Env):
         self.min_distance_to_target = min(
             self.min_distance_to_target, dist(self.pos, self.end_point[:2])
         )
-        p.stepSimulation()
+        self.p1.stepSimulation()
 
         return self.get_observation(), self.calculate_reward(), self.done, {}
 
@@ -339,24 +337,24 @@ class CarEnv(gym.Env):
         return observation
 
     def set_car_position(self, starting_point):
-        p.resetBasePositionAndOrientation(self.car_model, starting_point,
+        self.p1.resetBasePositionAndOrientation(self.car_model, starting_point,
                                           [0, 0, 0, 1])
 
     def create_car_model(self):
-        car = p.loadURDF(
+        car = self.p1.loadURDF(
             os.path.join(pybullet_data.getDataPath(), "racecar/racecar.urdf")
         )
         inactive_wheels = [3, 5, 7]
         wheels = [2]
 
         for wheel in inactive_wheels:
-            p.setJointMotorControl2(
-                car, wheel, p.VELOCITY_CONTROL, targetVelocity=0, force=0
+            self.p1.setJointMotorControl2(
+                car, wheel, self.p1.VELOCITY_CONTROL, targetVelocity=0, force=0
             )
 
         steering = [4, 6]
 
-        p.resetBasePositionAndOrientation(car, [0, 0, 0], [0, 0, 0, 1])
+        self.p1.resetBasePositionAndOrientation(car, [0, 0, 0], [0, 0, 0, 1])
 
         return car, wheels, steering
 
@@ -436,7 +434,8 @@ def norm(a1, a2):
 
 if __name__ == "__main__":
     from stable_baselines3 import DDPG
-
+    from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
     env = CarEnv()
+    env = DummyVecEnv([CarEnv(i) for i in range(consts.num_processes)])
     model = DDPG("MultiInputPolicy", env, verbose=1)
     model.learn(total_timesteps=consts.max_time)
