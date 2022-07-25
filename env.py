@@ -17,9 +17,21 @@ from matplotlib.colors import ListedColormap
 from gym.envs.registration import register
 from gym import spaces
 
+def make_env(index, seed=0):
+    """
+    Utility function for multiprocessed env.
+    :param seed: (int) the inital seed for RNG
+    :param index: (int) index of the subprocess
+    """
+    def _init():
+        env = CarEnv(index, seed)
+        return env
+    return _init
+
+
 # car api to use with the DDPG algorithem
 class CarEnv(gym.Env):
-    def __init__(self, index, size=10):
+    def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
         self.speed = None
         self.rotation = None
@@ -47,6 +59,7 @@ class CarEnv(gym.Env):
         self.borders = None
         self.p1 = None
         self.index = index
+        self.seed = seed
         self.wanted_observation = {'position': 2,
                                    'goal': 2,
                                    'speed': 1,
@@ -85,7 +98,7 @@ class CarEnv(gym.Env):
         self.reset()
 
     def start_env(self):
-        self.p1 = bullet_client.BulletClient(self.p1.DIRECT)
+        self.p1 = bullet_client.BulletClient(p.DIRECT)
         self.p1.setAdditionalSearchPath(pd.getDataPath())
         self.p1.setGravity(0, 0, -10)
 
@@ -342,7 +355,7 @@ class CarEnv(gym.Env):
 
     def create_car_model(self):
         car = self.p1.loadURDF(
-            os.path.join(pybullet_data.getDataPath(), "racecar/racecar.urdf")
+            os.path.join(pd.getDataPath(), "racecar/racecar.urdf")
         )
         inactive_wheels = [3, 5, 7]
         wheels = [2]
@@ -435,7 +448,6 @@ def norm(a1, a2):
 if __name__ == "__main__":
     from stable_baselines3 import DDPG
     from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-    env = CarEnv()
-    env = DummyVecEnv([CarEnv(i) for i in range(consts.num_processes)])
-    model = DDPG("MultiInputPolicy", env, verbose=1)
+    env = SubprocVecEnv([make_env(i) for i in range(consts.num_processes)])
+    model = DDPG("MultiInputPolicy", env, train_freq=1, gradient_steps=2, verbose=1)
     model.learn(total_timesteps=consts.max_time)
