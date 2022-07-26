@@ -10,12 +10,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 import scan_to_map
+import glob
+
 import gym
 
 from matplotlib.colors import ListedColormap
 
 from gym.envs.registration import register
 from gym import spaces
+from stable_baselines3 import DDPG
+from stable_baselines3.common.evaluation import evaluate_policy
+from datetime import datetime
 
 def make_env(index, seed=0):
     """
@@ -60,13 +65,16 @@ class CarEnv(gym.Env):
         self.p1 = None
         self.index = index
         self.seed = seed
+        self.total_runtime = 0
+        self.discovery_difference = 0
         self.wanted_observation = {'position': 2,
                                    'goal': 2,
                                    'speed': 1,
                                    'swivel': 1,
                                    'rotation': 1,
                                    'acceleration': 1,
-                                   'time': 1}  # TODO: add map
+                                   # 'time': 1
+                                   }  # TODO: add map
         self.observation_len = sum(self.wanted_observation.values())
 
         self.observation_space = spaces.Dict(
@@ -81,7 +89,7 @@ class CarEnv(gym.Env):
                 "rotation": spaces.Box(-360, 360, shape=(1,), dtype=np.float32),
                 "acceleration": spaces.Box(-1000, 1000, shape=(1,),
                                            dtype=np.float32),
-                "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int)
+                # "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int)
                 # TODO: add map
             }
         )
@@ -176,6 +184,7 @@ class CarEnv(gym.Env):
             for y in
             range(int((2 * consts.size_map_quarter + 1) // consts.block_size))
         ]
+        self.discovery_difference = 0
         return self.get_observation()
 
     def ray_cast(self, car, offset, direction):
@@ -209,8 +218,10 @@ class CarEnv(gym.Env):
         print("distance_covered", self.distance_covered)
         print("time", self.time)
         self.draw_discovered_matrix(self.discovered)
-        self.maself.p1.show()
-        self.maself.p1.show()
+        self.map.show()
+
+    def reset_runtime(self):
+        self.total_runtime = 0
 
     def draw_discovered_matrix(self, discovered_matrix):
         cmap = ListedColormap(["b", "g"])
@@ -234,7 +245,7 @@ class CarEnv(gym.Env):
     def calculate_reward(self):
         reward = (self.speed * consts.DISTANCE_REWARD) + (
                 self.discovery_difference * consts.EXPLORATION_REWARD
-        )
+        ) + (self.min_distance_to_target * consts.MIN_DIST_PENALTY)
         return reward
 
     def check_collision(self, car_model, obstacles, margin=0,
@@ -255,13 +266,16 @@ class CarEnv(gym.Env):
         the step function, gets an action (tuple of speedchange and steerchange)
         runs the simulation one step and returns the reward, the observation and if we are done.
         """
-        print(self.time)
+        if consts.print_runtime:
+            print(self.time, self.total_runtime)
         if self.crushed or self.finished or self.time == consts.max_time:
             if consts.print_reward_breakdown:
                 self.print_reward_breakdown()
             if self.finished:
+                print("finished")
                 return self.get_observation(), consts.END_REWARD, True, {}
             if self.crushed:
+                print("crashed")
                 return self.get_observation(), consts.CRUSH_PENALTY, True, {}
             return self.get_observation(), 0, True, {}
 
@@ -329,6 +343,7 @@ class CarEnv(gym.Env):
             )
 
         self.time += 1
+        self.total_runtime += 1
         self.distance_covered += self.speed
         self.min_distance_to_target = min(
             self.min_distance_to_target, dist(self.pos, self.end_point[:2])
@@ -344,8 +359,9 @@ class CarEnv(gym.Env):
                        "speed": np.array([self.speed], dtype=np.float32),
                        "swivel": np.array([self.swivel], dtype=np.float32),
                        "rotation": np.array([self.rotation], dtype=np.float32),
-                       "acceleration": np.array([self.acceleration], dtype=np.float32),
-                       "time": np.array([self.time], dtype=int)
+                       "acceleration": np.array([self.acceleration],
+                                                dtype=np.float32),
+                       #"time": np.array([self.time], dtype=int)
                        }
         return observation
 
@@ -445,9 +461,84 @@ def norm(a1, a2):
     return math.sqrt(sum(((x - y) ** 2 for x, y in zip(a1, a2))))
 
 
-if __name__ == "__main__":
-    from stable_baselines3 import DDPG
+def save_model(model_to_save, format_str):
+    """
+    saves the model with to the location returned by the given format string (formats the time of the run's end)
+    :param model_to_save: The ddpg model that needs to be saved
+    :param format_str: A format string for the saved file - will be passed to strftime
+    :return:
+    """
+    curr_time = datetime.now().strftime(format_str)
+    model_to_save.save(f'results/{curr_time}')
+
+
+def get_model(env, should_load, filename, verbose=True):
+    """
+    Returns a DDPG model from a save file or creates a new one
+    :param env: Gym environment for the model
+    :param should_load: Do we want to load a model or create a new one
+    :param filename: Wanted model filename - None if we want the last file in results
+    :param verbose: do we want  to print the file used for loading (might be
+    different from filename if the given file name doesn't exist)
+    :return: The created model
+    """
+    if should_load:
+        if filename is not None and os.path.exists(filename):
+            # file exists and will be loaded
+            if verbose:
+                print(f'loading file: {filename}')
+            model = DDPG.load(filename, env)
+            return model
+
+        # searching for latest file
+        list_of_files = glob.glob('results/*.zip')
+        if len(list_of_files) != 0:  # there is an existing file
+            latest_file = max(list_of_files, key=os.path.getctime)
+            if verbose:
+                print(f'loading file: {latest_file}')
+            model = DDPG.load(latest_file, env)
+            return model
+
+    # creating new model
+    if verbose:
+        print("Creating a new model")
+    model = DDPG("MultiInputPolicy", env)
+    return model
+
+
+def evaluate(model, env):
+    """
+    Evaluating the model
+    :param env: Gym environment for the model
+    :param model: The model to evaluate
+    :return:
+    """
+    env.reset()
+    mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=1,
+                                              deterministic=True)
+    print(f"mean_reward={mean_reward:.2f} +/- {std_reward}")
+
+
+def main():
+    env = CarEnv()
+    print("loading")
+    model = get_model(env, consts.is_model_load, consts.loaded_model_path)
+    print("first eval")
+    evaluate(model, env)
+    print("training")
+    env.reset_runtime()
+    model.learn(total_timesteps=consts.train_steps)
+    env.reset_runtime()
+    save_model(model, "%m_%d-%H_%M_%S")
+    print("second eval")
+    evaluate(model, env)
+
+    '''
     from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
     env = SubprocVecEnv([make_env(i) for i in range(consts.num_processes)])
     model = DDPG("MultiInputPolicy", env, train_freq=1, gradient_steps=2, verbose=1)
     model.learn(total_timesteps=consts.max_time)
+    '''
+
+if __name__ == "__main__":
+    main()

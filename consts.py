@@ -53,7 +53,7 @@ amount_to_save = 1  # how many of the best to save
 ## reward constants:
 DISTANCE_REWARD = 1.0
 EXPLORATION_REWARD = 1.0
-MIN_DIST_PENALTY = -10.0
+MIN_DIST_PENALTY = -0.005
 END_REWARD = 10000.0  # 10^5
 TIME_PENALTY = -5.0  # at each frame
 CRUSH_PENALTY = -1000000  # once
@@ -63,6 +63,11 @@ best_scores = []  # a list of the best scores, built through simulations
 average_scores = []  # averages of populations
 
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
-max_time = 10000  # time before forcing a new maze
+max_time = int(1e4)  # time before forcing a new maze
+print_runtime = False  # do we want to print the total time of the run
+
+train_steps = int(5e4)  # steps we want to train - to train correctly we will let the code finish running the last training session
+is_model_load = True   # do we want to load a model
+loaded_model_path = None    # the loaded model filename - None means the latest
 
 num_processes = 4
