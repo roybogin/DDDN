@@ -1,40 +1,75 @@
-import pybullet as p
+import glob
+import math
 import os
+import time
+from datetime import datetime
+
+import gym
+import matplotlib.pyplot as plt
+import numpy as np
+import pybullet as p
 import pybullet_data as pd
+from gym import spaces
+from matplotlib.colors import ListedColormap
 from pybullet_utils import bullet_client
+from stable_baselines3 import DDPG
+from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.vec_env import SubprocVecEnv
 
 import consts
 import map_create
-from scan_to_map import Map, dist
-import matplotlib.pyplot as plt
-import numpy as np
-import math
 import scan_to_map
-import glob
+from scan_to_map import Map, dist
 
-import gym
-
-from matplotlib.colors import ListedColormap
-
-from gym.envs.registration import register
-from gym import spaces
-from stable_baselines3 import DDPG
-from stable_baselines3.common.evaluation import evaluate_policy
-from datetime import datetime
 
 def make_env(index, seed=0):
     """
-    Utility function for multiprocessed env.
-    :param seed: (int) the inital seed for RNG
+    Utility function for multiprocessing env.
     :param index: (int) index of the subprocess
+    :param seed: (int) the initial seed for RNG
+    :return: function that creates the environment
     """
-    def _init():
-        env = CarEnv(index, seed)
-        return env
-    return _init
+
+    return lambda: CarEnv(index, seed)
+    # def _init():
+    #     env = CarEnv(index, seed)
+    #     return env
+    #
+    # return _init
 
 
-# car api to use with the DDPG algorithem
+# car api to use with the DDPG algorithm
+def get_new_maze():
+    """
+    returns a maze (a set of polygonal lines), a start_point and end_point(3D vectors)
+    """
+    start = [0, 0, 0]
+    end = [0, 1, 0]
+    maze = []
+    return maze, end, start
+
+
+def draw_discovered_matrix(discovered_matrix):
+    cmap = ListedColormap(["b", "g"])
+    matrix = np.array(discovered_matrix, dtype=np.uint8)
+    plt.imshow(matrix, cmap=cmap)
+
+
+def add_discovered_list(discovered_matrix, start, end):
+    x0 = int((start[0] + consts.size_map_quarter) / consts.block_size)
+    y0 = int((start[1] + consts.size_map_quarter) / consts.block_size)
+    x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
+    y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
+
+    plot_line(x0, y0, x1, y1, discovered_matrix)
+
+    return (
+            sum([sum(discovered_matrix[i]) for i in
+                 range(len(discovered_matrix))])
+            / len(discovered_matrix) ** 2
+    )
+
+
 class CarEnv(gym.Env):
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
@@ -65,7 +100,6 @@ class CarEnv(gym.Env):
         self.p1 = None
         self.index = index
         self.seed = seed
-        self.total_runtime = 0
         self.discovery_difference = 0
         self.wanted_observation = {'position': 2,
                                    'goal': 2,
@@ -122,15 +156,6 @@ class CarEnv(gym.Env):
         self.add_borders()
         self.car_model, self.wheels, self.steering = self.create_car_model()
 
-    def get_new_maze(self):
-        """
-        returns a maze (a set of polygonal lines), a start_point and end_point(3D vectors)
-        """
-        start = [0, 0, 0]
-        end = [0, 1, 0]
-        maze = []
-        return maze, end, start
-
     def add_borders(self):
         """
         adds the boarders to the maze
@@ -150,7 +175,7 @@ class CarEnv(gym.Env):
         self.done = False
         self.remove_all_obstacles()
 
-        self.maze, self.end_point, self.start_point = self.get_new_maze()
+        self.maze, self.end_point, self.start_point = get_new_maze()
 
         self.targetVelocity = 0
         self.steeringAngle = 0
@@ -175,21 +200,15 @@ class CarEnv(gym.Env):
         self.map = Map([consts.map_borders.copy()])
         self.set_car_position(self.start_point)
         self.discovered = [
-            [
-                0
-                for x in range(
-                int((2 * consts.size_map_quarter + 1) // consts.block_size)
-            )
-            ]
-            for y in
-            range(int((2 * consts.size_map_quarter + 1) // consts.block_size))
+            [0 for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
+            for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))
         ]
         self.discovery_difference = 0
         return self.get_observation()
 
     def ray_cast(self, car, offset, direction):
-        pos, quat = self.p1.getBasePositionAndOrientation(car)
-        euler = self.p1.getEulerFromQuaternion(quat)
+        pos, quaternions = self.p1.getBasePositionAndOrientation(car)
+        euler = self.p1.getEulerFromQuaternion(quaternions)
         x = math.cos(euler[2])
         y = math.sin(euler[2])
         offset = [
@@ -202,8 +221,8 @@ class CarEnv(gym.Env):
             x * direction[1] + y * direction[0],
             direction[2],
         ]
-        start = addLists([pos, offset])
-        end = addLists([pos, offset, direction])
+        start = add_lists([pos, offset])
+        end = add_lists([pos, offset, direction])
         ray_test = self.p1.rayTest(start, end)
         if ray_test[0][3] == (0, 0, 0):
             return False, start[:2], end[:2]
@@ -217,47 +236,29 @@ class CarEnv(gym.Env):
         print("map_discoverd", self.map_discovered)
         print("distance_covered", self.distance_covered)
         print("time", self.time)
-        self.draw_discovered_matrix(self.discovered)
+        draw_discovered_matrix(self.discovered)
         self.map.show()
 
-    def reset_runtime(self):
-        self.total_runtime = 0
-
-    def draw_discovered_matrix(self, discovered_matrix):
-        cmap = ListedColormap(["b", "g"])
-        matrix = np.array(discovered_matrix, dtype=np.uint8)
-        plt.imshow(matrix, cmap=cmap)
-
-    def add_disovered_list(self, discovered_matrix, start, end):
-        x0 = int((start[0] + consts.size_map_quarter) / consts.block_size)
-        y0 = int((start[1] + consts.size_map_quarter) / consts.block_size)
-        x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
-        y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
-
-        plot_line(x0, y0, x1, y1, discovered_matrix)
-
-        return (
-                sum([sum(discovered_matrix[i]) for i in
-                     range(len(discovered_matrix))])
-                / len(discovered_matrix) ** 2
-        )
-
     def calculate_reward(self):
-        reward = (self.speed * consts.DISTANCE_REWARD) + (
-                self.discovery_difference * consts.EXPLORATION_REWARD
-        ) + (self.min_distance_to_target * consts.MIN_DIST_PENALTY)
+        reward = ((self.distance_covered * consts.DISTANCE_REWARD)
+                  + (self.map_discovered * consts.EXPLORATION_REWARD)
+                  + (self.finished * consts.END_REWARD)
+                  + (self.time * consts.TIME_PENALTY)
+                  + (self.crushed * consts.CRUSH_PENALTY)
+                  + (self.min_dist_to_target * consts.MIN_DIST_PENALTY))
         return reward
 
     def check_collision(self, car_model, obstacles, margin=0,
                         max_distance=1.0):
         for ob in obstacles:
-            closest_points = self.p1.getClosestPoints(car_model, ob, distance=max_distance)
+            closest_points = self.p1.getClosestPoints(car_model, ob,
+                                                      distance=max_distance)
             closest_points = [
                 a for a in closest_points if not (a[1] == a[2] == car_model)
             ]
             if len(closest_points) != 0:
-                dist = np.min([pt[8] for pt in closest_points])
-                if dist < margin:
+                distance = np.min([pt[8] for pt in closest_points])
+                if distance < margin:
                     return True
         return False
 
@@ -267,7 +268,7 @@ class CarEnv(gym.Env):
         runs the simulation one step and returns the reward, the observation and if we are done.
         """
         if consts.print_runtime:
-            print(self.time, self.total_runtime)
+            print(self.time)
         if self.crushed or self.finished or self.time == consts.max_time:
             if consts.print_reward_breakdown:
                 self.print_reward_breakdown()
@@ -289,7 +290,7 @@ class CarEnv(gym.Env):
                 self.map.add_points_to_map(self.hits)
                 self.hits = []
 
-        new_map_discovered = self.add_disovered_list(self.discovered, start, end)
+        new_map_discovered = add_discovered_list(self.discovered, start, end)
         self.discovery_difference = new_map_discovered - self.map_discovered
         self.map_discovered = new_map_discovered
 
@@ -308,12 +309,12 @@ class CarEnv(gym.Env):
         self.speed = norm(self.pos, self.last_pos)
         self.acceleration = self.speed - self.last_speed
 
-        changeSteeringAngle = action[0] * consts.max_steer
-        changeTargetVelocity = action[1] * consts.max_velocity
+        change_steering_angle = action[0] * consts.max_steer
+        change_target_velocity = action[1] * consts.max_velocity
 
         # updating target velocity and steering angle
-        self.targetVelocity += changeTargetVelocity * consts.speed_scalar
-        self.steeringAngle += changeSteeringAngle * consts.steer_scalar
+        self.targetVelocity += change_target_velocity * consts.speed_scalar
+        self.steeringAngle += change_steering_angle * consts.steer_scalar
         if abs(self.steeringAngle) > consts.max_steer:
             self.steeringAngle = consts.max_steer * self.steeringAngle / abs(
                 self.steeringAngle)
@@ -343,7 +344,6 @@ class CarEnv(gym.Env):
             )
 
         self.time += 1
-        self.total_runtime += 1
         self.distance_covered += self.speed
         self.min_distance_to_target = min(
             self.min_distance_to_target, dist(self.pos, self.end_point[:2])
@@ -361,13 +361,13 @@ class CarEnv(gym.Env):
                        "rotation": np.array([self.rotation], dtype=np.float32),
                        "acceleration": np.array([self.acceleration],
                                                 dtype=np.float32),
-                       #"time": np.array([self.time], dtype=int)
+                       # "time": np.array([self.time], dtype=int)
                        }
         return observation
 
     def set_car_position(self, starting_point):
         self.p1.resetBasePositionAndOrientation(self.car_model, starting_point,
-                                          [0, 0, 0, 1])
+                                                [0, 0, 0, 1])
 
     def create_car_model(self):
         car = self.p1.loadURDF(
@@ -388,11 +388,11 @@ class CarEnv(gym.Env):
         return car, wheels, steering
 
 
-def addLists(lists):
+def add_lists(lists):
     ret = [0, 0, 0]
-    for l in lists:
-        for i in range(len(l)):
-            ret[i] += l[i]
+    for lst in lists:
+        for i in range(len(lst)):
+            ret[i] += lst[i]
     return ret
 
 
@@ -404,7 +404,7 @@ def plot_line_low(x0, y0, x1, y1, discovered_matrix):
         yi = -1
         dy = -dy
 
-    D = (2 * dy) - dx
+    d = (2 * dy) - dx
     y = y0
 
     for x in range(x0, x1 + 1):
@@ -413,11 +413,11 @@ def plot_line_low(x0, y0, x1, y1, discovered_matrix):
         else:
             pass
             # print("illegal", x, y)
-        if D > 0:
+        if d > 0:
             y = y + yi
-            D = D + (2 * (dy - dx))
+            d = d + (2 * (dy - dx))
         else:
-            D = D + 2 * dy
+            d = d + 2 * dy
 
 
 def plot_line_high(x0, y0, x1, y1, discovered_matrix):
@@ -428,7 +428,7 @@ def plot_line_high(x0, y0, x1, y1, discovered_matrix):
         xi = -1
         dx = -dx
 
-    D = (2 * dx) - dy
+    d = (2 * dx) - dy
     x = x0
 
     for y in range(y0, y1 + 1):
@@ -437,11 +437,11 @@ def plot_line_high(x0, y0, x1, y1, discovered_matrix):
         else:
             # print("illegal", x, y)
             pass
-        if D > 0:
+        if d > 0:
             x = x + xi
-            D = D + (2 * (dx - dy))
+            d = d + (2 * (dx - dy))
         else:
-            D = D + 2 * dx
+            d = d + 2 * dx
 
 
 def plot_line(x0, y0, x1, y1, discovered_matrix):
@@ -487,7 +487,8 @@ def get_model(env, should_load, filename, verbose=True):
             # file exists and will be loaded
             if verbose:
                 print(f'loading file: {filename}')
-            model = DDPG.load(filename, env)
+            model = DDPG.load(filename, env, train_freq=1, gradient_steps=2,
+                              verbose=1)
             return model
 
         # searching for latest file
@@ -496,13 +497,14 @@ def get_model(env, should_load, filename, verbose=True):
             latest_file = max(list_of_files, key=os.path.getctime)
             if verbose:
                 print(f'loading file: {latest_file}')
-            model = DDPG.load(latest_file, env)
+            model = DDPG.load(latest_file, env, train_freq=1, gradient_steps=2,
+                              verbose=1)
             return model
 
     # creating new model
     if verbose:
         print("Creating a new model")
-    model = DDPG("MultiInputPolicy", env)
+    model = DDPG("MultiInputPolicy", env, train_freq=1, gradient_steps=2, verbose=1)
     return model
 
 
@@ -520,25 +522,20 @@ def evaluate(model, env):
 
 
 def main():
-    env = CarEnv()
+    env = SubprocVecEnv([make_env(i) for i in range(consts.num_processes)])
     print("loading")
     model = get_model(env, consts.is_model_load, consts.loaded_model_path)
     print("first eval")
     evaluate(model, env)
     print("training")
-    env.reset_runtime()
+    t0 = time.time()
     model.learn(total_timesteps=consts.train_steps)
-    env.reset_runtime()
+    t1 = time.time()
+    print(f'finished training {consts.train_steps} steps in {t1-t0} seconds on {consts.num_processes} processes')
     save_model(model, "%m_%d-%H_%M_%S")
     print("second eval")
     evaluate(model, env)
 
-    '''
-    from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-    env = SubprocVecEnv([make_env(i) for i in range(consts.num_processes)])
-    model = DDPG("MultiInputPolicy", env, train_freq=1, gradient_steps=2, verbose=1)
-    model.learn(total_timesteps=consts.max_time)
-    '''
 
 if __name__ == "__main__":
     main()
