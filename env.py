@@ -468,6 +468,10 @@ def save_model(model_to_save, format_str):
     :param format_str: A format string for the saved file - will be passed to strftime
     :return:
     """
+    try:
+        os.mkdir("results")
+    except:
+        pass
     curr_time = datetime.now().strftime(format_str)
     model_to_save.save(f'results/{curr_time}')
 
