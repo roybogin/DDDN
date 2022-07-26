@@ -170,7 +170,7 @@ class CarEnv(gym.Env):
     def reset(self):
         """
         resets the environment
-        options can be used to specify "how to reset" (like with an empty maze/one obstacle etc)
+        options can be used to specify "how to reset" (like with an empty maze/one obstacle etc.)
         """
         self.done = False
         self.remove_all_obstacles()
@@ -233,7 +233,7 @@ class CarEnv(gym.Env):
         print("got to target", self.finished)
         print("min_distance_to_target", self.min_distance_to_target)
         print("crushed", self.crushed)
-        print("map_discoverd", self.map_discovered)
+        print("map_discovered", self.map_discovered)
         print("distance_covered", self.distance_covered)
         print("time", self.time)
         draw_discovered_matrix(self.discovered)
@@ -264,7 +264,7 @@ class CarEnv(gym.Env):
 
     def step(self, action):
         """
-        the step function, gets an action (tuple of speedchange and steerchange)
+        the step function, gets an action (tuple of speed change and steer change)
         runs the simulation one step and returns the reward, the observation and if we are done.
         """
         if consts.print_runtime:
@@ -300,12 +300,12 @@ class CarEnv(gym.Env):
         if scan_to_map.dist(self.last_pos, self.end_point) < self.min_dist_to_target:
             self.finished = True
         # # getting values for NN
-        self.pos, quat = self.p1.getBasePositionAndOrientation(self.car_model)
+        self.pos, quaternions = self.p1.getBasePositionAndOrientation(self.car_model)
         if self.pos[2] > 0.1:
             self.crushed = True
 
         self.pos = self.pos[:2]
-        self.rotation = self.p1.getEulerFromQuaternion(quat)[2]
+        self.rotation = self.p1.getEulerFromQuaternion(quaternions)[2]
         self.speed = norm(self.pos, self.last_pos)
         self.acceleration = self.speed - self.last_speed
 
