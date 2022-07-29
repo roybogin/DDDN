@@ -9,6 +9,8 @@ import numpy as np
 import math
 import scan_to_map
 import gym
+import spinup
+
 
 from matplotlib.colors import ListedColormap
 from gym.utils.env_checker import check_env
@@ -244,7 +246,7 @@ class CarEnv(gym.Env):
         )
 
     def calculate_reward(self):
-        reward += (self.speed * consts.DISTANCE_REWARD) + (
+        reward = (self.speed * consts.DISTANCE_REWARD) + (
             self.discovery_difference * consts.EXPLORATION_REWARD
         )
         return reward
@@ -455,3 +457,5 @@ def norm(a1, a2):
 if __name__ == "__main__":
     env = CarEnv()
     check_env(env)
+    var = spinup.ddpg_pytorch(CarEnv)
+    type(var)
