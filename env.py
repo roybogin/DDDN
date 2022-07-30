@@ -483,7 +483,7 @@ def save_model(model_to_save, format_str, suffix=''):
     :return:
     """
     curr_time = datetime.now().strftime(format_str)
-    model_to_save.save(f"results/{curr_time}{suffix}")
+    model_to_save.save(f"results/run-{curr_time}{suffix}")
 
 
 def get_model(env, should_load, filename, verbose=True):
