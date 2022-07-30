@@ -28,6 +28,8 @@ class CarEnv(gym.Env):
     def __init__(self, size=10):
         super(CarEnv, self).__init__()
         self.speed = None
+        self.velocity = None
+        self.angular_velocity = None
         self.rotation = None
         self.pos = None
         self.start_point = None
@@ -57,7 +59,8 @@ class CarEnv(gym.Env):
         self.wanted_observation = {
             "position": 2,
             "goal": 2,
-            "speed": 1,
+            "velocity": 2,
+            "angular_velocity": 2,
             "swivel": 1,
             "rotation": 1,
             "acceleration": 1,
@@ -69,8 +72,11 @@ class CarEnv(gym.Env):
             {
                 "position": spaces.Box(-size, size, shape=(2,), dtype=np.float32),
                 "goal": spaces.Box(-size, size, shape=(2,), dtype=np.float32),
-                "speed": spaces.Box(
-                    0, consts.max_velocity, shape=(1,), dtype=np.float32
+                "velocity": spaces.Box(
+                    -consts.max_velocity, consts.max_velocity, shape=(2,), dtype=np.float32
+                ),
+                "angular_velocity": spaces.Box(
+                    -consts.max_velocity, consts.max_velocity, shape=(2,), dtype=np.float32
                 ),
                 "swivel": spaces.Box(
                     -consts.max_steer, consts.max_steer, shape=(1,), dtype=np.float32
@@ -119,7 +125,7 @@ class CarEnv(gym.Env):
         returns a maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         start = [0, 0, 0]
-        end = [0, 1, 0]
+        end = [1, 0, 0]
         maze = []
         return maze, end, start
 
@@ -148,6 +154,8 @@ class CarEnv(gym.Env):
         self.steeringAngle = 0
         self.swivel = 0
         self.speed = 0
+        self.velocity = [0, 0]
+        self.angular_velocity = [0, 0]
         self.acceleration = 0
         self.rotation = 0
         self.distance_covered = 0
@@ -170,7 +178,8 @@ class CarEnv(gym.Env):
             self.map[i][int((2 * consts.size_map_quarter + 1) // consts.block_size) - 1] = 1
             self.map[int((2 * consts.size_map_quarter + 1) // consts.block_size) - 1][i] = 1 
         self.set_car_position(self.start_point)
-        self.discovered =[[0 for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))] for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
+        self.discovered = [[0 for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))] for _ in
+                           range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
         self.discovery_difference = 0
         return self.get_observation()
 
@@ -267,6 +276,10 @@ class CarEnv(gym.Env):
             return self.get_observation(), 0, True, {}
 
         # updating map;
+        self.velocity, self.angular_velocity = p.getBaseVelocity(self.car_model)
+        self.velocity = self.velocity[:2]
+        self.angular_velocity = self.angular_velocity[:2]
+
         directions = [2*np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
         new_map_discovered = self.discovered
         amount_discovered = self.map_discovered
@@ -295,7 +308,7 @@ class CarEnv(gym.Env):
 
         self.pos = self.pos[:2]
         self.rotation = p.getEulerFromQuaternion(quat)[2]
-        self.speed = norm(self.pos, self.last_pos)
+        self.speed = norm(self.velocity)
         self.acceleration = self.speed - self.last_speed
 
         changeSteeringAngle = action[0] * consts.max_steer
@@ -351,7 +364,8 @@ class CarEnv(gym.Env):
         observation = {
             "position": np.array(self.pos[:2], dtype=np.float32),
             "goal": np.array(self.end_point[:2], dtype=np.float32),
-            "speed": np.array([self.speed], dtype=np.float32),
+            "velocity": np.array(self.velocity, dtype=np.float32),
+            "angular_velocity": np.array(self.angular_velocity, dtype=np.float32),
             "swivel": np.array([self.swivel], dtype=np.float32),
             "rotation": np.array([self.rotation], dtype=np.float32),
             "acceleration": np.array([self.acceleration], dtype=np.float32),
@@ -364,6 +378,8 @@ class CarEnv(gym.Env):
 
     def set_car_position(self, starting_point):
         p.resetBasePositionAndOrientation(self.car_model, starting_point, [0, 0, 0, 1])
+        p.resetBaseVelocity(self.car_model, [0, 0, 0], [0, 0, 0])
+
 
     def create_car_model(self):
         car = p.loadURDF(
@@ -382,6 +398,7 @@ class CarEnv(gym.Env):
         p.resetBasePositionAndOrientation(car, [0, 0, 0], [0, 0, 0, 1])
 
         return car, wheels, steering
+
 
 
 def addLists(lists):
@@ -453,8 +470,8 @@ def plot_line(x0, y0, x1, y1, discovered_matrix):
             plot_line_high(x0, y0, x1, y1, discovered_matrix)
 
 
-def norm(a1, a2):
-    return math.sqrt(sum(((x - y) ** 2 for x, y in zip(a1, a2))))
+def norm(a):
+    return math.sqrt(sum((x ** 2 for x in a)))
 
 
 def save_model(model_to_save, format_str, suffix=''):
@@ -512,7 +529,7 @@ def evaluate(model, env):
     """
     env.reset()
     mean_reward, std_reward = evaluate_policy(
-        model, env, n_eval_episodes=1, deterministic=True
+        model, env, n_eval_episodes=3, deterministic=True
     )
     print(f"mean_reward={mean_reward:.2f} +/- {std_reward}")
     return mean_reward
