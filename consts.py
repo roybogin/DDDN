@@ -6,11 +6,7 @@ use_real_time = (
     0  # is the simulation running in real time - probably should always be 0
 )
 debug_sim = False
-map_borders = [[(35, 35), (35, -35), (-35, -35), (-35, 35), (35, 35)]]
-min_dist_to_target = 0.5
-
 initial_mutation_density = 0.01  # what percent of weights is mutated (at beginning)
-print_reward_breakdown = False
 
 cameraDistance = 11
 cameraYaw = -89.9
@@ -66,6 +62,9 @@ max_hits_before_calculation = 10  # amounts of new hits before adding lines to t
 max_time = int(1e4)  # time before forcing a new maze
 print_runtime = False  # do we want to print the total time of the run
 
-train_steps = int(5e4)  # steps we want to train - to train correctly we will let the code finish running the last training session
+train_steps = int(2e5)  # steps we want to train - to train correctly we will let the code finish running the last
+# training session. -1 if we want to train infinitely
+
 is_model_load = True   # do we want to load a model
 loaded_model_path = None    # the loaded model filename - None means the latest
+checkpoint_steps = int(1e4)  # how many steps we want between checkpointing
