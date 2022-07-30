@@ -125,7 +125,7 @@ class CarEnv(gym.Env):
         returns a maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         start = [0, 0, 0]
-        end = [1, 0, 0]
+        end = [2, 1, 0]
         maze = []
         return maze, end, start
 
