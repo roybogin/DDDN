@@ -12,7 +12,6 @@ import scan_to_map
 import glob
 
 import gym
-import spinup
 
 
 from matplotlib.colors import ListedColormap
@@ -458,15 +457,16 @@ def norm(a1, a2):
     return math.sqrt(sum(((x - y) ** 2 for x, y in zip(a1, a2))))
 
 
-def save_model(model_to_save, format_str):
+def save_model(model_to_save, format_str, suffix=''):
     """
     saves the model with to the location returned by the given format string (formats the time of the run's end)
     :param model_to_save: The ddpg model that needs to be saved
     :param format_str: A format string for the saved file - will be passed to strftime
+    :param suffix: sting to add at the end of the file name
     :return:
     """
     curr_time = datetime.now().strftime(format_str)
-    model_to_save.save(f"results/{curr_time}")
+    model_to_save.save(f"results/{curr_time}{suffix}")
 
 
 def get_model(env, should_load, filename, verbose=True):
@@ -508,13 +508,14 @@ def evaluate(model, env):
     Evaluating the model
     :param env: Gym environment for the model
     :param model: The model to evaluate
-    :return:
+    :return: the mean reward in the evaluations
     """
     env.reset()
     mean_reward, std_reward = evaluate_policy(
         model, env, n_eval_episodes=1, deterministic=True
     )
     print(f"mean_reward={mean_reward:.2f} +/- {std_reward}")
+    return mean_reward
 
 
 def main():
@@ -525,11 +526,12 @@ def main():
     evaluate(model, env)
     print("training")
     env.reset_runtime()
-    model.learn(total_timesteps=consts.train_steps)
-    env.reset_runtime()
-    save_model(model, "%m_%d-%H_%M_%S")
-    print("second eval")
-    evaluate(model, env)
+    while consts.train_steps < 0 or env.total_runtime < consts.train_steps:
+        model.learn(total_timesteps=consts.checkpoint_steps)
+        reward = evaluate(model, env)
+        save_model(model, "%m_%d-%H_%M_%S", suffix=f'${str(int(reward))}')
+    reward = evaluate(model, env)
+    save_model(model, "%m_%d-%H_%M_%S", suffix=f'${str(int(reward))}')
 
 
 if __name__ == "__main__":
