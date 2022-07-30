@@ -48,12 +48,12 @@ breed_with_self = False  # can a car be chosen with itself
 amount_to_save = 1  # how many of the best to save
 
 ## reward constants:
-DISTANCE_REWARD = 1.0
-EXPLORATION_REWARD = 1.0
+DISTANCE_REWARD = 0.01
+EXPLORATION_REWARD = 0.02
 MIN_DIST_PENALTY = -0.005
-END_REWARD = 10000.0  # 10^5
-TIME_PENALTY = -5.0  # at each frame
-CRUSH_PENALTY = -1000000  # once
+END_REWARD = 1e6
+TIME_PENALTY = -5.0
+CRUSH_PENALTY = -1e6
 
 # scores or smthng
 best_scores = []  # a list of the best scores, built through simulations
