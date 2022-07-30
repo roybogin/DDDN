@@ -62,7 +62,7 @@ class CarEnv(gym.Env):
             "rotation": 1,
             "acceleration": 1,
             "map":  int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2,
-            "discovered":  int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2
+            "discovered":  int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2}
         self.observation_len = sum(self.wanted_observation.values())
 
         self.observation_space = spaces.Dict(
@@ -78,8 +78,8 @@ class CarEnv(gym.Env):
                 "rotation": spaces.Box(-360, 360, shape=(1,), dtype=np.float32),
                 "acceleration": spaces.Box(-1000, 1000, shape=(1,), dtype=np.float32),
                 # "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int)
-                "map":        spaces.Box(0, 1, shape=( int((2 * consts.size_map_quarter + 1) // consts.block_size),  int((2 * consts.size_map_quarter + 1) // consts.block_size)), dtype=uint8),
-                "discovered": spaces.Box(0, 1, shape=( int((2 * consts.size_map_quarter + 1) // consts.block_size),  int((2 * consts.size_map_quarter + 1) // consts.block_size)), dtype=uint8)
+                "map":        spaces.Box(0, 1, shape=( int((2 * consts.size_map_quarter + 1) // consts.block_size),  int((2 * consts.size_map_quarter + 1) // consts.block_size)), dtype=np.uint8),
+                "discovered": spaces.Box(0, 1, shape=( int((2 * consts.size_map_quarter + 1) // consts.block_size),  int((2 * consts.size_map_quarter + 1) // consts.block_size)), dtype=np.uint8)
             }
         )
         self.action_space = spaces.Box(-1, 1, shape=(2,), dtype=np.float32)
@@ -163,14 +163,14 @@ class CarEnv(gym.Env):
 
         self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1)
         self.bodies = self.borders + self.obstacles
-        self.map = np.zeros((int((2 * consts.size_map_quarter + 1) // consts.block_size),int((2 * consts.size_map_quarter + 1) // consts.block_size)))
+        self.map = [[0 for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))] for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
         for i in range(int((2 * consts.size_map_quarter + 1) // consts.block_size)):
             self.map[i][0] = 1
             self.map[0][i] = 1
             self.map[i][int((2 * consts.size_map_quarter + 1) // consts.block_size) - 1] = 1
             self.map[int((2 * consts.size_map_quarter + 1) // consts.block_size) - 1][i] = 1 
         self.set_car_position(self.start_point)
-        self.discovered = np.zeros((int((2 * consts.size_map_quarter + 1) // consts.block_size),int((2 * consts.size_map_quarter + 1) // consts.block_size)))
+        self.discovered =[[0 for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))] for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
         self.discovery_difference = 0
         return self.get_observation()
 
@@ -267,8 +267,9 @@ class CarEnv(gym.Env):
             return self.get_observation(), 0, True, {}
 
         # updating map;
-        directions = [2*np.pi * i / consts.ray_amount for i in range(ray_amount)]
+        directions = [2*np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
         new_map_discovered = self.discovered
+        amount_discovered = self.map_discovered
         for direction in directions:
 
             did_hit, start, end = self.ray_cast(
@@ -278,10 +279,9 @@ class CarEnv(gym.Env):
                 x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
                 y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
                 self.map[x1][y1] = 1
-            new_map_discovered = self.add_disovered_list(new_map_discovered, start, end)
+            self.map_discovered = self.add_disovered_list(new_map_discovered, start, end)
 
-        self.discovery_difference = new_map_discovered - self.discovered
-        self.map_discovered = self.map_discovered.sum()
+        self.discovery_difference = self.map_discovered - amount_discovered
 
         # checking if collided or finished
         if self.check_collision(self.car_model, self.bodies, self.col_id):
@@ -357,7 +357,7 @@ class CarEnv(gym.Env):
             "acceleration": np.array([self.acceleration], dtype=np.float32),
             # "time": np.array([self.time], dtype=int),
             "map": np.array(self.map, dtype=np.uint8),
-            "discovered": np.array(self.map, dtype=np.uint8)
+            "discovered": np.array(self.discovered, dtype=np.uint8)
 
         }
         return observation
@@ -499,7 +499,7 @@ def get_model(env, should_load, filename, verbose=True):
     # creating new model
     if verbose:
         print("Creating a new model")
-    model = DDPG("MultiInputPolicy", env)
+    model = DDPG("MultiInputPolicy", env, buffer_size=10000)
     return model
 
 
