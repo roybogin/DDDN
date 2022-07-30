@@ -27,6 +27,7 @@ max_force = 100
 
 min_dist_to_target = 0.5  # distance from target that is treated as success
 ray_length = 10  # length of ray
+ray_amount = 12
 print_reward_breakdown = False
 size_map_quarter = 10
 block_size = 0.3

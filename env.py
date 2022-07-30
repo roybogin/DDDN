@@ -40,7 +40,7 @@ class CarEnv(gym.Env):
         self.last_pos = None
         self.time = None
         self.finished = None
-        self.map_discovered = None
+        self.map_discovered = 0
         self.crushed = None
         self.min_distance_to_target = None
         self.distance_covered = None
@@ -62,8 +62,8 @@ class CarEnv(gym.Env):
             "swivel": 1,
             "rotation": 1,
             "acceleration": 1,
-            # 'time': 1
-        }  # TODO: add map
+            "map":  int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2,
+            "discovered":  int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2
         self.observation_len = sum(self.wanted_observation.values())
 
         self.observation_space = spaces.Dict(
@@ -79,7 +79,8 @@ class CarEnv(gym.Env):
                 "rotation": spaces.Box(-360, 360, shape=(1,), dtype=np.float32),
                 "acceleration": spaces.Box(-1000, 1000, shape=(1,), dtype=np.float32),
                 # "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int)
-                # TODO: add map
+                "map":        spaces.Box(0, 1, shape=( int((2 * consts.size_map_quarter + 1) // consts.block_size),  int((2 * consts.size_map_quarter + 1) // consts.block_size)), dtype=uint8),
+                "discovered": spaces.Box(0, 1, shape=( int((2 * consts.size_map_quarter + 1) // consts.block_size),  int((2 * consts.size_map_quarter + 1) // consts.block_size)), dtype=uint8)
             }
         )
         self.action_space = spaces.Box(-1, 1, shape=(2,), dtype=np.float32)
@@ -163,17 +164,14 @@ class CarEnv(gym.Env):
 
         self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1)
         self.bodies = self.borders + self.obstacles
-        self.map = Map([consts.map_borders.copy()])
+        self.map = np.zeros((int((2 * consts.size_map_quarter + 1) // consts.block_size),int((2 * consts.size_map_quarter + 1) // consts.block_size)))
+        for i in range(int((2 * consts.size_map_quarter + 1) // consts.block_size)):
+            self.map[i][0] = 1
+            self.map[0][i] = 1
+            self.map[i][int((2 * consts.size_map_quarter + 1) // consts.block_size) - 1] = 1
+            self.map[int((2 * consts.size_map_quarter + 1) // consts.block_size) - 1][i] = 1 
         self.set_car_position(self.start_point)
-        self.discovered = [
-            [
-                0
-                for x in range(
-                    int((2 * consts.size_map_quarter + 1) // consts.block_size)
-                )
-            ]
-            for y in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))
-        ]
+        self.discovered = np.zeros((int((2 * consts.size_map_quarter + 1) // consts.block_size),int((2 * consts.size_map_quarter + 1) // consts.block_size)))
         self.discovery_difference = 0
         return self.get_observation()
 
@@ -208,7 +206,7 @@ class CarEnv(gym.Env):
         print("distance_covered", self.distance_covered)
         print("time", self.time)
         self.draw_discovered_matrix(self.discovered)
-        self.map.show()
+        self.draw_discovered_matrix(self.map)
 
     def reset_runtime(self):
         self.total_runtime = 0
@@ -269,19 +267,22 @@ class CarEnv(gym.Env):
                 return self.get_observation(), consts.CRUSH_PENALTY, True, {}
             return self.get_observation(), 0, True, {}
 
-        # updating map
-        did_hit, start, end = self.ray_cast(
-            self.car_model, [0, 0, 0], [-consts.ray_length, 0, 0]
-        )
-        if did_hit:
-            self.hits.append((end[0], end[1]))
-            if len(self.hits) == self.max_hits_before_calculation:
-                self.map.add_points_to_map(self.hits)
-                self.hits = []
+        # updating map;
+        directions = [2*np.pi * i / consts.ray_amount for i in range(ray_amount)]
+        new_map_discovered = self.discovered
+        for direction in directions:
 
-        new_map_discovered = self.add_disovered_list(self.discovered, start, end)
-        self.discovery_difference = new_map_discovered - self.map_discovered
-        self.map_discovered = new_map_discovered
+            did_hit, start, end = self.ray_cast(
+                self.car_model, [0, 0, 0], [-consts.ray_length*np.cos(direction), -consts.ray_length*np.sin(direction), 0]
+            )
+            if did_hit:
+                x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
+                y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
+                self.map[x1][y1] = 1
+            new_map_discovered = self.add_disovered_list(new_map_discovered, start, end)
+
+        self.discovery_difference = new_map_discovered - self.discovered
+        self.map_discovered = self.map_discovered.sum()
 
         # checking if collided or finished
         if self.check_collision(self.car_model, self.bodies, self.col_id):
@@ -355,7 +356,10 @@ class CarEnv(gym.Env):
             "swivel": np.array([self.swivel], dtype=np.float32),
             "rotation": np.array([self.rotation], dtype=np.float32),
             "acceleration": np.array([self.acceleration], dtype=np.float32),
-            # "time": np.array([self.time], dtype=int)
+            # "time": np.array([self.time], dtype=int),
+            "map": np.array(self.map, dtype=np.uint8),
+            "discovered": np.array(self.map, dtype=np.uint8)
+
         }
         return observation
 
