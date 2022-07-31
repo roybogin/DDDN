@@ -295,7 +295,7 @@ class CarEnv(gym.Env):
             self.map_discovered = self.add_disovered_list(new_map_discovered, start, end)
 
         self.discovery_difference = self.map_discovered - amount_discovered
-
+        self.discovered = new_map_discovered
         # checking if collided or finished
         if self.check_collision(self.car_model, self.bodies, self.col_id):
             self.crushed = True
