@@ -1,7 +1,6 @@
 import glob
 import math
 import os
-import time
 from datetime import datetime
 
 import gym
@@ -19,7 +18,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 import consts
 import map_create
 import scan_to_map
-from scan_to_map import Map, dist
+from scan_to_map import dist
 
 
 def make_env(index, seed=0):
@@ -69,7 +68,8 @@ def add_discovered_list(discovered_matrix, start, end):
             / len(discovered_matrix) ** 2
     )
 
-# car api to use with the DDPG algorithem
+
+# car api to use with the DDPG algorithm
 class CarEnv(gym.Env):
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
@@ -111,8 +111,8 @@ class CarEnv(gym.Env):
             "swivel": 1,
             "rotation": 1,
             "acceleration": 1,
-            "map":  int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2,
-            "discovered":  int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2}
+            "map": int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2,
+            "discovered": int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2}
         self.observation_len = sum(self.wanted_observation.values())
 
         self.observation_space = spaces.Dict(
@@ -131,8 +131,12 @@ class CarEnv(gym.Env):
                 "rotation": spaces.Box(-360, 360, shape=(1,), dtype=np.float32),
                 "acceleration": spaces.Box(-1000, 1000, shape=(1,), dtype=np.float32),
                 # "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int)
-                "map":        spaces.Box(0, 1, shape=( int((2 * consts.size_map_quarter + 1) // consts.block_size),  int((2 * consts.size_map_quarter + 1) // consts.block_size)), dtype=np.uint8),
-                "discovered": spaces.Box(0, 1, shape=( int((2 * consts.size_map_quarter + 1) // consts.block_size),  int((2 * consts.size_map_quarter + 1) // consts.block_size)), dtype=np.uint8)
+                "map": spaces.Box(0, 1, shape=(int((2 * consts.size_map_quarter + 1) // consts.block_size),
+                                               int((2 * consts.size_map_quarter + 1) // consts.block_size)),
+                                  dtype=np.uint8),
+                "discovered": spaces.Box(0, 1, shape=(int((2 * consts.size_map_quarter + 1) // consts.block_size),
+                                                      int((2 * consts.size_map_quarter + 1) // consts.block_size)),
+                                         dtype=np.uint8)
             }
         )
         self.action_space = spaces.Box(-1, 1, shape=(2,), dtype=np.float32)
@@ -206,7 +210,8 @@ class CarEnv(gym.Env):
 
         self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1)
         self.bodies = self.borders + self.obstacles
-        self.map = [[0 for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))] for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
+        self.map = [[0 for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))] for _ in
+                    range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
         for i in range(int((2 * consts.size_map_quarter + 1) // consts.block_size)):
             self.map[i][0] = 1
             self.map[0][i] = 1
@@ -250,35 +255,14 @@ class CarEnv(gym.Env):
         print("map_discovered", self.map_discovered)
         print("distance_covered", self.distance_covered)
         print("time", self.time)
-        self.draw_discovered_matrix(self.discovered)
-        self.draw_discovered_matrix(self.map)
-
-    def reset_runtime(self):
-        self.total_runtime = 0
-
-    def draw_discovered_matrix(self, discovered_matrix):
-        cmap = ListedColormap(["b", "g"])
-        matrix = np.array(discovered_matrix, dtype=np.uint8)
-        plt.imshow(matrix, cmap=cmap)
-
-    def add_disovered_list(self, discovered_matrix, start, end):
-        x0 = int((start[0] + consts.size_map_quarter) / consts.block_size)
-        y0 = int((start[1] + consts.size_map_quarter) / consts.block_size)
-        x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
-        y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
-
-        plot_line(x0, y0, x1, y1, discovered_matrix)
-
-        return (
-            sum([sum(discovered_matrix[i]) for i in range(len(discovered_matrix))])
-            / len(discovered_matrix) ** 2
-        )
+        draw_discovered_matrix(self.discovered)
+        draw_discovered_matrix(self.map)
 
     def calculate_reward(self):
         reward = (
-            (self.speed * consts.DISTANCE_REWARD)
-            + (self.discovery_difference * consts.EXPLORATION_REWARD)
-            + (self.min_distance_to_target * consts.MIN_DIST_PENALTY)
+                (self.speed * consts.DISTANCE_REWARD)
+                + (self.discovery_difference * consts.EXPLORATION_REWARD)
+                + (self.min_distance_to_target * consts.MIN_DIST_PENALTY)
         )
         return reward
 
@@ -319,19 +303,20 @@ class CarEnv(gym.Env):
         self.velocity = self.velocity[:2]
         self.angular_velocity = self.angular_velocity[:2]
 
-        directions = [2*np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
+        directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
         new_map_discovered = self.discovered
         amount_discovered = self.map_discovered
         for direction in directions:
 
             did_hit, start, end = self.ray_cast(
-                self.car_model, [0, 0, 0], [-consts.ray_length*np.cos(direction), -consts.ray_length*np.sin(direction), 0]
+                self.car_model, [0, 0, 0],
+                [-consts.ray_length * np.cos(direction), -consts.ray_length * np.sin(direction), 0]
             )
             if did_hit:
                 x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
                 y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
                 self.map[x1][y1] = 1
-            self.map_discovered = self.add_disovered_list(new_map_discovered, start, end)
+            self.map_discovered = add_discovered_list(new_map_discovered, start, end)
 
         self.discovery_difference = self.map_discovered - amount_discovered
 
@@ -582,11 +567,12 @@ def main():
     print("first eval")
     evaluate(model, env)
     print("training")
-    env.reset_runtime()
-    while consts.train_steps < 0 or env.total_runtime < consts.train_steps:
+    total_runtime = 0
+    while consts.train_steps < 0 or total_runtime < consts.train_steps:
         model.learn(total_timesteps=consts.checkpoint_steps)
         reward = evaluate(model, env)
         save_model(model, "%m_%d-%H_%M_%S", suffix=f'${str(int(reward))}')
+        total_runtime += consts.checkpoint_steps
     reward = evaluate(model, env)
     save_model(model, "%m_%d-%H_%M_%S", suffix=f'${str(int(reward))}')
 
