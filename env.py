@@ -69,11 +69,13 @@ def add_discovered_list(discovered_matrix, start, end):
             / len(discovered_matrix) ** 2
     )
 
-
+# car api to use with the DDPG algorithem
 class CarEnv(gym.Env):
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
         self.speed = None
+        self.velocity = None
+        self.angular_velocity = None
         self.rotation = None
         self.pos = None
         self.start_point = None
@@ -101,30 +103,36 @@ class CarEnv(gym.Env):
         self.index = index
         self.seed = seed
         self.discovery_difference = 0
-        self.wanted_observation = {'position': 2,
-                                   'goal': 2,
-                                   'speed': 1,
-                                   'swivel': 1,
-                                   'rotation': 1,
-                                   'acceleration': 1,
-                                   # 'time': 1
-                                   }  # TODO: add map
+        self.wanted_observation = {
+            "position": 2,
+            "goal": 2,
+            "velocity": 2,
+            "angular_velocity": 2,
+            "swivel": 1,
+            "rotation": 1,
+            "acceleration": 1,
+            "map":  int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2,
+            "discovered":  int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2}
         self.observation_len = sum(self.wanted_observation.values())
 
         self.observation_space = spaces.Dict(
             {
                 "position": spaces.Box(-size, size, shape=(2,), dtype=np.float32),
                 "goal": spaces.Box(-size, size, shape=(2,), dtype=np.float32),
-                "speed": spaces.Box(0, consts.max_velocity, shape=(1,),
-                                    dtype=np.float32),
+                "velocity": spaces.Box(
+                    -consts.max_velocity, consts.max_velocity, shape=(2,), dtype=np.float32
+                ),
+                "angular_velocity": spaces.Box(
+                    -consts.max_velocity, consts.max_velocity, shape=(2,), dtype=np.float32
+                ),
                 "swivel": spaces.Box(
                     -consts.max_steer, consts.max_steer, shape=(1,), dtype=np.float32
                 ),
                 "rotation": spaces.Box(-360, 360, shape=(1,), dtype=np.float32),
-                "acceleration": spaces.Box(-1000, 1000, shape=(1,),
-                                           dtype=np.float32),
+                "acceleration": spaces.Box(-1000, 1000, shape=(1,), dtype=np.float32),
                 # "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int)
-                # TODO: add map
+                "map":        spaces.Box(0, 1, shape=( int((2 * consts.size_map_quarter + 1) // consts.block_size),  int((2 * consts.size_map_quarter + 1) // consts.block_size)), dtype=np.uint8),
+                "discovered": spaces.Box(0, 1, shape=( int((2 * consts.size_map_quarter + 1) // consts.block_size),  int((2 * consts.size_map_quarter + 1) // consts.block_size)), dtype=np.uint8)
             }
         )
         self.action_space = spaces.Box(-1, 1, shape=(2,), dtype=np.float32)
@@ -181,6 +189,8 @@ class CarEnv(gym.Env):
         self.steeringAngle = 0
         self.swivel = 0
         self.speed = 0
+        self.velocity = [0, 0]
+        self.angular_velocity = [0, 0]
         self.acceleration = 0
         self.rotation = 0
         self.distance_covered = 0
@@ -194,10 +204,14 @@ class CarEnv(gym.Env):
         self.pos = self.start_point
         self.last_speed = 0
 
-        self.obstacles = map_create.create_map(self.maze, self.end_point,
-                                               epsilon=0.1)
+        self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1)
         self.bodies = self.borders + self.obstacles
-        self.map = Map([consts.map_borders.copy()])
+        self.map = [[0 for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))] for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
+        for i in range(int((2 * consts.size_map_quarter + 1) // consts.block_size)):
+            self.map[i][0] = 1
+            self.map[0][i] = 1
+            self.map[i][int((2 * consts.size_map_quarter + 1) // consts.block_size) - 1] = 1
+            self.map[int((2 * consts.size_map_quarter + 1) // consts.block_size) - 1][i] = 1
         self.set_car_position(self.start_point)
         self.discovered = [
             [0 for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
@@ -236,16 +250,36 @@ class CarEnv(gym.Env):
         print("map_discovered", self.map_discovered)
         print("distance_covered", self.distance_covered)
         print("time", self.time)
-        draw_discovered_matrix(self.discovered)
-        self.map.show()
+        self.draw_discovered_matrix(self.discovered)
+        self.draw_discovered_matrix(self.map)
+
+    def reset_runtime(self):
+        self.total_runtime = 0
+
+    def draw_discovered_matrix(self, discovered_matrix):
+        cmap = ListedColormap(["b", "g"])
+        matrix = np.array(discovered_matrix, dtype=np.uint8)
+        plt.imshow(matrix, cmap=cmap)
+
+    def add_disovered_list(self, discovered_matrix, start, end):
+        x0 = int((start[0] + consts.size_map_quarter) / consts.block_size)
+        y0 = int((start[1] + consts.size_map_quarter) / consts.block_size)
+        x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
+        y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
+
+        plot_line(x0, y0, x1, y1, discovered_matrix)
+
+        return (
+            sum([sum(discovered_matrix[i]) for i in range(len(discovered_matrix))])
+            / len(discovered_matrix) ** 2
+        )
 
     def calculate_reward(self):
-        reward = ((self.distance_covered * consts.DISTANCE_REWARD)
-                  + (self.map_discovered * consts.EXPLORATION_REWARD)
-                  + (self.finished * consts.END_REWARD)
-                  + (self.time * consts.TIME_PENALTY)
-                  + (self.crushed * consts.CRUSH_PENALTY)
-                  + (self.min_dist_to_target * consts.MIN_DIST_PENALTY))
+        reward = (
+            (self.speed * consts.DISTANCE_REWARD)
+            + (self.discovery_difference * consts.EXPLORATION_REWARD)
+            + (self.min_distance_to_target * consts.MIN_DIST_PENALTY)
+        )
         return reward
 
     def check_collision(self, car_model, obstacles, margin=0,
@@ -280,19 +314,26 @@ class CarEnv(gym.Env):
                 return self.get_observation(), consts.CRUSH_PENALTY, True, {}
             return self.get_observation(), 0, True, {}
 
-        # updating map
-        did_hit, start, end = self.ray_cast(
-            self.car_model, [0, 0, 0], [-consts.ray_length, 0, 0]
-        )
-        if did_hit:
-            self.hits.append((end[0], end[1]))
-            if len(self.hits) == self.max_hits_before_calculation:
-                self.map.add_points_to_map(self.hits)
-                self.hits = []
+        # updating map;
+        self.velocity, self.angular_velocity = p.getBaseVelocity(self.car_model)
+        self.velocity = self.velocity[:2]
+        self.angular_velocity = self.angular_velocity[:2]
 
-        new_map_discovered = add_discovered_list(self.discovered, start, end)
-        self.discovery_difference = new_map_discovered - self.map_discovered
-        self.map_discovered = new_map_discovered
+        directions = [2*np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
+        new_map_discovered = self.discovered
+        amount_discovered = self.map_discovered
+        for direction in directions:
+
+            did_hit, start, end = self.ray_cast(
+                self.car_model, [0, 0, 0], [-consts.ray_length*np.cos(direction), -consts.ray_length*np.sin(direction), 0]
+            )
+            if did_hit:
+                x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
+                y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
+                self.map[x1][y1] = 1
+            self.map_discovered = self.add_disovered_list(new_map_discovered, start, end)
+
+        self.discovery_difference = self.map_discovered - amount_discovered
 
         # checking if collided or finished
         if self.check_collision(self.car_model, self.bodies):
@@ -306,7 +347,7 @@ class CarEnv(gym.Env):
 
         self.pos = self.pos[:2]
         self.rotation = self.p1.getEulerFromQuaternion(quaternions)[2]
-        self.speed = norm(self.pos, self.last_pos)
+        self.speed = norm(self.velocity)
         self.acceleration = self.speed - self.last_speed
 
         change_steering_angle = action[0] * consts.max_steer
@@ -339,8 +380,10 @@ class CarEnv(gym.Env):
 
         for steer in self.steering:
             self.p1.setJointMotorControl2(
-                self.car_model, steer, self.p1.POSITION_CONTROL,
-                targetPosition=self.steeringAngle
+                self.car_model,
+                steer,
+                self.p1.POSITION_CONTROL,
+                targetPosition=self.steeringAngle,
             )
 
         self.time += 1
@@ -354,20 +397,24 @@ class CarEnv(gym.Env):
 
     def get_observation(self):
 
-        observation = {"position": np.array(self.pos[:2], dtype=np.float32),
-                       "goal": np.array(self.end_point[:2], dtype=np.float32),
-                       "speed": np.array([self.speed], dtype=np.float32),
-                       "swivel": np.array([self.swivel], dtype=np.float32),
-                       "rotation": np.array([self.rotation], dtype=np.float32),
-                       "acceleration": np.array([self.acceleration],
-                                                dtype=np.float32),
-                       # "time": np.array([self.time], dtype=int)
-                       }
+        observation = {
+            "position": np.array(self.pos[:2], dtype=np.float32),
+            "goal": np.array(self.end_point[:2], dtype=np.float32),
+            "velocity": np.array(self.velocity, dtype=np.float32),
+            "angular_velocity": np.array(self.angular_velocity, dtype=np.float32),
+            "swivel": np.array([self.swivel], dtype=np.float32),
+            "rotation": np.array([self.rotation], dtype=np.float32),
+            "acceleration": np.array([self.acceleration], dtype=np.float32),
+            # "time": np.array([self.time], dtype=int),
+            "map": np.array(self.map, dtype=np.uint8),
+            "discovered": np.array(self.discovered, dtype=np.uint8)
+
+        }
         return observation
 
     def set_car_position(self, starting_point):
-        self.p1.resetBasePositionAndOrientation(self.car_model, starting_point,
-                                                [0, 0, 0, 1])
+        self.p1.resetBasePositionAndOrientation(self.car_model, starting_point, [0, 0, 0, 1])
+        self.p1.resetBaseVelocity(self.car_model, [0, 0, 0], [0, 0, 0])
 
     def create_car_model(self):
         car = self.p1.loadURDF(
@@ -457,15 +504,16 @@ def plot_line(x0, y0, x1, y1, discovered_matrix):
             plot_line_high(x0, y0, x1, y1, discovered_matrix)
 
 
-def norm(a1, a2):
-    return math.sqrt(sum(((x - y) ** 2 for x, y in zip(a1, a2))))
+def norm(a):
+    return math.sqrt(sum((x ** 2 for x in a)))
 
 
-def save_model(model_to_save, format_str):
+def save_model(model_to_save, format_str, suffix=''):
     """
     saves the model with to the location returned by the given format string (formats the time of the run's end)
     :param model_to_save: The ddpg model that needs to be saved
     :param format_str: A format string for the saved file - will be passed to strftime
+    :param suffix: sting to add at the end of the file name
     :return:
     """
     try:
@@ -473,7 +521,7 @@ def save_model(model_to_save, format_str):
     except:
         pass
     curr_time = datetime.now().strftime(format_str)
-    model_to_save.save(f'results/{curr_time}')
+    model_to_save.save(f"results/run-{curr_time}{suffix}")
 
 
 def get_model(env, should_load, filename, verbose=True):
@@ -496,7 +544,7 @@ def get_model(env, should_load, filename, verbose=True):
             return model
 
         # searching for latest file
-        list_of_files = glob.glob('results/*.zip')
+        list_of_files = glob.glob("results/*.zip")
         if len(list_of_files) != 0:  # there is an existing file
             latest_file = max(list_of_files, key=os.path.getctime)
             if verbose:
@@ -508,7 +556,7 @@ def get_model(env, should_load, filename, verbose=True):
     # creating new model
     if verbose:
         print("Creating a new model")
-    model = DDPG("MultiInputPolicy", env, train_freq=1, gradient_steps=2, verbose=1)
+    model = DDPG("MultiInputPolicy", env, train_freq=1, gradient_steps=2, verbose=1, buffer_size=10000)
     return model
 
 
@@ -517,12 +565,14 @@ def evaluate(model, env):
     Evaluating the model
     :param env: Gym environment for the model
     :param model: The model to evaluate
-    :return:
+    :return: the mean reward in the evaluations
     """
     env.reset()
-    mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=1,
-                                              deterministic=True)
+    mean_reward, std_reward = evaluate_policy(
+        model, env, n_eval_episodes=3, deterministic=True
+    )
     print(f"mean_reward={mean_reward:.2f} +/- {std_reward}")
+    return mean_reward
 
 
 def main():
@@ -532,13 +582,13 @@ def main():
     print("first eval")
     evaluate(model, env)
     print("training")
-    t0 = time.time()
-    model.learn(total_timesteps=consts.train_steps)
-    t1 = time.time()
-    print(f'finished training {consts.train_steps} steps in {t1-t0} seconds on {consts.num_processes} processes')
-    save_model(model, "%m_%d-%H_%M_%S")
-    print("second eval")
-    evaluate(model, env)
+    env.reset_runtime()
+    while consts.train_steps < 0 or env.total_runtime < consts.train_steps:
+        model.learn(total_timesteps=consts.checkpoint_steps)
+        reward = evaluate(model, env)
+        save_model(model, "%m_%d-%H_%M_%S", suffix=f'${str(int(reward))}')
+    reward = evaluate(model, env)
+    save_model(model, "%m_%d-%H_%M_%S", suffix=f'${str(int(reward))}')
 
 
 if __name__ == "__main__":
