@@ -304,6 +304,7 @@ class CarEnv(gym.Env):
         self.angular_velocity = self.angular_velocity[:2]
 
         directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
+        new_map_discovered = self.discovered
         amount_discovered = self.map_discovered
         for direction in directions:
 
@@ -315,9 +316,10 @@ class CarEnv(gym.Env):
                 x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
                 y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
                 self.map[x1][y1] = 1
-            self.map_discovered = add_discovered_list(self.map_discovered, start, end)
+            self.map_discovered = add_discovered_list(new_map_discovered, start, end)
 
         self.discovery_difference = self.map_discovered - amount_discovered
+        self.discovered = new_map_discovered
 
         # checking if collided or finished
         if self.check_collision(self.car_model, self.bodies):
