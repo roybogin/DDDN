@@ -69,6 +69,6 @@ train_steps = -1  # steps we want to train - to train correctly we will let the 
 
 is_model_load = True   # do we want to load a model
 loaded_model_path = None    # the loaded model filename - None means the latest
-checkpoint_steps = int(1e4)  # how many steps we want between checkpointing
+checkpoint_steps = int(2e4)  # how many steps we want between checkpointing
 
 num_processes = 4
