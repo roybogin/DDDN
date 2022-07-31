@@ -11,7 +11,7 @@ import pybullet_data as pd
 from gym import spaces
 from matplotlib.colors import ListedColormap
 from pybullet_utils import bullet_client
-from stable_baselines3 import DDPG
+from stable_baselines3 import SAC
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
@@ -109,7 +109,7 @@ class CarEnv(gym.Env):
             "velocity": 2,
             "angular_velocity": 2,
             "swivel": 1,
-            "rotation": 1,
+            "rotation_trigonometry": 2,
             "acceleration": 1,
             "map": int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2,
             "discovered": int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2}
@@ -128,7 +128,7 @@ class CarEnv(gym.Env):
                 "swivel": spaces.Box(
                     -consts.max_steer, consts.max_steer, shape=(1,), dtype=np.float32
                 ),
-                "rotation": spaces.Box(-360, 360, shape=(1,), dtype=np.float32),
+                "rotation_trigonometry": spaces.Box(-1, 1, shape=(2,), dtype=np.float32),
                 "acceleration": spaces.Box(-1000, 1000, shape=(1,), dtype=np.float32),
                 # "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int)
                 "map": spaces.Box(0, 1, shape=(int((2 * consts.size_map_quarter + 1) // consts.block_size),
@@ -389,7 +389,7 @@ class CarEnv(gym.Env):
             "velocity": np.array(self.velocity, dtype=np.float32),
             "angular_velocity": np.array(self.angular_velocity, dtype=np.float32),
             "swivel": np.array([self.swivel], dtype=np.float32),
-            "rotation": np.array([self.rotation], dtype=np.float32),
+            "rotation_trigonometry": np.array([np.sin(self.rotation), np.cos(self.rotation)], dtype=np.float32),
             "acceleration": np.array([self.acceleration], dtype=np.float32),
             # "time": np.array([self.time], dtype=int),
             "map": np.array(self.map, dtype=np.uint8),
@@ -525,7 +525,7 @@ def get_model(env, should_load, filename, verbose=True):
             # file exists and will be loaded
             if verbose:
                 print(f'loading file: {filename}')
-            model = DDPG.load(filename, env, train_freq=1, gradient_steps=2,
+            model = SAC.load(filename, env, train_freq=1, gradient_steps=2,
                               verbose=1)
             return model
 
@@ -535,14 +535,14 @@ def get_model(env, should_load, filename, verbose=True):
             latest_file = max(list_of_files, key=os.path.getctime)
             if verbose:
                 print(f'loading file: {latest_file}')
-            model = DDPG.load(latest_file, env, train_freq=1, gradient_steps=2,
+            model = SAC.load(latest_file, env, train_freq=1, gradient_steps=2,
                               verbose=1)
             return model
 
     # creating new model
     if verbose:
         print("Creating a new model")
-    model = DDPG("MultiInputPolicy", env, train_freq=1, gradient_steps=2, verbose=1, buffer_size=10000)
+    model = SAC("MultiInputPolicy", env, train_freq=1, gradient_steps=2, verbose=1, buffer_size=10000)
     return model
 
 
