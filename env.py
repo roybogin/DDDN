@@ -97,7 +97,6 @@ class CarEnv(gym.Env):
         self.acceleration = None
         self.end_point = None
         self.maze = None
-        self.done = None
         self.borders = None
         self.p1 = None
         self.index = index
@@ -184,7 +183,6 @@ class CarEnv(gym.Env):
         resets the environment
         options can be used to specify "how to reset" (like with an empty maze/one obstacle etc.)
         """
-        self.done = False
         self.remove_all_obstacles()
 
         self.maze, self.end_point, self.start_point = get_new_maze()
@@ -288,16 +286,6 @@ class CarEnv(gym.Env):
         """
         if consts.print_runtime:
             print(self.time)
-        if self.crushed or self.finished or self.time == consts.max_time:
-            if consts.print_reward_breakdown:
-                self.print_reward_breakdown()
-            if self.finished:
-                print("finished")
-                return self.get_observation(), consts.END_REWARD, True, {}
-            if self.crushed:
-                print("crashed")
-                return self.get_observation(), consts.CRUSH_PENALTY, True, {}
-            return self.get_observation(), 0, True, {}
 
         # updating map;
         self.velocity, self.angular_velocity = p.getBaseVelocity(self.car_model)
@@ -378,9 +366,21 @@ class CarEnv(gym.Env):
         self.min_distance_to_target = min(
             self.min_distance_to_target, dist(self.pos, self.end_point[:2])
         )
+
+        if self.crushed or self.finished or self.time >= consts.max_time:
+            if consts.print_reward_breakdown:
+                self.print_reward_breakdown()
+            if self.finished:
+                print("finished")
+            elif self.crushed:
+                print("crashed")
+            else:
+                print(f"time's up - minimal distance is {self.min_distance_to_target}")
+            return self.get_observation(), self.calculate_reward(), True, {}
+
         self.p1.stepSimulation()
 
-        return self.get_observation(), self.calculate_reward(), self.done, {}
+        return self.get_observation(), self.calculate_reward(), False, {}
 
     def get_observation(self):
 
