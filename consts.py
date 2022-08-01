@@ -52,7 +52,7 @@ amount_to_save = 1  # how many of the best to save
 DISTANCE_REWARD = 0.05
 DISCOVER_REWARD = 50
 MIN_DIST_PENALTY = -0.005
-END_REWARD = 100
+FINISH_REWARD = 100
 TIME_PENALTY = -0.0001  # at each frame
 CRUSH_PENALTY = -100  # once
 
