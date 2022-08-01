@@ -260,9 +260,10 @@ class CarEnv(gym.Env):
 
     def calculate_reward(self):
         reward = (
-                (self.speed * consts.DISTANCE_REWARD)
-                + (self.discovery_difference * consts.EXPLORATION_REWARD)
-                + (self.min_distance_to_target * consts.MIN_DIST_PENALTY)
+                self.time * consts.TIME_PENALTY + 
+                self.crushed * consts.CRUSH_PENALTY + 
+                self.finished * consts.FINISH_REWARD +
+                self.map_discovered * consts.DISCOVER_REWARD
         )
         return reward
 
