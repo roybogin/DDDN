@@ -69,10 +69,30 @@ def add_discovered_list(discovered_matrix, start, end):
     )
 
 
+def get_angle(p1, p2, p3):
+    """
+    gets data (sin and cos) about the angle between the lines p2p1 and p2p3
+    :param p1: point 1
+    :param p2: point 2 (the middle)
+    :param p3: point 3
+    :return: sin and cos of wanted angle
+    """
+    a = (p1[0]-p2[0], p1[1]-p2[1])
+    b = (p3[0]-p2[0], p3[1]-p2[1])
+
+    scalar_product = a[0]*b[0]+a[1]*b[1]
+    norm_product = norm(a) * norm(b)
+    determinant = a[0]*b[1] - a[1]*b[0]
+    sin, cos = determinant / norm_product, scalar_product / norm_product
+    return sin, cos
+
+
 # car api to use with the DDPG algorithm
 class CarEnv(gym.Env):
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
+        self.relative_rotation = None
+        self.rotation_trig = None
         self.speed = None
         self.velocity = None
         self.angular_velocity = None
@@ -108,7 +128,7 @@ class CarEnv(gym.Env):
             "velocity": 2,
             "angular_velocity": 2,
             "swivel": 1,
-            "rotation_trigonometry": 2,
+            "rotation_trigonometry_relative": 2,
             "acceleration": 1,
             "map": int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2,
             "discovered": int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2}
@@ -127,7 +147,7 @@ class CarEnv(gym.Env):
                 "swivel": spaces.Box(
                     -consts.max_steer, consts.max_steer, shape=(1,), dtype=np.float32
                 ),
-                "rotation_trigonometry": spaces.Box(-1, 1, shape=(2,), dtype=np.float32),
+                "rotation_trigonometry_relative": spaces.Box(-1, 1, shape=(2,), dtype=np.float32),
                 "acceleration": spaces.Box(-1000, 1000, shape=(1,), dtype=np.float32),
                 # "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int)
                 "map": spaces.Box(0, 1, shape=(int((2 * consts.size_map_quarter + 1) // consts.block_size),
@@ -195,6 +215,7 @@ class CarEnv(gym.Env):
         self.angular_velocity = [0, 0]
         self.acceleration = 0
         self.rotation = 0
+
         self.distance_covered = 0
         self.min_distance_to_target = dist(self.start_point[:2], self.end_point[:2])
         self.map_discovered = 0
@@ -221,6 +242,9 @@ class CarEnv(gym.Env):
             for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))
         ]
         self.discovery_difference = 0
+        self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
+        self.relative_rotation = get_angle([self.pos[0] + self.rotation_trig[0], self.pos[1] + self.rotation_trig[1]],
+                                           self.end_point[:2], self.pos[:2])
         return self.get_observation()
 
     def ray_cast(self, car, offset, direction):
@@ -325,6 +349,10 @@ class CarEnv(gym.Env):
         self.speed = norm(self.velocity)
         self.acceleration = self.speed - self.last_speed
 
+        self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
+        self.relative_rotation = get_angle([self.pos[0]+self.rotation_trig[0], self.pos[1] + self.rotation_trig[1]],
+                                           self.end_point[:2], self.pos[:2])
+
         change_steering_angle = action[0] * consts.max_steer
         change_target_velocity = action[1] * consts.max_velocity
 
@@ -390,7 +418,7 @@ class CarEnv(gym.Env):
             "velocity": np.array(self.velocity, dtype=np.float32),
             "angular_velocity": np.array(self.angular_velocity, dtype=np.float32),
             "swivel": np.array([self.swivel], dtype=np.float32),
-            "rotation_trigonometry": np.array([np.sin(self.rotation), np.cos(self.rotation)], dtype=np.float32),
+            "rotation_trigonometry_relative": np.array(self.relative_rotation, dtype=np.float32),
             "acceleration": np.array([self.acceleration], dtype=np.float32),
             # "time": np.array([self.time], dtype=int),
             "map": np.array(self.map, dtype=np.uint8),
