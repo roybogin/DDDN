@@ -73,6 +73,7 @@ def add_discovered_list(discovered_matrix, start, end):
 class CarEnv(gym.Env):
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
+        self.total_score = None
         self.rotation_trig = None
         self.speed = None
         self.velocity = None
@@ -207,6 +208,7 @@ class CarEnv(gym.Env):
         self.last_pos = self.start_point
         self.pos = self.start_point
         self.last_speed = 0
+        self.total_score = 0
 
         self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1)
         self.bodies = self.borders + self.obstacles
@@ -374,21 +376,26 @@ class CarEnv(gym.Env):
         self.min_distance_to_target = min(
             self.min_distance_to_target, dist(self.pos, self.end_point[:2])
         )
+        
+        score = self.calculate_reward()
+        self.total_score += score
 
         if self.crushed or self.finished or self.time >= consts.max_time:
             if consts.print_reward_breakdown:
                 self.print_reward_breakdown()
             if self.finished:
-                print("finished")
+                print(f"finished - total score is {self.total_score}")
             elif self.crushed:
-                print("crashed")
+                print(f"crashed - total score is {self.total_score}")
             else:
-                print(f"time's up - minimal distance is {self.min_distance_to_target}")
-            return self.get_observation(), self.calculate_reward(), True, {}
+                print(f"time's up - minimal distance is {self.min_distance_to_target} (started at "
+                      f"{dist(self.start_point[:2], self.end_point[:2])}) - total score is"
+                      f" {self.total_score}")
+            return self.get_observation(), score, True, {}
 
         self.p1.stepSimulation()
 
-        return self.get_observation(), self.calculate_reward(), False, {}
+        return self.get_observation(), score, False, {}
 
     def get_observation(self):
 

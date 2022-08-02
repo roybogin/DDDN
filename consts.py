@@ -61,7 +61,7 @@ best_scores = []  # a list of the best scores, built through simulations
 average_scores = []  # averages of populations
 
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
-max_time = int(1e4)  # time before forcing a new maze
+max_time = int(1.5e4)  # time before forcing a new maze
 print_runtime = False  # do we want to print the total time of the run
 
 train_steps = -1  # steps we want to train - to train correctly we will let the code finish running the last
@@ -69,6 +69,6 @@ train_steps = -1  # steps we want to train - to train correctly we will let the 
 
 is_model_load = True   # do we want to load a model
 loaded_model_path = None    # the loaded model filename - None means the latest
-checkpoint_steps = int(2e4)  # how many steps we want between checkpointing
+checkpoint_steps = int(3e4)  # how many steps we want between checkpointing
 
 num_processes = 4
