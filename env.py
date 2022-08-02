@@ -384,13 +384,11 @@ class CarEnv(gym.Env):
             if consts.print_reward_breakdown:
                 self.print_reward_breakdown()
             if self.finished:
-                print(f"finished - total score is {self.total_score}")
+                print(f"finished - total score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
             elif self.crushed:
-                print(f"crashed - total score is {self.total_score}")
+                print(f"crashed - total score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
             else:
-                print(f"time's up - minimal distance is {self.min_distance_to_target} (started at "
-                      f"{dist(self.start_point[:2], self.end_point[:2])}) - total score is"
-                      f" {self.total_score}")
+                print(f"time's up - minimal distance is {self.min_distance_to_target} - total score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
             return self.get_observation(), score, True, {}
 
         self.p1.stepSimulation()
