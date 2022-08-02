@@ -27,7 +27,7 @@ ray_length = 10  # length of ray
 ray_amount = 12
 print_reward_breakdown = False
 size_map_quarter = 10
-block_size = 0.3
+block_size = 0.2
 map_borders = [
     (size_map_quarter, size_map_quarter),
     (size_map_quarter, -size_map_quarter),

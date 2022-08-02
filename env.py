@@ -19,6 +19,7 @@ import consts
 import map_create
 import scan_to_map
 from scan_to_map import dist
+import mazes
 
 
 def make_env(index, seed=0):
@@ -42,9 +43,8 @@ def get_new_maze():
     """
     returns a maze (a set of polygonal lines), a start_point and end_point(3D vectors)
     """
-    start = [0, 0, 0]
-    end = [0, 1, 0]
-    maze = []
+    idx = np.random.randint(0, len(mazes.empty_set))
+    maze, start, end = mazes.empty_set[idx]
     return maze, end, start
 
 
@@ -128,10 +128,10 @@ class CarEnv(gym.Env):
             "velocity": 2,
             "angular_velocity": 2,
             "swivel": 1,
-            "rotation_trigonometry_relative": 2,
+            "rotation_trigonometry": 2,
             "acceleration": 1,
-            "map": int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2,
-            "discovered": int((2 * consts.size_map_quarter + 1) // consts.block_size) ** 2}
+            "map": int((2 * consts.size_map_quarter) // consts.block_size) ** 2,
+            "discovered": int((2 * consts.size_map_quarter) // consts.block_size) ** 2}
         self.observation_len = sum(self.wanted_observation.values())
 
         self.observation_space = spaces.Dict(
@@ -147,14 +147,14 @@ class CarEnv(gym.Env):
                 "swivel": spaces.Box(
                     -consts.max_steer, consts.max_steer, shape=(1,), dtype=np.float32
                 ),
-                "rotation_trigonometry_relative": spaces.Box(-1, 1, shape=(2,), dtype=np.float32),
+                "rotation_trigonometry": spaces.Box(-1, 1, shape=(2,), dtype=np.float32),
                 "acceleration": spaces.Box(-1000, 1000, shape=(1,), dtype=np.float32),
                 # "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int)
-                "map": spaces.Box(0, 1, shape=(int((2 * consts.size_map_quarter + 1) // consts.block_size),
-                                               int((2 * consts.size_map_quarter + 1) // consts.block_size)),
+                "map": spaces.Box(0, 1, shape=(int((2 * consts.size_map_quarter) // consts.block_size),
+                                               int((2 * consts.size_map_quarter) // consts.block_size)),
                                   dtype=np.uint8),
-                "discovered": spaces.Box(0, 1, shape=(int((2 * consts.size_map_quarter + 1) // consts.block_size),
-                                                      int((2 * consts.size_map_quarter + 1) // consts.block_size)),
+                "discovered": spaces.Box(0, 1, shape=(int((2 * consts.size_map_quarter) // consts.block_size),
+                                                      int((2 * consts.size_map_quarter) // consts.block_size)),
                                          dtype=np.uint8)
             }
         )
@@ -229,22 +229,21 @@ class CarEnv(gym.Env):
 
         self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1)
         self.bodies = self.borders + self.obstacles
-        self.map = [[0 for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))] for _ in
-                    range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
-        for i in range(int((2 * consts.size_map_quarter + 1) // consts.block_size)):
+        self.map = [[0 for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))] for _ in
+                    range(int((2 * consts.size_map_quarter) // consts.block_size))]
+        for i in range(int((2 * consts.size_map_quarter) // consts.block_size)):
             self.map[i][0] = 1
             self.map[0][i] = 1
-            self.map[i][int((2 * consts.size_map_quarter + 1) // consts.block_size) - 1] = 1
-            self.map[int((2 * consts.size_map_quarter + 1) // consts.block_size) - 1][i] = 1
+            self.map[i][int((2 * consts.size_map_quarter) // consts.block_size) - 1] = 1
+            self.map[int((2 * consts.size_map_quarter) // consts.block_size) - 1][i] = 1
         self.set_car_position(self.start_point)
         self.discovered = [
-            [0 for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))]
-            for _ in range(int((2 * consts.size_map_quarter + 1) // consts.block_size))
+            [0 for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))]
+            for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))
         ]
         self.discovery_difference = 0
         self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
-        self.relative_rotation = get_angle([self.pos[0] + self.rotation_trig[0], self.pos[1] + self.rotation_trig[1]],
-                                           self.end_point[:2], self.pos[:2])
+
         return self.get_observation()
 
     def ray_cast(self, car, offset, direction):
@@ -322,12 +321,14 @@ class CarEnv(gym.Env):
         for direction in directions:
 
             did_hit, start, end = self.ray_cast(
-                self.car_model, [0, 0, 0],
+                self.car_model, [0, 0, 0.5],
                 [-consts.ray_length * np.cos(direction), -consts.ray_length * np.sin(direction), 0]
             )
             if did_hit:
                 x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
                 y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
+                x1 = max(0, min(x1, len(self.map)-1))
+                y1 = max(0, min(y1, len(self.map)-1))
                 self.map[x1][y1] = 1
             self.map_discovered = add_discovered_list(new_map_discovered, start, end)
 
@@ -418,7 +419,7 @@ class CarEnv(gym.Env):
             "velocity": np.array(self.velocity, dtype=np.float32),
             "angular_velocity": np.array(self.angular_velocity, dtype=np.float32),
             "swivel": np.array([self.swivel], dtype=np.float32),
-            "rotation_trigonometry_relative": np.array(self.relative_rotation, dtype=np.float32),
+            "rotation_trigonometry": np.array(self.rotation_trig, dtype=np.float32),
             "acceleration": np.array([self.acceleration], dtype=np.float32),
             # "time": np.array([self.time], dtype=int),
             "map": np.array(self.map, dtype=np.uint8),
