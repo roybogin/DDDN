@@ -73,6 +73,7 @@ def add_discovered_list(discovered_matrix, start, end):
 class CarEnv(gym.Env):
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
+        self.initial_distance_to_target = None
         self.total_score = None
         self.rotation_trig = None
         self.speed = None
@@ -199,7 +200,8 @@ class CarEnv(gym.Env):
         self.rotation = 0
 
         self.distance_covered = 0
-        self.min_distance_to_target = dist(self.start_point[:2], self.end_point[:2])
+        self.initial_distance_to_target = dist(self.start_point[:2], self.end_point[:2])
+        self.min_distance_to_target = self.initial_distance_to_target
         self.map_discovered = 0
         self.finished = False
         self.time = 0
@@ -267,7 +269,8 @@ class CarEnv(gym.Env):
                 consts.TIME_PENALTY +
                 self.crushed * consts.CRUSH_PENALTY + 
                 self.finished * consts.FINISH_REWARD +
-                self.discovery_difference * consts.DISCOVER_REWARD
+                self.discovery_difference * consts.DISCOVER_REWARD +
+                (self.min_distance_to_target / self.initial_distance_to_target) * consts.MIN_DIST_PENALTY
         )
         return reward
 
