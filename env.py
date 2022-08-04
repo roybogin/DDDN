@@ -543,7 +543,9 @@ def save_model(model_to_save, format_str, suffix=''):
     except:
         pass
     curr_time = datetime.now().strftime(format_str)
-    model_to_save.save(f"results/run-{curr_time}{suffix}")
+    filename = f'run-{curr_time}{suffix}'
+    print(f"saving as {filename}")
+    model_to_save.save(f"results/{filename}")
 
 
 def get_model(env, should_load, filename, verbose=True):
