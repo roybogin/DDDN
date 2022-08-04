@@ -389,15 +389,15 @@ class CarEnv(gym.Env):
             if self.finished:
                 print(
                     f"finished maze {self.maze_idx} - total score is {self.total_score} - initial distance"
-                    f" {dist(self.start_point[:2], self.end_point[:2])}")
+                    f" {dist(self.start_point[:2], self.end_point[:2])} - time {self.time}")
             elif self.crushed:
                 print(
                     f"crashed maze {self.maze_idx} - total score is {self.total_score} - initial distance"
-                    f" {dist(self.start_point[:2], self.end_point[:2])}")
+                    f" {dist(self.start_point[:2], self.end_point[:2])} - time {self.time}")
             else:
                 print(
                     f"time's up maze {self.maze_idx} - minimal distance is {self.min_distance_to_target} - total "
-                    f"score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
+                    f"score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])} - time {self.time}")
             return self.get_observation(), score, True, {}
 
         self.p1.stepSimulation()
