@@ -83,7 +83,6 @@ class CarEnv(gym.Env):
         self.bodies = None
         self.hits = None
         self.last_speed = None
-        self.last_pos = None
         self.time = None
         self.finished = None
         self.map_discovered = None
@@ -177,6 +176,28 @@ class CarEnv(gym.Env):
             self.p1.removeBody(obstacle)
         self.obstacles = []
 
+    def scan_environment(self):
+        # TODO: get rid of new_map_discovered? - doesn't copy
+        directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
+        new_map_discovered = self.discovered
+        amount_discovered = self.map_discovered
+        for direction in directions:
+
+            did_hit, start, end = self.ray_cast(
+                self.car_model, [0, 0, 0.5],
+                [-consts.ray_length * np.cos(direction), -consts.ray_length * np.sin(direction), 0]
+            )
+            if did_hit:
+                x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
+                y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
+                x1 = max(0, min(x1, len(self.map) - 1))
+                y1 = max(0, min(y1, len(self.map) - 1))
+                self.map[x1][y1] = 1
+            self.map_discovered = add_discovered_list(new_map_discovered, start, end)
+
+        self.discovery_difference = self.map_discovered - amount_discovered
+        self.discovered = new_map_discovered
+
     def reset(self):
         """
         resets the environment
@@ -203,7 +224,6 @@ class CarEnv(gym.Env):
         self.time = 0
         self.crushed = False
         self.hits = []
-        self.last_pos = self.start_point
         self.pos = self.start_point
         self.last_speed = 0
         self.total_score = 0
@@ -224,6 +244,8 @@ class CarEnv(gym.Env):
         ]
         self.discovery_difference = 0
         self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
+
+        self.scan_environment()
 
         return self.get_observation()
 
@@ -296,48 +318,6 @@ class CarEnv(gym.Env):
         if consts.print_runtime:
             print(self.time)
 
-        # updating map;
-        self.velocity, self.angular_velocity = p.getBaseVelocity(self.car_model)
-        self.velocity = self.velocity[:2]
-        self.angular_velocity = self.angular_velocity[:2]
-
-        directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
-        new_map_discovered = self.discovered
-        amount_discovered = self.map_discovered
-        for direction in directions:
-
-            did_hit, start, end = self.ray_cast(
-                self.car_model, [0, 0, 0.5],
-                [-consts.ray_length * np.cos(direction), -consts.ray_length * np.sin(direction), 0]
-            )
-            if did_hit:
-                x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
-                y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
-                x1 = max(0, min(x1, len(self.map) - 1))
-                y1 = max(0, min(y1, len(self.map) - 1))
-                self.map[x1][y1] = 1
-            self.map_discovered = add_discovered_list(new_map_discovered, start, end)
-
-        self.discovery_difference = self.map_discovered - amount_discovered
-        self.discovered = new_map_discovered
-
-        # checking if collided or finished
-        if self.check_collision(self.car_model, self.bodies):
-            self.crushed = True
-        if scan_to_map.dist(self.last_pos, self.end_point) < self.min_dist_to_target:
-            self.finished = True
-        # # getting values for NN
-        self.pos, quaternions = self.p1.getBasePositionAndOrientation(self.car_model)
-        if self.pos[2] > 0.1:
-            self.crushed = True
-
-        self.pos = self.pos[:2]
-        self.rotation = self.p1.getEulerFromQuaternion(quaternions)[2]
-        self.speed = norm(self.velocity)
-        self.acceleration = self.speed - self.last_speed
-
-        self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
-
         change_steering_angle = action[0] * consts.max_steer
         change_target_velocity = action[1] * consts.max_velocity
 
@@ -350,11 +330,6 @@ class CarEnv(gym.Env):
         if abs(self.targetVelocity) > consts.max_velocity:
             self.targetVelocity = consts.max_velocity * self.targetVelocity / abs(
                 self.targetVelocity)
-
-        # saving for later
-        self.swivel = self.steeringAngle
-        self.last_pos = self.pos
-        self.last_speed = self.speed
 
         # moving
         for wheel in self.wheels:
@@ -373,8 +348,40 @@ class CarEnv(gym.Env):
                 self.p1.POSITION_CONTROL,
                 targetPosition=self.steeringAngle,
             )
+        self.p1.stepSimulation()
 
         self.time += 1
+
+        self.scan_environment()
+
+        # updating map;
+        self.pos, quaternions = self.p1.getBasePositionAndOrientation(self.car_model)
+
+        self.velocity, self.angular_velocity = p.getBaseVelocity(self.car_model)
+        self.velocity = self.velocity[:2]
+        self.angular_velocity = self.angular_velocity[:2]
+
+        # checking if collided or finished
+        if self.check_collision(self.car_model, self.bodies):
+            self.crushed = True
+        if scan_to_map.dist(self.pos, self.end_point) < self.min_dist_to_target:
+            self.finished = True
+        # # getting values for NN
+        if self.pos[2] > 0.1:
+            self.crushed = True
+
+        self.pos = self.pos[:2]
+        self.rotation = self.p1.getEulerFromQuaternion(quaternions)[2]
+
+        self.last_speed = self.speed
+        self.speed = norm(self.velocity)
+        self.acceleration = self.speed - self.last_speed
+
+        self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
+
+        # saving for later
+        self.swivel = self.steeringAngle
+
         self.distance_covered += self.speed
         self.min_distance_to_target = min(
             self.min_distance_to_target, dist(self.pos, self.end_point[:2])
@@ -399,8 +406,6 @@ class CarEnv(gym.Env):
                     f"time's up maze {self.maze_idx} - minimal distance is {self.min_distance_to_target} - total "
                     f"score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])} - time {self.time}")
             return self.get_observation(), score, True, {}
-
-        self.p1.stepSimulation()
 
         return self.get_observation(), score, False, {}
 
