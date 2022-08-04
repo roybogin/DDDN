@@ -98,7 +98,6 @@ class CarEnv(gym.Env):
         self.borders = None
         self.p1 = None
         self.index = index
-        self.seed = seed
         self.discovery_difference = 0
         self.wanted_observation = {
             "position": 2,
@@ -146,7 +145,7 @@ class CarEnv(gym.Env):
         self.steering = None
         self.obstacles = []
         self.start_env()
-        self.seed()
+        self.seed(seed)
         self.reset()
 
     def start_env(self):
