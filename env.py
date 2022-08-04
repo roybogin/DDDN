@@ -9,6 +9,7 @@ import numpy as np
 import pybullet as p
 import pybullet_data as pd
 from gym import spaces
+from gym.utils import seeding
 from matplotlib.colors import ListedColormap
 from pybullet_utils import bullet_client
 from stable_baselines3 import SAC
@@ -39,13 +40,6 @@ def make_env(index, seed=0):
 
 
 # car api to use with the DDPG algorithm
-def get_new_maze():
-    """
-    returns a maze (a set of polygonal lines), a start_point and end_point(3D vectors)
-    """
-    idx = np.random.randint(0, len(mazes.empty_set))
-    maze, start, end = mazes.empty_set[idx]
-    return maze, end, start
 
 
 def draw_discovered_matrix(discovered_matrix):
@@ -73,6 +67,7 @@ def add_discovered_list(discovered_matrix, start, end):
 class CarEnv(gym.Env):
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
+        self.np_random = None
         self.initial_distance_to_target = None
         self.total_score = None
         self.rotation_trig = None
@@ -151,6 +146,7 @@ class CarEnv(gym.Env):
         self.steering = None
         self.obstacles = []
         self.start_env()
+        self.seed()
         self.reset()
 
     def start_env(self):
@@ -181,16 +177,14 @@ class CarEnv(gym.Env):
             self.p1.removeBody(obstacle)
         self.obstacles = []
 
-    def reset(self, seed=None):
+    def reset(self):
         """
         resets the environment
         options can be used to specify "how to reset" (like with an empty maze/one obstacle etc.)
         """
-        super().reset(seed=seed)
-        np.random.seed(seed)
         self.remove_all_obstacles()
 
-        self.maze, self.end_point, self.start_point = get_new_maze()
+        self.maze, self.end_point, self.start_point = self.get_new_maze()
 
         self.targetVelocity = 0
         self.steeringAngle = 0
@@ -256,6 +250,10 @@ class CarEnv(gym.Env):
         else:
             return True, start[:2], ray_test[0][3]
 
+    def seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
+
     def print_reward_breakdown(self):
         print("got to target", self.finished)
         print("min_distance_to_target", self.min_distance_to_target)
@@ -269,7 +267,7 @@ class CarEnv(gym.Env):
     def calculate_reward(self):
         reward = (
                 consts.TIME_PENALTY +
-                self.crushed * consts.CRUSH_PENALTY + 
+                self.crushed * consts.CRUSH_PENALTY +
                 self.finished * consts.FINISH_REWARD +
                 self.discovery_difference * consts.DISCOVER_REWARD +
                 (self.min_distance_to_target / self.initial_distance_to_target) * consts.MIN_DIST_PENALTY
@@ -315,8 +313,8 @@ class CarEnv(gym.Env):
             if did_hit:
                 x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
                 y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
-                x1 = max(0, min(x1, len(self.map)-1))
-                y1 = max(0, min(y1, len(self.map)-1))
+                x1 = max(0, min(x1, len(self.map) - 1))
+                y1 = max(0, min(y1, len(self.map) - 1))
                 self.map[x1][y1] = 1
             self.map_discovered = add_discovered_list(new_map_discovered, start, end)
 
@@ -381,7 +379,7 @@ class CarEnv(gym.Env):
         self.min_distance_to_target = min(
             self.min_distance_to_target, dist(self.pos, self.end_point[:2])
         )
-        
+
         score = self.calculate_reward()
         self.total_score += score
 
@@ -389,11 +387,14 @@ class CarEnv(gym.Env):
             if consts.print_reward_breakdown:
                 self.print_reward_breakdown()
             if self.finished:
-                print(f"finished - total score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
+                print(
+                    f"finished - total score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
             elif self.crushed:
-                print(f"crashed - total score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
+                print(
+                    f"crashed - total score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
             else:
-                print(f"time's up - minimal distance is {self.min_distance_to_target} - total score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
+                print(
+                    f"time's up - minimal distance is {self.min_distance_to_target} - total score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
             return self.get_observation(), score, True, {}
 
         self.p1.stepSimulation()
@@ -438,6 +439,14 @@ class CarEnv(gym.Env):
         self.p1.resetBasePositionAndOrientation(car, [0, 0, 0], [0, 0, 0, 1])
 
         return car, wheels, steering
+
+    def get_new_maze(self):
+        """
+        returns a maze (a set of polygonal lines), a start_point and end_point(3D vectors)
+        """
+        idx = self.np_random.randint(0, len(mazes.empty_set))
+        maze, start, end = mazes.empty_set[idx]
+        return maze, end, start
 
 
 def add_lists(lists):
@@ -545,7 +554,7 @@ def get_model(env, should_load, filename, verbose=True):
             if verbose:
                 print(f'loading file: {filename}')
             model = SAC.load(filename, env, train_freq=1, gradient_steps=2,
-                              verbose=1)
+                             verbose=1)
             return model
 
         # searching for latest file
@@ -555,7 +564,7 @@ def get_model(env, should_load, filename, verbose=True):
             if verbose:
                 print(f'loading file: {latest_file}')
             model = SAC.load(latest_file, env, train_freq=1, gradient_steps=2,
-                              verbose=1)
+                             verbose=1)
             return model
 
     # creating new model
