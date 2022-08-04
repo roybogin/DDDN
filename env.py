@@ -181,11 +181,13 @@ class CarEnv(gym.Env):
             self.p1.removeBody(obstacle)
         self.obstacles = []
 
-    def reset(self):
+    def reset(self, seed=None):
         """
         resets the environment
         options can be used to specify "how to reset" (like with an empty maze/one obstacle etc.)
         """
+        super().reset(seed=seed)
+        np.random.seed(seed)
         self.remove_all_obstacles()
 
         self.maze, self.end_point, self.start_point = get_new_maze()
