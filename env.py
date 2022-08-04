@@ -23,7 +23,7 @@ from scan_to_map import dist
 import mazes
 
 
-def make_env(index, seed=0):
+def make_env(index, seed=None):
     """
     Utility function for multiprocessing env.
     :param index: (int) index of the subprocess
@@ -444,6 +444,7 @@ class CarEnv(gym.Env):
         returns a maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         idx = self.np_random.randint(0, len(mazes.empty_set))
+        print(idx)
         maze, start, end = mazes.empty_set[idx]
         return maze, end, start
 
