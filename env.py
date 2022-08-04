@@ -67,6 +67,7 @@ def add_discovered_list(discovered_matrix, start, end):
 class CarEnv(gym.Env):
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
+        self.maze_idx = None
         self.np_random = None
         self.initial_distance_to_target = None
         self.total_score = None
@@ -387,13 +388,16 @@ class CarEnv(gym.Env):
                 self.print_reward_breakdown()
             if self.finished:
                 print(
-                    f"finished - total score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
+                    f"finished maze {self.maze_idx} - total score is {self.total_score} - initial distance"
+                    f" {dist(self.start_point[:2], self.end_point[:2])}")
             elif self.crushed:
                 print(
-                    f"crashed - total score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
+                    f"crashed maze {self.maze_idx} - total score is {self.total_score} - initial distance"
+                    f" {dist(self.start_point[:2], self.end_point[:2])}")
             else:
                 print(
-                    f"time's up - minimal distance is {self.min_distance_to_target} - total score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
+                    f"time's up maze {self.maze_idx} - minimal distance is {self.min_distance_to_target} - total "
+                    f"score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])}")
             return self.get_observation(), score, True, {}
 
         self.p1.stepSimulation()
@@ -443,9 +447,8 @@ class CarEnv(gym.Env):
         """
         returns a maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
-        idx = self.np_random.randint(0, len(mazes.empty_set))
-        print(idx)
-        maze, start, end = mazes.empty_set[idx]
+        self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
+        maze, start, end = mazes.empty_set[self.maze_idx]
         return maze, end, start
 
 
