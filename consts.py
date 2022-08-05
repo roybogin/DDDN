@@ -64,11 +64,9 @@ max_hits_before_calculation = 10  # amounts of new hits before adding lines to t
 max_time = int(1.5e4)  # time before forcing a new maze
 print_runtime = False  # do we want to print the total time of the run
 
-train_steps = -1  # steps we want to train - to train correctly we will let the code finish running the last
-# training session. -1 if we want to train infinitely
-
 is_model_load = True   # do we want to load a model
 loaded_model_path = None    # the loaded model filename - None means the latest
-checkpoint_steps = int(3e4)  # how many steps we want between checkpointing
+checkpoint_steps = int(6e4)  # how many steps we want between checkpointing - will actually be a multiple of core
+# number times max_time
 
 num_processes = 4
