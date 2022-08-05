@@ -4,18 +4,18 @@ import pybullet_data
 import os
 
 
-def create_wall(pos, orientation, length, width):
+def create_wall(pos, orientation, length, width, client):
 
     boxHalfLength = length / 2
     boxHalfWidth = width / 2
     boxHalfHeight = 0.5
-    body = p.createCollisionShape(
+    body = client.createCollisionShape(
         p.GEOM_BOX, halfExtents=[boxHalfLength, boxHalfWidth, boxHalfHeight]
     )
     mass = 10000
     visualShapeId = -1
     # block creation
-    block = p.createMultiBody(
+    block = client.createMultiBody(
         10000,
         body,
         -1,
@@ -29,7 +29,7 @@ def distance(p1, p2):
     return math.sqrt(pow(p1[0] - p2[0], 2) + pow(p1[1] - p2[1], 2))
 
 
-def create_poly_wall(poly, epsilon):
+def create_poly_wall(poly, epsilon, client):
     walls = []
     start = 1
     prev_angle = 0
@@ -43,7 +43,7 @@ def create_poly_wall(poly, epsilon):
         euler = [0, 0, prev_angle]
         orientation = p.getQuaternionFromEuler(euler)
         pos = [(poly[0][0] + poly[1][0]) / 2, (poly[0][1] + poly[1][1]) / 2, 0.5]
-        walls.append(create_wall(pos, orientation, length, width))
+        walls.append(create_wall(pos, orientation, length, width, client))
     else:
         start = 0
         prev_angle = math.atan2(poly[-1][1] - poly[-2][1], poly[-1][0] - poly[-2][0])
@@ -84,15 +84,15 @@ def create_poly_wall(poly, epsilon):
             poly[i][1] + math.sin(angle) * (length / 2 + length_from),
             0.5,
         ]
-        walls.append(create_wall(pos, orientation, length, width))
+        walls.append(create_wall(pos, orientation, length, width, client))
         prev_angle = angle
     return walls
 
 
-def create_map(in_map, end_point, epsilon):
+def create_map(in_map, end_point, epsilon, client):
     walls = []
     for poly in in_map:
-        walls += create_poly_wall(poly, epsilon)
+        walls += create_poly_wall(poly, epsilon, client)
     return walls
 
 
@@ -128,28 +128,25 @@ def main():
     maxForceSlider = p.addUserDebugParameter("maxForce", 0, 10, 10)
     steeringSlider = p.addUserDebugParameter("steering", -1, 1, 0)
     epsilon = 0.1
-    create_poly_wall(
-        [
-            (-1, 3),
-            (0, 10),
-            (1, 3),
-            (10, 10),
-            (3, 1),
-            (10, 0),
-            (3, -1),
-            (10, -10),
-            (1, -3),
-            (0, -10),
-            (-1, -3),
-            (-10, -10),
-            (-3, -1),
-            (-10, 0),
-            (-3, 1),
-            (-10, 10),
-            (-1, 3),
-        ],
-        epsilon,
-    )
+    create_poly_wall([
+        (-1, 3),
+        (0, 10),
+        (1, 3),
+        (10, 10),
+        (3, 1),
+        (10, 0),
+        (3, -1),
+        (10, -10),
+        (1, -3),
+        (0, -10),
+        (-1, -3),
+        (-10, -10),
+        (-3, -1),
+        (-10, 0),
+        (-3, 1),
+        (-10, 10),
+        (-1, 3),
+    ], epsilon, p)
 
     while True:
         maxForce = p.readUserDebugParameter(maxForceSlider)

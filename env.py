@@ -170,7 +170,7 @@ class CarEnv(gym.Env):
         """
         adds the boarders to the maze
         """
-        self.borders = map_create.create_poly_wall(consts.map_borders, epsilon=0.1)
+        self.borders = map_create.create_poly_wall(consts.map_borders, epsilon=0.1, client=self.p1)
 
     def remove_all_obstacles(self):
         for obstacle in self.obstacles:
@@ -231,7 +231,7 @@ class CarEnv(gym.Env):
         self.last_speed = 0
         self.total_score = 0
 
-        self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1)
+        self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1, client=self.p1)
         self.bodies = self.borders + self.obstacles
         self.map = [[0 for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))] for _ in
                     range(int((2 * consts.size_map_quarter) // consts.block_size))]
@@ -396,9 +396,11 @@ class CarEnv(gym.Env):
 
         if self.total_time >= consts.max_time:
             print(
-                f"time's up maze {self.maze_idx} - minimal distance is {self.min_distance_to_target} - total "
-                f"score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])} - "
-                f"time {self.this_run_time}")
+                f"time's up maze {self.maze_idx}"
+                f" - minimal distance is {self.min_distance_to_target}"
+                f" - total score is {self.total_score}"
+                f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
+                f" - time {self.this_run_time}")
             return self.get_observation(), score, True, {}
 
         if not (self.crushed or self.finished):
@@ -406,12 +408,16 @@ class CarEnv(gym.Env):
 
         if self.crushed:
             print(
-                f"crashed maze {self.maze_idx} - total score is {self.total_score} - initial distance"
-                f" {dist(self.start_point[:2], self.end_point[:2])} - time {self.this_run_time}")
+                f"crashed maze {self.maze_idx}"
+                f" - total score is {self.total_score}"
+                f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
+                f" - time {self.this_run_time}")
         if self.finished:
             print(
-                f"finished maze {self.maze_idx} - total score is {self.total_score} - initial distance"
-                f" {dist(self.start_point[:2], self.end_point[:2])} - time {self.this_run_time}")
+                f"finished maze {self.maze_idx}"
+                f" - total score is {self.total_score}"
+                f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
+                f" - time {self.this_run_time}")
 
         total_time = self.total_time
         self.reset()
@@ -464,7 +470,7 @@ class CarEnv(gym.Env):
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
         maze, start, end = mazes.empty_set[self.maze_idx]
-        return maze, end, start
+        return [], end, start
 
 
 def add_lists(lists):
