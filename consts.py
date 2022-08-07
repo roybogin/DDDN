@@ -54,7 +54,7 @@ DISCOVER_REWARD = 50
 MIN_DIST_PENALTY = -0.005
 FINISH_REWARD = 100
 TIME_PENALTY = -0.0001  # at each frame
-CRUSH_PENALTY = -200  # once
+CRUSH_PENALTY = -100  # once
 
 # scores
 best_scores = []  # a list of the best scores, built through simulations
