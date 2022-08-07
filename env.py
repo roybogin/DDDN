@@ -145,6 +145,7 @@ class CarEnv(gym.Env):
         self.wheels = None
         self.steering = None
         self.obstacles = []
+        self.bodies = []
         self.start_env()
         self.seed(seed)
         self.reset()
@@ -163,7 +164,6 @@ class CarEnv(gym.Env):
             cameraTargetPosition=consts.cameraTargetPosition,
         )
         self.p1.configureDebugVisualizer(self.p1.COV_ENABLE_GUI, 0)
-        self.add_borders()
         self.car_model, self.wheels, self.steering = self.create_car_model()
 
     def add_borders(self):
@@ -172,10 +172,10 @@ class CarEnv(gym.Env):
         """
         self.borders = map_create.create_poly_wall(consts.map_borders, epsilon=0.1, client=self.p1)
 
-    def remove_all_obstacles(self):
-        for obstacle in self.obstacles:
-            self.p1.removeBody(obstacle)
-        self.obstacles = []
+    def remove_all_bodies(self):
+        for body in self.bodies:
+            self.p1.removeBody(body)
+        self.bodies = []
 
     def scan_environment(self):
         # TODO: get rid of new_map_discovered? - doesn't copy
@@ -205,7 +205,8 @@ class CarEnv(gym.Env):
         resets the environment
         options can be used to specify "how to reset" (like with an empty maze/one obstacle etc.)
         """
-        self.remove_all_obstacles()
+        self.remove_all_bodies()
+        self.add_borders()
 
         self.maze, self.end_point, self.start_point = self.get_new_maze()
 
