@@ -151,11 +151,12 @@ class CarEnv(gym.Env):
         self.reset()
 
     def start_env(self):
-        self.p1 = bullet_client.BulletClient(p.GUI)
+        self.p1 = bullet_client.BulletClient(p.DIRECT)
         self.p1.setAdditionalSearchPath(pd.getDataPath())
         self.p1.setGravity(0, 0, -10)
 
         self.p1.setRealTimeSimulation(consts.use_real_time)
+        self.p1.setTimeStep(consts.time_step)
         self.p1.loadSDF(os.path.join(pd.getDataPath(), "stadium.sdf"))
         self.p1.resetDebugVisualizerCamera(
             cameraDistance=consts.cameraDistance,
