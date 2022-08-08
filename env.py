@@ -151,7 +151,7 @@ class CarEnv(gym.Env):
         self.reset()
 
     def start_env(self):
-        self.p1 = bullet_client.BulletClient(p.GUI)
+        self.p1 = bullet_client.BulletClient()
         self.p1.configureDebugVisualizer(pybullet.COV_ENABLE_GUI,0)
         self.p1.configureDebugVisualizer(pybullet.COV_ENABLE_SEGMENTATION_MARK_PREVIEW,0)
         self.p1.configureDebugVisualizer(pybullet.COV_ENABLE_DEPTH_BUFFER_PREVIEW,0)
