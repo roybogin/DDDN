@@ -6,6 +6,7 @@ use_real_time = (
     0  # is the simulation running in real time - probably should always be 0
 )
 debug_sim = False
+time_step = 0.01
 
 initial_mutation_density = 0.01  # what percent of weights is mutated (at beginning)
 
