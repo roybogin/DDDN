@@ -152,6 +152,7 @@ class CarEnv(gym.Env):
 
     def start_env(self):
         self.p1 = bullet_client.BulletClient(p.DIRECT)
+        self.p1.setTimeStep(consts.time_step)
         self.p1.setAdditionalSearchPath(pd.getDataPath())
         self.p1.setGravity(0, 0, -10)
 
