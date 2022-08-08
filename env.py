@@ -151,6 +151,10 @@ class CarEnv(gym.Env):
         self.reset()
 
     def start_env(self):
+        self.p1.configureDebugVisualizer(pybullet.COV_ENABLE_GUI,0)
+        self.p1.configureDebugVisualizer(pybullet.COV_ENABLE_SEGMENTATION_MARK_PREVIEW,0)
+        self.p1.configureDebugVisualizer(pybullet.COV_ENABLE_DEPTH_BUFFER_PREVIEW,0)
+        self.p1.configureDebugVisualizer(pybullet.COV_ENABLE_RGB_BUFFER_PREVIEW,0)
         self.p1 = bullet_client.BulletClient(p.GUI)
         self.p1.setTimeStep(consts.time_step)
         self.p1.setAdditionalSearchPath(pd.getDataPath())
@@ -165,10 +169,7 @@ class CarEnv(gym.Env):
             cameraPitch=consts.cameraPitch,
             cameraTargetPosition=consts.cameraTargetPosition,
         )
-        self.p1.configureDebugVisualizer(pybullet.COV_ENABLE_GUI,0)
-        self.p1.configureDebugVisualizer(pybullet.COV_ENABLE_SEGMENTATION_MARK_PREVIEW,0)
-        self.p1.configureDebugVisualizer(pybullet.COV_ENABLE_DEPTH_BUFFER_PREVIEW,0)
-        self.p1.configureDebugVisualizer(pybullet.COV_ENABLE_RGB_BUFFER_PREVIEW,0)
+        
         self.car_model, self.wheels, self.steering = self.create_car_model()
 
     def add_borders(self):
