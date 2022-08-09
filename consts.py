@@ -51,11 +51,11 @@ amount_to_save = 1  # how many of the best to save
 
 ## reward constants:
 DISTANCE_REWARD = 0.05
-DISCOVER_REWARD = 50
+DISCOVER_REWARD = 5000
 MIN_DIST_PENALTY = -0.005
-FINISH_REWARD = 100
+FINISH_REWARD = 10000
 TIME_PENALTY = -0.0001  # at each frame
-CRUSH_PENALTY = -100  # once
+CRUSH_PENALTY = -10000  # once
 
 # scores
 best_scores = []  # a list of the best scores, built through simulations
