@@ -23,7 +23,7 @@ random_start_end = [
 
 empty_set = [
     (
-        [consts.map_borders],
+        [],
         [start[0], start[1], 0],
         [end[0], end[1], 0],
     )
@@ -32,13 +32,13 @@ empty_set = [
 
 default_data_set = [
     (
-        [consts.map_borders],
+        [],
         [0, 0, 0],
         [1, 1, 0],
     ),  # empty
     (
         [
-            consts.map_borders,
+            
             [(2.5, 5), (2.5, -2.5)],
         ],
         [0, 0, 0],
@@ -46,7 +46,7 @@ default_data_set = [
     ),  # one wall inbetween
     (
         [
-            consts.map_borders,
+            
             [(1.5, -1.5), (1.5, 1.5)],
             [(2, 0), (5, 0)],
         ],
@@ -55,7 +55,7 @@ default_data_set = [
     ),  # T shape with hidden wall
     (
         [
-            consts.map_borders,
+            
             [(-4, 0), (0, 4)],
             [(-3, 5), (3, 5)],
             [(-7, 4), (-3, 3)],
@@ -65,7 +65,7 @@ default_data_set = [
     ),  # raish shaped wall
     (
         [
-            consts.map_borders,
+            
             [(0, 2), (2, -1), (-2, -1), (-4, 0), (-3, -4), (-4, -5)],
         ],
         [0, 0, 0],
@@ -73,7 +73,7 @@ default_data_set = [
     ),  # some walls in between the path
     (
         [
-            consts.map_borders,
+           
             [(2, 1), (6, 2), (9, 1), (9, -1), (6, -1), (4, -0.5)],
         ],
         [0, 0, 0],
@@ -84,7 +84,7 @@ default_data_set = [
 default_training_set = [
     (
         [
-            consts.map_borders,
+            
             [(4, 0), (0, 2), (4, 4), (5, 4), (5, -4)],
         ],
         [0, 0, 0],
@@ -92,7 +92,7 @@ default_training_set = [
     ),  # some walls around the path, rather easy
     (
         [
-            consts.map_borders,
+            
             [
                 (6, -6),
                 (6, -2),
