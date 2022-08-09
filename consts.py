@@ -24,8 +24,8 @@ max_force = 100
 
 
 min_dist_to_target = 0.5  # distance from target that is treated as success
-ray_length = 10  # length of ray
-ray_amount = 12
+ray_length = 5  # length of ray
+ray_amount = 6
 print_reward_breakdown = False
 size_map_quarter = 10
 block_size = 0.2
@@ -51,11 +51,11 @@ amount_to_save = 1  # how many of the best to save
 
 ## reward constants:
 DISTANCE_REWARD = 0.05
-DISCOVER_REWARD = 5000
+DISCOVER_REWARD = 50
 MIN_DIST_PENALTY = -0.005
-FINISH_REWARD = 10000
-TIME_PENALTY = -0.0001  # at each frame
-CRUSH_PENALTY = -10000  # once
+FINISH_REWARD = 1000
+TIME_PENALTY = -0.01  # at each frame
+CRUSH_PENALTY = -1000  # once
 
 # scores
 best_scores = []  # a list of the best scores, built through simulations
