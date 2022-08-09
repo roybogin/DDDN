@@ -157,7 +157,7 @@ class CarEnv(gym.Env):
         self.p1.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW,0)
         self.p1.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW,0)
         
-        self.p1.setTimeStep(consts.time_step)
+        #self.p1.setTimeStep(consts.time_step)
         self.p1.setAdditionalSearchPath(pd.getDataPath())
         self.p1.setGravity(0, 0, -10)
 
