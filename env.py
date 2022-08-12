@@ -448,6 +448,7 @@ class CarEnv(gym.Env):
             "discovered": np.array(self.discovered, dtype=np.uint8)
 
         }
+        print(observation)
         return observation
 
     def set_car_position(self, starting_point):
