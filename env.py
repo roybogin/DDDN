@@ -426,12 +426,7 @@ class CarEnv(gym.Env):
                 f" - total score is {self.total_score}"
                 f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
                 f" - time {self.this_run_time}")
-
-        total_time = self.total_time
-        self.reset()
-        self.total_time = total_time
-
-        return self.get_observation(), score, False, {}
+        return self.get_observation(), score, True, {}
 
     def get_observation(self):
 
