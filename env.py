@@ -83,7 +83,8 @@ class CarEnv(gym.Env):
         self.bodies = None
         self.hits = None
         self.last_speed = None
-        self.time = None
+        self.total_time = None
+        self.this_run_time = None
         self.finished = None
         self.map_discovered = None
         self.crushed = None
@@ -144,16 +145,24 @@ class CarEnv(gym.Env):
         self.wheels = None
         self.steering = None
         self.obstacles = []
+        self.bodies = []
         self.start_env()
         self.seed(seed)
         self.reset()
 
     def start_env(self):
-        self.p1 = bullet_client.BulletClient(p.DIRECT)
+        self.p1 = bullet_client.BulletClient()
+        self.p1.configureDebugVisualizer(p.COV_ENABLE_GUI,0)
+        self.p1.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW,0)
+        self.p1.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW,0)
+        self.p1.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW,0)
+        
+        #self.p1.setTimeStep(consts.time_step)
         self.p1.setAdditionalSearchPath(pd.getDataPath())
         self.p1.setGravity(0, 0, -10)
 
         self.p1.setRealTimeSimulation(consts.use_real_time)
+        self.p1.setTimeStep(consts.time_step)
         self.p1.loadSDF(os.path.join(pd.getDataPath(), "stadium.sdf"))
         self.p1.resetDebugVisualizerCamera(
             cameraDistance=consts.cameraDistance,
@@ -161,20 +170,19 @@ class CarEnv(gym.Env):
             cameraPitch=consts.cameraPitch,
             cameraTargetPosition=consts.cameraTargetPosition,
         )
-        self.p1.configureDebugVisualizer(self.p1.COV_ENABLE_GUI, 0)
-        self.add_borders()
+        
         self.car_model, self.wheels, self.steering = self.create_car_model()
 
     def add_borders(self):
         """
         adds the boarders to the maze
         """
-        self.borders = map_create.create_poly_wall(consts.map_borders, epsilon=0.1)
+        self.borders = map_create.create_poly_wall(consts.map_borders, epsilon=0.1, client=self.p1)
 
-    def remove_all_obstacles(self):
-        for obstacle in self.obstacles:
-            self.p1.removeBody(obstacle)
-        self.obstacles = []
+    def remove_all_bodies(self):
+        for body in self.bodies:
+            self.p1.removeBody(body)
+        self.bodies = []
 
     def scan_environment(self):
         # TODO: get rid of new_map_discovered? - doesn't copy
@@ -198,12 +206,14 @@ class CarEnv(gym.Env):
         self.discovery_difference = self.map_discovered - amount_discovered
         self.discovered = new_map_discovered
 
+
     def reset(self):
         """
         resets the environment
         options can be used to specify "how to reset" (like with an empty maze/one obstacle etc.)
         """
-        self.remove_all_obstacles()
+        self.remove_all_bodies()
+        self.add_borders()
 
         self.maze, self.end_point, self.start_point = self.get_new_maze()
 
@@ -215,20 +225,21 @@ class CarEnv(gym.Env):
         self.angular_velocity = [0, 0]
         self.acceleration = 0
         self.rotation = 0
+        self.total_time = 0
+        self.this_run_time = 0
 
         self.distance_covered = 0
         self.initial_distance_to_target = dist(self.start_point[:2], self.end_point[:2])
         self.min_distance_to_target = self.initial_distance_to_target
         self.map_discovered = 0
         self.finished = False
-        self.time = 0
         self.crushed = False
         self.hits = []
         self.pos = self.start_point
         self.last_speed = 0
         self.total_score = 0
 
-        self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1)
+        self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1, client=self.p1)
         self.bodies = self.borders + self.obstacles
         self.map = [[0 for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))] for _ in
                     range(int((2 * consts.size_map_quarter) // consts.block_size))]
@@ -282,17 +293,17 @@ class CarEnv(gym.Env):
         print("crushed", self.crushed)
         print("map_discovered", self.map_discovered)
         print("distance_covered", self.distance_covered)
-        print("time", self.time)
+        print("time", self.total_time)
         draw_discovered_matrix(self.discovered)
         draw_discovered_matrix(self.map)
 
     def calculate_reward(self):
         reward = (
-                consts.TIME_PENALTY +
-                self.crushed * consts.CRUSH_PENALTY * (1 - 0.5 * self.time/consts.max_time) +
+                self.time * consts.TIME_PENALTY +
+                self.crushed * consts.CRUSH_PENALTY +
                 self.finished * consts.FINISH_REWARD +
-                self.discovery_difference * consts.DISCOVER_REWARD +
-                (self.min_distance_to_target / self.initial_distance_to_target) * consts.MIN_DIST_PENALTY
+                self.discovery_difference * consts.DISCOVER_REWARD
+                #+(self.min_distance_to_target / self.initial_distance_to_target) * consts.MIN_DIST_PENALTY
         )
         return reward
 
@@ -316,7 +327,7 @@ class CarEnv(gym.Env):
         runs the simulation one step and returns the reward, the observation and if we are done.
         """
         if consts.print_runtime:
-            print(self.time)
+            print(self.total_time)
 
         change_steering_angle = action[0] * consts.max_steer
         change_target_velocity = action[1] * consts.max_velocity
@@ -350,7 +361,8 @@ class CarEnv(gym.Env):
             )
         self.p1.stepSimulation()
 
-        self.time += 1
+        self.total_time += 1
+        self.this_run_time += 1
 
         self.scan_environment()
 
@@ -390,22 +402,34 @@ class CarEnv(gym.Env):
         score = self.calculate_reward()
         self.total_score += score
 
-        if self.crushed or self.finished or self.time >= consts.max_time:
-            if consts.print_reward_breakdown:
-                self.print_reward_breakdown()
-            if self.finished:
-                print(
-                    f"finished maze {self.maze_idx} - total score is {self.total_score} - initial distance"
-                    f" {dist(self.start_point[:2], self.end_point[:2])} - time {self.time}")
-            elif self.crushed:
-                print(
-                    f"crashed maze {self.maze_idx} - total score is {self.total_score} - initial distance"
-                    f" {dist(self.start_point[:2], self.end_point[:2])} - time {self.time}")
-            else:
-                print(
-                    f"time's up maze {self.maze_idx} - minimal distance is {self.min_distance_to_target} - total "
-                    f"score is {self.total_score} - initial distance {dist(self.start_point[:2], self.end_point[:2])} - time {self.time}")
+        if self.total_time >= consts.max_time:
+            print(
+                f"time's up maze {self.maze_idx}"
+                f" - minimal distance is {self.min_distance_to_target}"
+                f" - total score is {self.total_score}"
+                f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
+                f" - time {self.this_run_time}")
             return self.get_observation(), score, True, {}
+
+        if not (self.crushed or self.finished):
+            return self.get_observation(), score, False, {}
+
+        if self.crushed:
+            print(
+                f"crashed maze {self.maze_idx}"
+                f" - total score is {self.total_score}"
+                f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
+                f" - time {self.this_run_time}")
+        if self.finished:
+            print(
+                f"finished maze {self.maze_idx}"
+                f" - total score is {self.total_score}"
+                f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
+                f" - time {self.this_run_time}")
+
+        total_time = self.total_time
+        self.reset()
+        self.total_time = total_time
 
         return self.get_observation(), score, False, {}
 
@@ -454,7 +478,7 @@ class CarEnv(gym.Env):
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
         maze, start, end = mazes.empty_set[self.maze_idx]
-        return maze, end, start
+        return [], end, start
 
 
 def add_lists(lists):
@@ -603,17 +627,11 @@ def main():
     env = SubprocVecEnv([make_env(i) for i in range(consts.num_processes)])
     print("loading")
     model = get_model(env, consts.is_model_load, consts.loaded_model_path)
-    print("first eval")
-    evaluate(model, env)
     print("training")
-    total_runtime = 0
-    while consts.train_steps < 0 or total_runtime < consts.train_steps:
+    while True:
         model.learn(total_timesteps=consts.checkpoint_steps)
         reward = evaluate(model, env)
         save_model(model, "%m_%d-%H_%M_%S", suffix=f'${str(int(reward))}')
-        total_runtime += consts.checkpoint_steps
-    reward = evaluate(model, env)
-    save_model(model, "%m_%d-%H_%M_%S", suffix=f'${str(int(reward))}')
 
 
 if __name__ == "__main__":

@@ -24,8 +24,8 @@ max_force = 100
 
 
 min_dist_to_target = 0.5  # distance from target that is treated as success
-ray_length = 10  # length of ray
-ray_amount = 12
+ray_length = 5  # length of ray
+ray_amount = 6
 print_reward_breakdown = False
 size_map_quarter = 10
 block_size = 0.2
@@ -53,9 +53,9 @@ amount_to_save = 1  # how many of the best to save
 DISTANCE_REWARD = 0.05
 DISCOVER_REWARD = 50
 MIN_DIST_PENALTY = -0.005
-FINISH_REWARD = 100
-TIME_PENALTY = -0.0001  # at each frame
-CRUSH_PENALTY = -100  # once
+FINISH_REWARD = 1000
+TIME_PENALTY = -0.01  # at each frame
+CRUSH_PENALTY = -1000  # once
 
 # scores
 best_scores = []  # a list of the best scores, built through simulations
@@ -65,11 +65,9 @@ max_hits_before_calculation = 10  # amounts of new hits before adding lines to t
 max_time = int(1.5e4)  # time before forcing a new maze
 print_runtime = False  # do we want to print the total time of the run
 
-train_steps = -1  # steps we want to train - to train correctly we will let the code finish running the last
-# training session. -1 if we want to train infinitely
-
 is_model_load = True   # do we want to load a model
 loaded_model_path = None    # the loaded model filename - None means the latest
-checkpoint_steps = int(3e4)  # how many steps we want between checkpointing
+checkpoint_steps = int(6e4)  # how many steps we want between checkpointing - will actually be a multiple of core
+# number times max_time
 
 num_processes = 4
