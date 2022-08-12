@@ -299,7 +299,7 @@ class CarEnv(gym.Env):
 
     def calculate_reward(self):
         reward = (
-                self.time * consts.TIME_PENALTY +
+                self.this_run_time * consts.TIME_PENALTY +
                 self.crushed * consts.CRUSH_PENALTY +
                 self.finished * consts.FINISH_REWARD +
                 self.discovery_difference * consts.DISCOVER_REWARD
@@ -608,7 +608,7 @@ def evaluate(model, env):
     Evaluating the model
     :param env: Gym environment for the model
     :param model: The model to evaluate
-    :return: the mean reward in the evaluations
+    :return: the mean in the evaluations
     """
     env.reset()
     mean_reward, std_reward = evaluate_policy(
