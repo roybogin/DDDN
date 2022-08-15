@@ -1,19 +1,23 @@
 import math
 import pybullet as p
-import pybullet_data
-import os
 
 
 def create_wall(pos, orientation, length, width, client):
-
-    boxHalfLength = length / 2
-    boxHalfWidth = width / 2
-    boxHalfHeight = 0.5
+    """
+    creating a wall on the pybullet map
+    :param pos: middle point of the wall
+    :param orientation: wanted orientation of the wall (quaternions)
+    :param length:  length of the wall
+    :param width:   width of the wall
+    :param client:  pybullet client to create the wall
+    :return: id of the created wall
+    """
+    box_half_length = length / 2
+    box_half_width = width / 2
+    box_half_height = 0.5
     body = client.createCollisionShape(
-        p.GEOM_BOX, halfExtents=[boxHalfLength, boxHalfWidth, boxHalfHeight]
+        p.GEOM_BOX, halfExtents=[box_half_length, box_half_width, box_half_height]
     )
-    mass = 10000
-    visualShapeId = -1
     # block creation
     block = client.createMultiBody(
         10000,
@@ -26,13 +30,23 @@ def create_wall(pos, orientation, length, width, client):
 
 
 def distance(p1, p2):
+    """
+    calculate the distance between two 2d points
+    """
     return math.sqrt(pow(p1[0] - p2[0], 2) + pow(p1[1] - p2[1], 2))
 
 
 def create_poly_wall(poly, epsilon, client):
+    # TODO: finish docstring - create_poly_wall
+    """
+    create a polygonal chain of walls
+    :param poly:
+    :param epsilon:
+    :param client: pybullet client to construct the walls
+    :return:
+    """
     walls = []
     start = 1
-    prev_angle = 0
     if len(poly) < 2 or (len(poly) == 2 and poly[0] == poly[1]):
         print("Illegal polygonal wall")
         return
@@ -90,13 +104,25 @@ def create_poly_wall(poly, epsilon, client):
 
 
 def create_map(in_map, end_point, epsilon, client):
+    # TODO: finish docstring - create_map
+    """
+    creates the map in pybullet
+    :param in_map: the walls inside the map
+    :param end_point: the map's end goal for the car
+    :param epsilon:
+    :param client:  pybullet client to use
+    :return: a list of IDs of the walls in pybullet
+    """
+    # TODO: add end point to the map
     walls = []
     for poly in in_map:
         walls += create_poly_wall(poly, epsilon, client)
     return walls
 
+# TODO: delete?
 
-def main():
+
+"""def main():
 
     cid = p.connect(p.SHARED_MEMORY)
     if cid < 0:
@@ -174,3 +200,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+"""
