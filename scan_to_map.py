@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle, Circle
 import consts
-
+# TODO: clean up this file
 SAMPLE_DIST = 0.8
 testing = True
 
