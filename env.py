@@ -294,7 +294,7 @@ class CarEnv(gym.Env):
         :return: the reward for the step
         """
         reward = (
-                self.run_time * consts.TIME_PENALTY +
+                consts.TIME_PENALTY +
                 self.crashed * consts.CRASH_PENALTY +
                 self.finished * consts.FINISH_REWARD +
                 self.discovery_difference * consts.DISCOVER_REWARD
