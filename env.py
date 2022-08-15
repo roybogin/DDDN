@@ -393,7 +393,8 @@ class CarEnv(gym.Env):
         self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
 
         # saving for later
-        self.swivel = wanted_steering_angle  # TODO: change to getJointState
+        swivel_states = self.p1.getJointStates(self.car_model, self.steering)
+        self.swivel = sum((state[0] for state in swivel_states))/len(swivel_states)  # average among wheels
 
         self.min_distance_to_target = min(
             self.min_distance_to_target, dist(self.pos, self.end_point[:2])
