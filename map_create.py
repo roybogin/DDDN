@@ -1,7 +1,5 @@
 import math
 import pybullet as p
-import pybullet_data
-import os
 
 
 def create_wall(pos, orientation, length, width, client):

@@ -1,5 +1,3 @@
-import torch
-
 # pybullet simulation
 is_visual = False  # do we want to see visual footage
 use_real_time = 0  # is the simulation running in real time - probably should always be 0

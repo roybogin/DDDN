@@ -1,5 +1,3 @@
-import consts
-
 random_start_end = [
     ((0, 0), (1, 1)),
     ((0, 0), (-3, 2)),
