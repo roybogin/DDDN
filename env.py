@@ -86,6 +86,7 @@ class CarEnv(gym.Env):
         self.curr_goal = None   # goal for now (close to current position)
         self.distances_to_end = None  # minimum distance in blocks (in the maze) to the end for each block
         self.map_changed = None  # did the perceived map change (we need to recalculate the distances)
+        self.prev_pos = None
 
         '''structure of an observation
                 "position": 2,
@@ -224,6 +225,7 @@ class CarEnv(gym.Env):
         self.finished = False
         self.crashed = False
         self.pos = self.start_point
+        self.prev_pos = self.start_point[:2]
         self.last_speed = 0
         self.total_score = 0
 
@@ -298,6 +300,7 @@ class CarEnv(gym.Env):
                 consts.TIME_PENALTY +
                 self.crashed * consts.CRASH_PENALTY * (1 - 0.5 * self.run_time / consts.max_time) +
                 self.finished * consts.FINISH_REWARD +
+                consts.GOAL_DIST_REWARD * (1 - dist(self.pos, self.curr_goal)/dist(self.prev_pos, self.curr_goal))
         )
         return reward
 
@@ -397,6 +400,8 @@ class CarEnv(gym.Env):
 
         score = self.calculate_reward()
         self.total_score += score
+
+        self.prev_pos = self.pos
 
         self.calculate_next_goal()
 

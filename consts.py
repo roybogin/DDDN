@@ -41,9 +41,8 @@ checkpoint_steps = int(6e4)  # how many steps we want between checkpointing
 num_processes = 4   # amount of processes for multiprocessing
 
 # reward constants:
-DISTANCE_REWARD = 0.05  # reward for high speed
-DISCOVER_REWARD = 50    # reward for discovering more of the map
-MIN_DIST_PENALTY = -0.005   # reward for getting close to the target
 FINISH_REWARD = 1000    # reward for finishing the maze
 CRASH_PENALTY = -1000   # reward for not crashing
 TIME_PENALTY = CRASH_PENALTY/(2*max_time)    # reward for finishing in a short time
+GOAL_DIST_REWARD = TIME_PENALTY * 500  # reward for getting close to the target
+
