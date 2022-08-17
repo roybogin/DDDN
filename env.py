@@ -408,7 +408,7 @@ class CarEnv(gym.Env):
         if self.run_time >= consts.max_time:
             print(
                 f"time's up maze {self.maze_idx}"
-                f" - minimal distance is {self.min_distance_to_target}"
+                f" - distance is {dist(self.pos, self.end_point)}"
                 f" - total score is {self.total_score}"
                 f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
                 f" - time {self.run_time}")
@@ -420,6 +420,7 @@ class CarEnv(gym.Env):
         if self.crashed:
             print(
                 f"crashed maze {self.maze_idx}"
+                f" - distance is {dist(self.pos, self.end_point)}"
                 f" - total score is {self.total_score}"
                 f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
                 f" - time {self.run_time}")
