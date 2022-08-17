@@ -44,5 +44,5 @@ num_processes = 4   # amount of processes for multiprocessing
 FINISH_REWARD = 1000    # reward for finishing the maze
 CRASH_PENALTY = -1000   # reward for not crashing
 TIME_PENALTY = CRASH_PENALTY/(2*max_time)    # reward for finishing in a short time
-GOAL_DIST_REWARD = TIME_PENALTY * 500  # reward for getting close to the target
+GOAL_DIST_REWARD = -1 * TIME_PENALTY * 500  # reward for getting close to the target
 
