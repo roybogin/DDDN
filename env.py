@@ -12,7 +12,6 @@ from stable_baselines3 import SAC
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
-import consts
 import map_create
 import mazes
 from helper import *
@@ -42,11 +41,8 @@ def add_discovered_matrix(discovered_matrix, start, end):
     :param end: end of the raycast
     :return: the percentage of discovered area
     """
-    x0 = int((start[0] + consts.size_map_quarter) / consts.block_size)
-    y0 = int((start[1] + consts.size_map_quarter) / consts.block_size)
-    x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
-    y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
-
+    x0, y0 = map_index_from_pos(start)
+    x1, y1 = map_index_from_pos(end)
     plot_line(x0, y0, x1, y1, discovered_matrix)
 
     return (
@@ -81,14 +77,15 @@ class CarEnv(gym.Env):
         self.finished = None  # did the car get to the goal
         self.map_discovered = None  # percentage of the map that was discovered by the car
         self.crashed = None  # did the car crash
-        self.min_distance_to_target = None  # the minimal distance encountered between the car and goal TODO: delete?
         self.swivel = None  # swivel of the car - angle of steering wheel
         self.acceleration = None  # acceleration of the car (difference in speed)
         self.end_point = None   # end point of the map
         self.maze = None    # walls of the maze - list of points
         self.borders = None  # the maze borders - object IDs
         self.p1 = None  # separate pybullet client for multiprocessing
-        self.discovery_difference = 0   # percentage of the map discovered at the last step
+        self.curr_goal = None   # goal for now (close to current position)
+        self.distances_to_end = None  # minimum distance in blocks (in the maze) to the end for each block
+        self.map_changed = None  # did the perceived map change (we need to recalculate the distances)
 
         '''structure of an observation
                 "position": 2,
@@ -97,9 +94,8 @@ class CarEnv(gym.Env):
                 "angular_velocity": 2,
                 "swivel": 1,
                 "rotation_trigonometry": 2,
-                "acceleration": 1,
-                "map": int((2 * consts.size_map_quarter) // consts.block_size) ** 2,
-                "discovered": int((2 * consts.size_map_quarter) // consts.block_size) ** 2}'''
+                "acceleration": 1
+                '''
         self.observation_space = spaces.Dict(
             {
                 "position": spaces.Box(-size, size, shape=(2,), dtype=np.float32),
@@ -115,13 +111,6 @@ class CarEnv(gym.Env):
                 ),
                 "rotation_trigonometry": spaces.Box(-1, 1, shape=(2,), dtype=np.float32),
                 "acceleration": spaces.Box(-1000, 1000, shape=(1,), dtype=np.float32),
-                # "time": spaces.Box(0, consts.max_time, shape=(1,), dtype=int)
-                "map": spaces.Box(0, 1, shape=(int((2 * consts.size_map_quarter) // consts.block_size),
-                                               int((2 * consts.size_map_quarter) // consts.block_size)),
-                                  dtype=np.uint8),
-                "discovered": spaces.Box(0, 1, shape=(int((2 * consts.size_map_quarter) // consts.block_size),
-                                                      int((2 * consts.size_map_quarter) // consts.block_size)),
-                                         dtype=np.uint8)
             }
         )
         self.action_space = spaces.Box(-1, 1, shape=(2,), dtype=np.float32)
@@ -161,6 +150,20 @@ class CarEnv(gym.Env):
         
         self.car_model, self.wheels, self.steering = self.create_car_model()
 
+    def calculate_next_goal(self):
+        end_block = map_index_from_pos(self.end_point)
+        curr_block = map_index_from_pos(self.pos)
+        if end_block == curr_block or dist(self.pos, self.end_point) <= consts.block_size/2:
+            self.curr_goal = self.end_point
+            return
+        if self.map_changed:
+            self.distances_to_end = calculate_distances(self.map, end_block)
+        self.map_changed = False  # no need to recalculate the distances
+        neighbors = get_neighbors(curr_block, np.shape(self.map))
+        next_block = min(neighbors, key=lambda idx: (self.distances_to_end[idx], dist(self.pos, pos_from_map_index(
+            idx))))
+        self.curr_goal = pos_from_map_index(next_block)
+
     def add_borders(self):
         """
         adds the boarders to the maze
@@ -184,7 +187,6 @@ class CarEnv(gym.Env):
         # TODO: get rid of new_map_discovered? - doesn't copy
         directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
         new_map_discovered = self.discovered
-        amount_discovered = self.map_discovered
         for direction in directions:
 
             did_hit, start, end = self.ray_cast(
@@ -192,14 +194,12 @@ class CarEnv(gym.Env):
                 [-consts.ray_length * np.cos(direction), -consts.ray_length * np.sin(direction), 0]
             )
             if did_hit:
-                x1 = int((end[0] + consts.size_map_quarter) / consts.block_size)
-                y1 = int((end[1] + consts.size_map_quarter) / consts.block_size)
-                x1 = max(0, min(x1, len(self.map) - 1))
-                y1 = max(0, min(y1, len(self.map) - 1))
+                x1, y1 = map_index_from_pos(end)
+                if self.map[x1][y1] != 1:
+                    self.map_changed = True
                 self.map[x1][y1] = 1
             self.map_discovered = add_discovered_matrix(new_map_discovered, start, end)
 
-        self.discovery_difference = self.map_discovered - amount_discovered
         self.discovered = new_map_discovered
 
     def reset(self):
@@ -220,7 +220,6 @@ class CarEnv(gym.Env):
         self.run_time = 0
 
         self.initial_distance_to_target = dist(self.start_point[:2], self.end_point[:2])
-        self.min_distance_to_target = self.initial_distance_to_target
         self.map_discovered = 0
         self.finished = False
         self.crashed = False
@@ -242,10 +241,12 @@ class CarEnv(gym.Env):
             [0 for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))]
             for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))
         ]
-        self.discovery_difference = 0
         self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
 
         self.scan_environment()
+
+        self.map_changed = True
+        self.calculate_next_goal()
 
         return self.get_observation()
 
@@ -297,8 +298,6 @@ class CarEnv(gym.Env):
                 consts.TIME_PENALTY +
                 self.crashed * consts.CRASH_PENALTY * (1 - 0.5 * self.run_time / consts.max_time) +
                 self.finished * consts.FINISH_REWARD +
-                self.discovery_difference * consts.DISCOVER_REWARD
-                # +(self.min_distance_to_target / self.initial_distance_to_target) * consts.MIN_DIST_PENALTY
         )
         return reward
 
@@ -396,12 +395,10 @@ class CarEnv(gym.Env):
         swivel_states = self.p1.getJointStates(self.car_model, self.steering)
         self.swivel = sum((state[0] for state in swivel_states))/len(swivel_states)  # average among wheels
 
-        self.min_distance_to_target = min(
-            self.min_distance_to_target, dist(self.pos, self.end_point[:2])
-        )
-
         score = self.calculate_reward()
         self.total_score += score
+
+        self.calculate_next_goal()
 
         if self.run_time >= consts.max_time:
             print(
@@ -436,16 +433,12 @@ class CarEnv(gym.Env):
         """
         observation = {
             "position": np.array(self.pos[:2], dtype=np.float32),
-            "goal": np.array(self.end_point[:2], dtype=np.float32),
+            "goal": np.array(self.curr_goal, dtype=np.float32),
             "velocity": np.array(self.velocity, dtype=np.float32),
             "angular_velocity": np.array(self.angular_velocity, dtype=np.float32),
             "swivel": np.array([self.swivel], dtype=np.float32),
             "rotation_trigonometry": np.array(self.rotation_trig, dtype=np.float32),
             "acceleration": np.array([self.acceleration], dtype=np.float32),
-            # "time": np.array([self.time], dtype=int),
-            "map": np.array(self.map, dtype=np.uint8),
-            "discovered": np.array(self.discovered, dtype=np.uint8)
-
         }
         return observation
 
@@ -499,13 +492,13 @@ def save_model(model_to_save, format_str, suffix=''):
     :return:
     """
     try:
-        os.mkdir("results")
+        os.mkdir("results_alt")
     except:
         pass
     curr_time = datetime.now().strftime(format_str)
     filename = f'run-{curr_time}{suffix}'
     print(f"saving as {filename}")
-    model_to_save.save(f"results/{filename}")
+    model_to_save.save(f"results_alt/{filename}")
 
 
 def get_model(env, should_load, filename, verbose=True):
@@ -528,7 +521,7 @@ def get_model(env, should_load, filename, verbose=True):
             return model
 
         # searching for latest file
-        list_of_files = glob.glob("results/*.zip")
+        list_of_files = glob.glob("results_alt/*.zip")
         if len(list_of_files) != 0:  # there is an existing file
             latest_file = max(list_of_files, key=os.path.getctime)
             if verbose:

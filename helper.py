@@ -1,8 +1,11 @@
+import itertools
 import math
 
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
+
+import consts
 
 
 def dist(point1, point2):
@@ -116,3 +119,69 @@ def norm(a):
     :return:
     """
     return math.sqrt(sum((x ** 2 for x in a)))
+
+
+def map_index_from_pos(pos):
+    """
+    transforms a position on the map to indices in the binary matrices
+    :param pos: (x,y) pair on the map
+    :return: (x, y) indices that the point is contained in
+    """
+    indices = [int((value + consts.size_map_quarter) / consts.block_size) for value in pos[:2]]
+    # keep the return value within the wanted limits for edge cases
+    return [max(0, min(idx, int((2 * consts.size_map_quarter) // consts.block_size) - 1)) for idx in indices]
+
+
+def pos_from_map_index(block_index):
+    """
+    transforms indices in the binary matrices to a position on the map (the position is the middle of the block)
+    :param block_index: index of block in the matrix (2 dimensional)
+    :return: (x, y) pair to mark the position in the map
+    """
+    return [consts.block_size * (value + 0.5) - consts.size_map_quarter for value in block_index]
+
+
+def get_neighbors(index, map_shape):
+    """
+    returns the neighbors of a block in the map (including diagonal)
+    :param index: the index of the block in the map (list with length 2)
+    :param map_shape: the shape of the map
+    :return: list of the neighbors in the map
+    """
+    r, c = index
+    rows, cols = [r], [c]  # possible rows and columns for neighbors
+    if r != 0:
+        rows.append(r - 1)
+    if r != map_shape[0] - 1:
+        rows.append(r + 1)
+    if c != 0:
+        cols.append(c - 1)
+    if c != map_shape[1] - 1:
+        cols.append(c + 1)
+    neighbors = list(itertools.product(rows, cols))
+    return neighbors[1:]  # the cell itself is not a neighbor
+
+
+def calculate_distances(partial_map, index):
+    """
+    calculates the distance in steps to all blocks from the given location using BFS
+    :param partial_map: the partial obstacle map - 0 if unexplored or empty and 1 if the block has an obstacle
+    :param index: index from which we calculate the distances
+    :return: a new map if the distances
+    """
+    index = tuple(index)
+    distances = np.full(np.shape(partial_map), np.inf)
+    distances[index] = 0
+    blocks_to_check = []  # BFS queue
+    neighbors = get_neighbors(index, distances.shape)
+    for n in neighbors:
+        blocks_to_check.append((n, 1))  # the neighbor and its distance
+    while len(blocks_to_check) != 0:
+        curr_idx, distance = blocks_to_check.pop(0)
+        if partial_map[curr_idx[0]][curr_idx[1]] == 1 or distances[curr_idx] != np.inf:
+            continue    # don't process walls or visited cells
+        distances[curr_idx] = distance
+        neighbors = get_neighbors(curr_idx, distances.shape)
+        for n in neighbors:
+            blocks_to_check.append((n, distance + 1))  # the neighbor and its distance
+    return distances
