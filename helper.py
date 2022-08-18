@@ -163,7 +163,7 @@ def get_neighbors(index: Sequence[int], map_shape: tuple[int]) -> list[Sequence[
     return neighbors[1:]  # the cell itself is not a neighbor
 
 
-def calculate_distances(partial_map: consts.binary_matrix, index: Sequence[int]):
+def calculate_distances(partial_map: consts.binary_matrix, index: Sequence[int]) -> consts.binary_matrix:
     """
     calculates the distance in steps to all blocks from the given location using BFS
     :param partial_map: the partial obstacle map - 0 if unexplored or empty and 1 if the block has an obstacle
