@@ -1,6 +1,7 @@
 # pybullet simulation
 from typing import List, Sequence
 
+import numpy as np
 import stable_baselines3.common.base_class
 
 is_visual = False  # do we want to see visual footage
@@ -50,10 +51,8 @@ CRASH_PENALTY = -1000   # reward for not crashing
 TIME_PENALTY = CRASH_PENALTY/(2*max_time)    # reward for finishing in a short time
 GOAL_DIST_REWARD = -1 * TIME_PENALTY * 500  # reward for getting close to the target
 
-
-
 # typing
-binary_matrix = List[List[int]]   # binary matrix
+binary_matrix = List[List[int]] | np.ndarray   # binary matrix
 vector = Sequence[float]    # list or tuple of floats
 network_model = stable_baselines3.common.base_class.BaseAlgorithm   # NN algorithm
 stable_baselines_env = stable_baselines3.common.vec_env.base_vec_env.VecEnv  # vectorized environment

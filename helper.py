@@ -1,6 +1,6 @@
 import itertools
 import math
-from typing import Sequence
+from typing import Sequence, List, Tuple
 
 import numpy as np
 from matplotlib import pyplot as plt

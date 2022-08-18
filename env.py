@@ -1,7 +1,7 @@
 import glob
 import os
 from datetime import datetime
-from typing import Callable, Any, List
+from typing import Callable, Any
 
 import gym
 import pybullet as p
