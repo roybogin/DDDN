@@ -1,7 +1,7 @@
 import glob
 import os
 from datetime import datetime
-from typing import Callable, Any
+from typing import Callable, Any, List
 
 import gym
 import pybullet as p
@@ -254,7 +254,7 @@ class CarEnv(gym.Env):
 
         return self.get_observation()
 
-    def ray_cast(self, car: int, offset: consts.vector, direction: consts.vector) -> tuple[bool, consts.vector,
+    def ray_cast(self, car: int, offset: consts.vector, direction: consts.vector) -> Tuple[bool, consts.vector,
                                                                                            consts.vector]:
         """
         generates a raycast in a given direction
@@ -285,7 +285,7 @@ class CarEnv(gym.Env):
         else:
             return True, start[:2], ray_test[0][3]
 
-    def seed(self, seed: int | None = None) -> list[int | None]:
+    def seed(self, seed: int | None = None) -> List[int | None]:
         """
         set a seed for the randomness
         :param seed: the np.random seed
@@ -307,7 +307,7 @@ class CarEnv(gym.Env):
         )
         return reward
 
-    def check_collision(self, car_model: int, obstacles: list[int], margin: float = 0,
+    def check_collision(self, car_model: int, obstacles: List[int], margin: float = 0,
                         max_distance: float = 1.0) -> bool:
         """
         did the car collide with an obstacle
@@ -329,7 +329,7 @@ class CarEnv(gym.Env):
                     return True
         return False
 
-    def step(self, action: tuple[float]) -> tuple[dict, float, bool, Any]:
+    def step(self, action: Tuple[float]) -> Tuple[dict, float, bool, Any]:
         """
         runs the simulation one step
         :param action: the action to preform (tuple of speed change and steer change)
@@ -460,7 +460,7 @@ class CarEnv(gym.Env):
         self.p1.resetBasePositionAndOrientation(self.car_model, position, [0, 0, 0, 1])
         self.p1.resetBaseVelocity(self.car_model, [0, 0, 0], [0, 0, 0])
 
-    def create_car_model(self) -> tuple[int, list[int], list[int]]:
+    def create_car_model(self) -> Tuple[int, List[int], List[int]]:
         """
         create the car in pybullet
         :return: the car ID and important joint IDs for steering and setting speed
@@ -482,7 +482,7 @@ class CarEnv(gym.Env):
 
         return car, wheels, steering
 
-    def get_new_maze(self) -> tuple[list, consts.vector, consts.vector]:
+    def get_new_maze(self) -> Tuple[list, consts.vector, consts.vector]:
         """
         gets a new maze for the run
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)

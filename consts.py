@@ -1,5 +1,5 @@
 # pybullet simulation
-from typing import List, Literal, Sequence
+from typing import List, Sequence
 
 import stable_baselines3.common.base_class
 
@@ -53,7 +53,7 @@ GOAL_DIST_REWARD = -1 * TIME_PENALTY * 500  # reward for getting close to the ta
 
 
 # typing
-binary_matrix = List[List[Literal[0, 1]]]   # binary matrix
+binary_matrix = List[List[int]]   # binary matrix
 vector = Sequence[float]    # list or tuple of floats
 network_model = stable_baselines3.common.base_class.BaseAlgorithm   # NN algorithm
 stable_baselines_env = stable_baselines3.common.vec_env.base_vec_env.VecEnv  # vectorized environment

@@ -24,7 +24,7 @@ def draw_binary_matrix(mat: consts.binary_matrix) -> None:
     plt.imshow(matrix, cmap=cmap)
 
 
-def add_lists(lists: list[list[float]]) -> list[float]:
+def add_lists(lists: List[List[float]]) -> List[float]:
     """
     adds lists of length at most three by index
     :param lists: list of lists to add
@@ -142,7 +142,7 @@ def pos_from_map_index(block_index: Sequence[int]) -> consts.vector:
     return [consts.block_size * (value + 0.5) - consts.size_map_quarter for value in block_index]
 
 
-def get_neighbors(index: Sequence[int], map_shape: tuple[int]) -> list[Sequence[int]]:
+def get_neighbors(index: Sequence[int], map_shape: Tuple[int]) -> List[Sequence[int]]:
     """
     returns the neighbors of a block in the map (including diagonal)
     :param index: the index of the block in the map (list with length 2)
