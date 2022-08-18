@@ -1,5 +1,6 @@
 import itertools
 import math
+from typing import Sequence
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -121,7 +122,7 @@ def norm(a: consts.vector) -> float:
     return math.sqrt(sum((x ** 2 for x in a)))
 
 
-def map_index_from_pos(pos):
+def map_index_from_pos(pos: consts.vector) -> Sequence[int]:
     """
     transforms a position on the map to indices in the binary matrices
     :param pos: (x,y) pair on the map
@@ -132,7 +133,7 @@ def map_index_from_pos(pos):
     return [max(0, min(idx, int((2 * consts.size_map_quarter) // consts.block_size) - 1)) for idx in indices]
 
 
-def pos_from_map_index(block_index):
+def pos_from_map_index(block_index: Sequence[int]) -> consts.vector:
     """
     transforms indices in the binary matrices to a position on the map (the position is the middle of the block)
     :param block_index: index of block in the matrix (2 dimensional)
@@ -141,7 +142,7 @@ def pos_from_map_index(block_index):
     return [consts.block_size * (value + 0.5) - consts.size_map_quarter for value in block_index]
 
 
-def get_neighbors(index, map_shape):
+def get_neighbors(index: Sequence[int], map_shape: tuple[int]) -> list[Sequence[int]]:
     """
     returns the neighbors of a block in the map (including diagonal)
     :param index: the index of the block in the map (list with length 2)
@@ -162,7 +163,7 @@ def get_neighbors(index, map_shape):
     return neighbors[1:]  # the cell itself is not a neighbor
 
 
-def calculate_distances(partial_map, index):
+def calculate_distances(partial_map: consts.binary_matrix, index: Sequence[int]):
     """
     calculates the distance in steps to all blocks from the given location using BFS
     :param partial_map: the partial obstacle map - 0 if unexplored or empty and 1 if the block has an obstacle
