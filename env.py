@@ -18,7 +18,7 @@ import mazes
 from helper import *
 
 
-def make_env(index: int, seed: int | None = None) -> Callable:
+def make_env(index: int, seed: int = None) -> Callable:
     """
     Utility function for multiprocessing env.
     :param index: index of the subprocess
@@ -55,7 +55,7 @@ def add_discovered_matrix(discovered_matrix: consts.binary_matrix, start: consts
 
 # car api to use with the SAC algorithm
 class CarEnv(gym.Env):
-    def __init__(self, index: int, seed: int | None):
+    def __init__(self, index: int, seed: int):
         super(CarEnv, self).__init__()
         self.index = index  # index of environment in multiprocessing
         self.maze_idx = None  # index of the maze we chosen TODO: delete after generalizing
@@ -285,7 +285,7 @@ class CarEnv(gym.Env):
         else:
             return True, start[:2], ray_test[0][3]
 
-    def seed(self, seed: int | None = None) -> List[int | None]:
+    def seed(self, seed: int = None) -> List[int]:
         """
         set a seed for the randomness
         :param seed: the np.random seed
