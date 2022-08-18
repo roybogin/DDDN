@@ -1,4 +1,8 @@
 # pybullet simulation
+from typing import List, Literal, Sequence
+
+import stable_baselines3.common.base_class
+
 is_visual = False  # do we want to see visual footage
 use_real_time = 0  # is the simulation running in real time - probably should always be 0
 time_step = 0.01    # what is a time step in the pybullet simulation
@@ -46,3 +50,10 @@ CRASH_PENALTY = -1000   # reward for not crashing
 TIME_PENALTY = CRASH_PENALTY/(2*max_time)    # reward for finishing in a short time
 GOAL_DIST_REWARD = -1 * TIME_PENALTY * 500  # reward for getting close to the target
 
+
+
+# typing
+binary_matrix = List[List[Literal[0, 1]]]   # binary matrix
+vector = Sequence[float]    # list or tuple of floats
+network_model = stable_baselines3.common.base_class.BaseAlgorithm   # NN algorithm
+stable_baselines_env = stable_baselines3.common.vec_env.base_vec_env.VecEnv  # vectorized environment

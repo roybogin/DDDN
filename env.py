@@ -1,6 +1,7 @@
 import glob
 import os
 from datetime import datetime
+from typing import Callable, Any
 
 import gym
 import pybullet as p
@@ -17,11 +18,11 @@ import mazes
 from helper import *
 
 
-def make_env(index, seed=None):
+def make_env(index: int, seed: int | None = None) -> Callable:
     """
     Utility function for multiprocessing env.
-    :param index: (int) index of the subprocess
-    :param seed: (int) the initial seed for RNG
+    :param index: index of the subprocess
+    :param seed: the initial seed for RNG
     :return: function that creates the environment
     """
 
@@ -33,7 +34,7 @@ def make_env(index, seed=None):
     # return _init
 
 
-def add_discovered_matrix(discovered_matrix, start, end):
+def add_discovered_matrix(discovered_matrix: consts.binary_matrix, start: consts.vector, end: consts.vector) -> float:
     """
     updates the discovered matrix by drawing a line on it matching the endpoints of the raycast
     :param discovered_matrix: matrix that represents the discovered areas by the car
@@ -54,18 +55,18 @@ def add_discovered_matrix(discovered_matrix, start, end):
 
 # car api to use with the SAC algorithm
 class CarEnv(gym.Env):
-    def __init__(self, index, seed, size=10):
+    def __init__(self, index: int, seed: int | None):
         super(CarEnv, self).__init__()
         self.index = index  # index of environment in multiprocessing
-        self.maze_idx = None    # index of the maze we chosen TODO: delete after generalizing
-        self.np_random = None   # object for randomizing values according to a seed
+        self.maze_idx = None  # index of the maze we chosen TODO: delete after generalizing
+        self.np_random = None  # object for randomizing values according to a seed
         self.initial_distance_to_target = None  # the initial distance between the car and target
         self.total_score = None  # total score for the run
-        self.rotation_trig = None   # trigonometry values on the car orientation
-        self.speed = None   # speed of the car
-        self.velocity = None    # velocity of the car (speed in both axes)
-        self.angular_velocity = None    # angular velocity of the car
-        self.rotation = None    # rotation of the car (in radians)
+        self.rotation_trig = None  # trigonometry values on the car orientation
+        self.speed = None  # speed of the car
+        self.velocity = None  # velocity of the car (speed in both axes)
+        self.angular_velocity = None  # angular velocity of the car
+        self.rotation = None  # rotation of the car (in radians)
         self.pos = None  # position of the car on the map
         self.start_point = None  # starting point of the map
         self.discovered = None  # binary matrix which shows what regions of the map were seen by the car
@@ -79,8 +80,8 @@ class CarEnv(gym.Env):
         self.crashed = None  # did the car crash
         self.swivel = None  # swivel of the car - angle of steering wheel
         self.acceleration = None  # acceleration of the car (difference in speed)
-        self.end_point = None   # end point of the map
-        self.maze = None    # walls of the maze - list of points
+        self.end_point = None  # end point of the map
+        self.maze = None  # walls of the maze - list of points
         self.borders = None  # the maze borders - object IDs
         self.p1 = None  # separate pybullet client for multiprocessing
         self.curr_goal = None   # goal for now (close to current position)
@@ -99,8 +100,8 @@ class CarEnv(gym.Env):
                 '''
         self.observation_space = spaces.Dict(
             {
-                "position": spaces.Box(-size, size, shape=(2,), dtype=np.float32),
-                "goal": spaces.Box(-size, size, shape=(2,), dtype=np.float32),
+                "position": spaces.Box(-consts.size_map_quarter, consts.size_map_quarter, shape=(2,), dtype=np.float32),
+                "goal": spaces.Box(-consts.size_map_quarter, consts.size_map_quarter, shape=(2,), dtype=np.float32),
                 "velocity": spaces.Box(
                     -consts.max_velocity, consts.max_velocity, shape=(2,), dtype=np.float32
                 ),
@@ -116,16 +117,16 @@ class CarEnv(gym.Env):
         )
         self.action_space = spaces.Box(-1, 1, shape=(2,), dtype=np.float32)
 
-        self.car_model = None   # pybullet ID of the car
+        self.car_model = None  # pybullet ID of the car
         self.wheels = None  # pybullet ID of the wheels for setting speed
-        self.steering = None    # pybullet ID of the wheels for steering
+        self.steering = None  # pybullet ID of the wheels for steering
         self.obstacles = []  # list of obstacle IDs in pybullet
-        self.bodies = []    # list of all collision body IDs in pybullet
+        self.bodies = []  # list of all collision body IDs in pybullet
         self.start_env()
         self.seed(seed)
         self.reset()
 
-    def start_env(self):
+    def start_env(self) -> None:
         """
         start the pybullet environment and create the car
         :return:
@@ -135,7 +136,7 @@ class CarEnv(gym.Env):
         self.p1.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, 0)
         self.p1.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, 0)
         self.p1.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, 0)
-        
+
         self.p1.setAdditionalSearchPath(pd.getDataPath())
         self.p1.setGravity(0, 0, -10)
 
@@ -148,7 +149,7 @@ class CarEnv(gym.Env):
             cameraPitch=consts.cameraPitch,
             cameraTargetPosition=consts.cameraTargetPosition,
         )
-        
+
         self.car_model, self.wheels, self.steering = self.create_car_model()
 
     def calculate_next_goal(self):
@@ -165,13 +166,13 @@ class CarEnv(gym.Env):
             idx))))
         self.curr_goal = pos_from_map_index(next_block)
 
-    def add_borders(self):
+    def add_borders(self) -> None:
         """
         adds the boarders to the maze
         """
         self.borders = map_create.create_poly_wall(consts.map_borders, epsilon=0.1, client=self.p1)
 
-    def remove_all_bodies(self):
+    def remove_all_bodies(self) -> None:
         """
         removes all collision bodies from the map
         :return:
@@ -180,7 +181,7 @@ class CarEnv(gym.Env):
             self.p1.removeBody(body)
         self.bodies = []
 
-    def scan_environment(self):
+    def scan_environment(self) -> None:
         """
         scans the environment and updates the discovery values
         :return:
@@ -203,9 +204,10 @@ class CarEnv(gym.Env):
 
         self.discovered = new_map_discovered
 
-    def reset(self):
+    def reset(self) -> dict:
         """
         resets the environment
+        :return: The observation for the environment
         """
         self.remove_all_bodies()
         self.add_borders()
@@ -252,7 +254,8 @@ class CarEnv(gym.Env):
 
         return self.get_observation()
 
-    def ray_cast(self, car, offset, direction):
+    def ray_cast(self, car: int, offset: consts.vector, direction: consts.vector) -> tuple[bool, consts.vector,
+                                                                                           consts.vector]:
         """
         generates a raycast in a given direction
         :param car: car ID
@@ -282,7 +285,7 @@ class CarEnv(gym.Env):
         else:
             return True, start[:2], ray_test[0][3]
 
-    def seed(self, seed=None):
+    def seed(self, seed: int | None = None) -> list[int | None]:
         """
         set a seed for the randomness
         :param seed: the np.random seed
@@ -291,7 +294,7 @@ class CarEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def calculate_reward(self):
+    def calculate_reward(self) -> float:
         """
         calculate the reward of the step
         :return: the reward for the step
@@ -304,8 +307,8 @@ class CarEnv(gym.Env):
         )
         return reward
 
-    def check_collision(self, car_model, obstacles, margin=0,
-                        max_distance=1.0):
+    def check_collision(self, car_model: int, obstacles: list[int], margin: float = 0,
+                        max_distance: float = 1.0) -> bool:
         """
         did the car collide with an obstacle
         :param car_model: car ID
@@ -326,7 +329,7 @@ class CarEnv(gym.Env):
                     return True
         return False
 
-    def step(self, action):
+    def step(self, action: tuple[float]) -> tuple[dict, float, bool, Any]:
         """
         runs the simulation one step
         :param action: the action to preform (tuple of speed change and steer change)
@@ -396,7 +399,7 @@ class CarEnv(gym.Env):
 
         # saving for later
         swivel_states = self.p1.getJointStates(self.car_model, self.steering)
-        self.swivel = sum((state[0] for state in swivel_states))/len(swivel_states)  # average among wheels
+        self.swivel = sum((state[0] for state in swivel_states)) / len(swivel_states)  # average among wheels
 
         score = self.calculate_reward()
         self.total_score += score
@@ -432,7 +435,7 @@ class CarEnv(gym.Env):
                 f" - time {self.run_time}")
         return self.get_observation(), score, True, {}
 
-    def get_observation(self):
+    def get_observation(self) -> dict:
         """
         get the current observation
         :return: dictionary matching the observation
@@ -448,7 +451,7 @@ class CarEnv(gym.Env):
         }
         return observation
 
-    def set_car_position(self, position):
+    def set_car_position(self, position: consts.vector) -> None:
         """
         sets the car in a position
         :param position: position to place the car at
@@ -457,7 +460,7 @@ class CarEnv(gym.Env):
         self.p1.resetBasePositionAndOrientation(self.car_model, position, [0, 0, 0, 1])
         self.p1.resetBaseVelocity(self.car_model, [0, 0, 0], [0, 0, 0])
 
-    def create_car_model(self):
+    def create_car_model(self) -> tuple[int, list[int], list[int]]:
         """
         create the car in pybullet
         :return: the car ID and important joint IDs for steering and setting speed
@@ -479,7 +482,7 @@ class CarEnv(gym.Env):
 
         return car, wheels, steering
 
-    def get_new_maze(self):
+    def get_new_maze(self) -> tuple[list, consts.vector, consts.vector]:
         """
         gets a new maze for the run
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
@@ -489,7 +492,7 @@ class CarEnv(gym.Env):
         return maze, end, start
 
 
-def save_model(model_to_save, format_str, suffix=''):
+def save_model(model_to_save: consts.network_model, format_str: str, suffix: str = '') -> None:
     """
     saves the model with to the location returned by the given format string (formats the time of the run's end)
     :param model_to_save: The ddpg model that needs to be saved
@@ -507,9 +510,9 @@ def save_model(model_to_save, format_str, suffix=''):
     model_to_save.save(f"results_alt/{filename}")
 
 
-def get_model(env, should_load, filename, verbose=True):
+def get_model(env: consts.stable_baselines_env, should_load: bool, filename: str, verbose: bool = True) -> consts.network_model:
     """
-    Returns a DDPG model from a save file or creates a new one
+    Returns a model from a save file or creates a new one
     :param env: Gym environment for the model
     :param should_load: Do we want to load a model or create a new one
     :param filename: Wanted model filename - None if we want the last file in results
@@ -543,7 +546,7 @@ def get_model(env, should_load, filename, verbose=True):
     return model
 
 
-def evaluate(model, env):
+def evaluate(model: consts.network_model, env: consts.stable_baselines_env) -> float:
     """
     Evaluating the model
     :param env: Gym environment for the model

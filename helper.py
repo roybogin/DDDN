@@ -8,11 +8,11 @@ from matplotlib.colors import ListedColormap
 import consts
 
 
-def dist(point1, point2):
+def dist(point1: consts.vector, point2: consts.vector) -> float:
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
 
-def draw_binary_matrix(mat):
+def draw_binary_matrix(mat: consts.binary_matrix) -> None:
     """
     draws the given matrix with matplotlib
     :param mat: the binary matrix to draw
@@ -23,7 +23,7 @@ def draw_binary_matrix(mat):
     plt.imshow(matrix, cmap=cmap)
 
 
-def add_lists(lists):
+def add_lists(lists: list[list[float]]) -> list[float]:
     """
     adds lists of length at most three by index
     :param lists: list of lists to add
@@ -36,7 +36,7 @@ def add_lists(lists):
     return ret
 
 
-def plot_line_low(x0, y0, x1, y1, matrix):
+def plot_line_low(x0: int, y0: int, x1: int, y1: int, matrix: consts.binary_matrix) -> None:
     """
     helper function to plot a binary line in a binary matrix
     """
@@ -63,7 +63,7 @@ def plot_line_low(x0, y0, x1, y1, matrix):
             d = d + 2 * dy
 
 
-def plot_line_high(x0, y0, x1, y1, matrix):
+def plot_line_high(x0: int, y0: int, x1: int, y1: int, matrix: consts.binary_matrix) -> None:
     """
     helper function to plot a binary line in a binary matrix
     """
@@ -90,7 +90,7 @@ def plot_line_high(x0, y0, x1, y1, matrix):
             d = d + 2 * dx
 
 
-def plot_line(x0, y0, x1, y1, matrix):
+def plot_line(x0: int, y0: int, x1: int, y1: int, matrix: consts.binary_matrix) -> None:
     """
     plots a binary line in a binary matrix
     :param x0: starting x coordinate of line
@@ -112,7 +112,7 @@ def plot_line(x0, y0, x1, y1, matrix):
             plot_line_high(x0, y0, x1, y1, matrix)
 
 
-def norm(a):
+def norm(a: consts.vector) -> float:
     """
     calculates norm of a vector
     :param a: the vector
