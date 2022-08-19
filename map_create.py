@@ -117,6 +117,8 @@ def create_map(in_map, end_point, epsilon, client):
     walls = []
     for poly in in_map:
         walls += create_poly_wall(poly, epsilon, client)
+    end = [end_point[0], end_point[1], 0.5]
+    create_wall(end, p.getQuaternionFromEuler([0, 0, 0]), epsilon / 2, epsilon / 2, client)
     return walls
 
 # TODO: delete?

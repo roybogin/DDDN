@@ -36,10 +36,11 @@ def add_lists(lists):
     return ret
 
 
-def plot_line_low(x0, y0, x1, y1, matrix):
+def plot_line_low(x0, y0, x1, y1, length):
     """
     helper function to plot a binary line in a binary matrix
     """
+    returned = []
     dx = x1 - x0
     dy = y1 - y0
     yi = 1
@@ -51,8 +52,8 @@ def plot_line_low(x0, y0, x1, y1, matrix):
     y = y0
 
     for x in range(x0, x1 + 1):
-        if x < len(matrix) and y < len(matrix):
-            matrix[x][y] = 1
+        if x < length and y < length:
+            returned.append((x, y))
         else:
             pass
             # print("illegal", x, y)
@@ -61,12 +62,14 @@ def plot_line_low(x0, y0, x1, y1, matrix):
             d = d + (2 * (dy - dx))
         else:
             d = d + 2 * dy
+    return returned
 
 
-def plot_line_high(x0, y0, x1, y1, matrix):
+def plot_line_high(x0, y0, x1, y1, length):
     """
     helper function to plot a binary line in a binary matrix
     """
+    returned = []
     dx = x1 - x0
     dy = y1 - y0
     xi = 1
@@ -78,8 +81,8 @@ def plot_line_high(x0, y0, x1, y1, matrix):
     x = x0
 
     for y in range(y0, y1 + 1):
-        if x < len(matrix) and y < len(matrix):
-            matrix[x][y] = 1
+        if x < length and y < length:
+            returned.append((x, y))
         else:
             # print("illegal", x, y)
             pass
@@ -88,6 +91,20 @@ def plot_line_high(x0, y0, x1, y1, matrix):
             d = d + (2 * (dx - dy))
         else:
             d = d + 2 * dx
+    return returned
+
+
+def get_line(x0, y0, x1, y1, length):
+    if abs(y1 - y0) < abs(x1 - x0):
+        if x0 > x1:
+            return plot_line_low(x1, y1, x0, y0, length)
+        else:
+            return plot_line_low(x0, y0, x1, y1, length)
+    else:
+        if y0 > y1:
+            return plot_line_high(x1, y1, x0, y0, length)
+        else:
+            return plot_line_high(x0, y0, x1, y1, length)
 
 
 def plot_line(x0, y0, x1, y1, matrix):
@@ -100,16 +117,8 @@ def plot_line(x0, y0, x1, y1, matrix):
     :param matrix: matrix to draw the line in
     :return:
     """
-    if abs(y1 - y0) < abs(x1 - x0):
-        if x0 > x1:
-            plot_line_low(x1, y1, x0, y0, matrix)
-        else:
-            plot_line_low(x0, y0, x1, y1, matrix)
-    else:
-        if y0 > y1:
-            plot_line_high(x1, y1, x0, y0, matrix)
-        else:
-            plot_line_high(x0, y0, x1, y1, matrix)
+    for x, y in get_line(x0, y0, x1, y1, len(matrix)):
+        matrix[x][y] = 1
 
 
 def norm(a):
@@ -148,7 +157,10 @@ def get_neighbors(index, map_shape):
     :param map_shape: the shape of the map
     :return: list of the neighbors in the map
     """
+
     r, c = index
+    if r < 0 or r >= map_shape[0] or c < 0 or c >= map_shape[1]:
+        return []
     rows, cols = [r], [c]  # possible rows and columns for neighbors
     if r != 0:
         rows.append(r - 1)
@@ -160,6 +172,13 @@ def get_neighbors(index, map_shape):
         cols.append(c + 1)
     neighbors = list(itertools.product(rows, cols))
     return neighbors[1:]  # the cell itself is not a neighbor
+
+
+def get_by_direction(index, map_shape, direction, distance):
+    ray_end = [int(index[0] + distance * np.sin(direction)), int(index[1] + distance * np.cos(direction))]
+    line = get_line(index[0], index[1], ray_end[0], ray_end[1], map_shape[0])
+    line.sort(key=lambda a: (a[0]-index[0])**2 + (a[1]-index[1])**2)
+    return line[1:]
 
 
 def calculate_distances(partial_map, index):

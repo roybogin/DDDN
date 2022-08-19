@@ -1,6 +1,4 @@
-import glob
 import os
-from datetime import datetime
 
 import gym
 import pybullet as p
@@ -8,10 +6,8 @@ import pybullet_data as pd
 from gym import spaces
 from gym.utils import seeding
 from pybullet_utils import bullet_client
-from stable_baselines3 import SAC
-from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.vec_env import SubprocVecEnv
 
+import consts
 import map_create
 import mazes
 from helper import *
@@ -56,16 +52,18 @@ def add_discovered_matrix(discovered_matrix, start, end):
 class CarEnv(gym.Env):
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
+        self.direction = None
+        self.distances_from_pos = None
         self.index = index  # index of environment in multiprocessing
-        self.maze_idx = None    # index of the maze we chosen TODO: delete after generalizing
-        self.np_random = None   # object for randomizing values according to a seed
+        self.maze_idx = None  # index of the maze we chosen TODO: delete after generalizing
+        self.np_random = None  # object for randomizing values according to a seed
         self.initial_distance_to_target = None  # the initial distance between the car and target
         self.total_score = None  # total score for the run
-        self.rotation_trig = None   # trigonometry values on the car orientation
-        self.speed = None   # speed of the car
-        self.velocity = None    # velocity of the car (speed in both axes)
-        self.angular_velocity = None    # angular velocity of the car
-        self.rotation = None    # rotation of the car (in radians)
+        self.rotation_trig = None  # trigonometry values on the car orientation
+        self.speed = None  # speed of the car
+        self.velocity = None  # velocity of the car (speed in both axes)
+        self.angular_velocity = None  # angular velocity of the car
+        self.rotation = None  # rotation of the car (in radians)
         self.pos = None  # position of the car on the map
         self.start_point = None  # starting point of the map
         self.discovered = None  # binary matrix which shows what regions of the map were seen by the car
@@ -79,11 +77,10 @@ class CarEnv(gym.Env):
         self.crashed = None  # did the car crash
         self.swivel = None  # swivel of the car - angle of steering wheel
         self.acceleration = None  # acceleration of the car (difference in speed)
-        self.end_point = None   # end point of the map
-        self.maze = None    # walls of the maze - list of points
+        self.end_point = None  # end point of the map
+        self.maze = None  # walls of the maze - list of points
         self.borders = None  # the maze borders - object IDs
-        self.p1 = None  # separate pybullet client for multiprocessing
-        self.curr_goal = None   # goal for now (close to current position)
+        self.curr_goal = None  # goal for now (close to current position)
         self.distances_to_end = None  # minimum distance in blocks (in the maze) to the end for each block
         self.map_changed = None  # did the perceived map change (we need to recalculate the distances)
         self.prev_pos = None
@@ -116,11 +113,11 @@ class CarEnv(gym.Env):
         )
         self.action_space = spaces.Box(-1, 1, shape=(2,), dtype=np.float32)
 
-        self.car_model = None   # pybullet ID of the car
+        self.car_model = None  # pybullet ID of the car
         self.wheels = None  # pybullet ID of the wheels for setting speed
-        self.steering = None    # pybullet ID of the wheels for steering
+        self.steering = None  # pybullet ID of the wheels for steering
         self.obstacles = []  # list of obstacle IDs in pybullet
-        self.bodies = []    # list of all collision body IDs in pybullet
+        self.bodies = []  # list of all collision body IDs in pybullet
         self.start_env()
         self.seed(seed)
         self.reset()
@@ -130,46 +127,79 @@ class CarEnv(gym.Env):
         start the pybullet environment and create the car
         :return:
         """
-        self.p1 = bullet_client.BulletClient()
-        self.p1.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
-        self.p1.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, 0)
-        self.p1.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, 0)
-        self.p1.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, 0)
-        
-        self.p1.setAdditionalSearchPath(pd.getDataPath())
-        self.p1.setGravity(0, 0, -10)
+        a = p.connect(p.GUI)
+        p.setAdditionalSearchPath(pd.getDataPath(), a)
 
-        self.p1.setRealTimeSimulation(consts.use_real_time)
-        self.p1.setTimeStep(consts.time_step)
-        self.p1.loadSDF(os.path.join(pd.getDataPath(), "stadium.sdf"))
-        self.p1.resetDebugVisualizerCamera(
+        b = p.connect(p.DIRECT)
+        p.setAdditionalSearchPath(pd.getDataPath(), b)
+
+        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+        p.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, 0)
+        p.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, 0)
+        p.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, 0)
+
+        p.setGravity(0, 0, -10)
+
+        p.setRealTimeSimulation(consts.use_real_time)
+        p.setTimeStep(consts.time_step)
+        p.loadSDF(os.path.join(pd.getDataPath(), "stadium.sdf"))
+        p.resetDebugVisualizerCamera(
             cameraDistance=consts.cameraDistance,
             cameraYaw=consts.cameraYaw,
             cameraPitch=consts.cameraPitch,
             cameraTargetPosition=consts.cameraTargetPosition,
         )
-        
+
         self.car_model, self.wheels, self.steering = self.create_car_model()
 
     def calculate_next_goal(self):
         end_block = map_index_from_pos(self.end_point)
         curr_block = map_index_from_pos(self.pos)
-        if end_block == curr_block or dist(self.pos, self.end_point) <= consts.block_size/2:
+        if end_block == curr_block or dist(self.pos, self.end_point) <= consts.block_size / 2:
             self.curr_goal = self.end_point
             return
         if self.map_changed:
             self.distances_to_end = calculate_distances(self.map, end_block)
         self.map_changed = False  # no need to recalculate the distances
-        neighbors = get_neighbors(curr_block, np.shape(self.map))
-        next_block = min(neighbors, key=lambda idx: (self.distances_to_end[idx], dist(self.pos, pos_from_map_index(
-            idx))))
+        line = get_by_direction(curr_block, np.shape(self.map), self.rotation, 5)
+        options1 = []
+        for index in line[3:]:
+            if self.distances_to_end[index] == np.inf:
+                break
+            options1.append(index)
+            options1 += get_neighbors(index, np.shape(self.map))
+        options1 += line[:3]
+        options1 = list(set(options1))
+        next_block1 = min(options1, key=lambda idx: (self.distances_to_end[idx], dist(self.end_point,
+                                                                                      pos_from_map_index(
+                                                                                          idx))))
+
+        line = get_by_direction(curr_block, np.shape(self.map), self.rotation + np.pi, 5)
+        options2 = []
+        for index in line[3:]:
+            if self.distances_to_end[index] == np.inf:
+                break
+            options2.append(index)
+            options2 += get_neighbors(index, np.shape(self.map))
+        options2 += line[:3]
+        options2 = list(set(options2))
+        next_block2 = min(options2, key=lambda idx: (self.distances_to_end[idx], dist(self.end_point,
+                                                                                      pos_from_map_index(
+                                                                                          idx))))
+        next_block = min((next_block1, next_block2), key=lambda idx: (self.distances_to_end[idx], dist(self.end_point,
+                                                                                                       pos_from_map_index(
+                                                                                                        idx))))
+        if next_block == next_block1:
+            self.direction = 1
+        else:
+            self.direction = -1
         self.curr_goal = pos_from_map_index(next_block)
 
     def add_borders(self):
         """
         adds the boarders to the maze
         """
-        self.borders = map_create.create_poly_wall(consts.map_borders, epsilon=0.1, client=self.p1)
+        self.borders = map_create.create_poly_wall(consts.map_borders, epsilon=0.1, client=p)
 
     def remove_all_bodies(self):
         """
@@ -177,7 +207,7 @@ class CarEnv(gym.Env):
         :return:
         """
         for body in self.bodies:
-            self.p1.removeBody(body)
+            p.removeBody(body)
         self.bodies = []
 
     def scan_environment(self):
@@ -229,7 +259,7 @@ class CarEnv(gym.Env):
         self.last_speed = 0
         self.total_score = 0
 
-        self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1, client=self.p1)
+        self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1, client=p)
         self.bodies = self.borders + self.obstacles
         self.map = [[0 for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))] for _ in
                     range(int((2 * consts.size_map_quarter) // consts.block_size))]
@@ -260,8 +290,8 @@ class CarEnv(gym.Env):
         :param direction: direction of ray
         :return: (did the ray collide with an obstacle, start position of the ray, end position of the ray)
         """
-        pos, quaternions = self.p1.getBasePositionAndOrientation(car)
-        euler = self.p1.getEulerFromQuaternion(quaternions)
+        pos, quaternions = p.getBasePositionAndOrientation(car)
+        euler = p.getEulerFromQuaternion(quaternions)
         x = math.cos(euler[2])
         y = math.sin(euler[2])
         offset = [
@@ -276,7 +306,7 @@ class CarEnv(gym.Env):
         ]
         start = add_lists([pos, offset])
         end = add_lists([pos, offset, direction])
-        ray_test = self.p1.rayTest(start, end)
+        ray_test = p.rayTest(start, end)
         if ray_test[0][3] == (0, 0, 0):
             return False, start[:2], end[:2]
         else:
@@ -289,20 +319,8 @@ class CarEnv(gym.Env):
         :return:
         """
         self.np_random, seed = seeding.np_random(seed)
+        print(seed)
         return [seed]
-
-    def calculate_reward(self):
-        """
-        calculate the reward of the step
-        :return: the reward for the step
-        """
-        reward = (
-                consts.TIME_PENALTY +
-                self.crashed * consts.CRASH_PENALTY * (1 - 0.5 * self.run_time / consts.max_time) +
-                self.finished * consts.FINISH_REWARD +
-                consts.GOAL_DIST_REWARD * (1 - dist(self.pos, self.curr_goal)/dist(self.prev_pos, self.curr_goal))
-        )
-        return reward
 
     def check_collision(self, car_model, obstacles, margin=0,
                         max_distance=1.0):
@@ -315,8 +333,8 @@ class CarEnv(gym.Env):
         :return: did the car collide with an obstacle
         """
         for ob in obstacles:
-            closest_points = self.p1.getClosestPoints(car_model, ob,
-                                                      distance=max_distance)
+            closest_points = p.getClosestPoints(car_model, ob,
+                                                distance=max_distance)
             closest_points = [
                 a for a in closest_points if not (a[1] == a[2] == car_model)
             ]
@@ -326,7 +344,7 @@ class CarEnv(gym.Env):
                     return True
         return False
 
-    def step(self, action):
+    def step(self):
         """
         runs the simulation one step
         :param action: the action to preform (tuple of speed change and steer change)
@@ -335,12 +353,14 @@ class CarEnv(gym.Env):
         if consts.print_runtime:
             print(self.run_time)
 
-        change_steering_angle = action[0] * consts.max_steer
-        change_target_velocity = action[1] * consts.max_velocity
+        vector = np.array(self.curr_goal) - np.array(self.pos[:2])
+        angle = np.arccos((self.curr_goal[0] - self.pos[0]) / norm(vector)) * np.sign(vector[1])
+
+        action = [self.direction, angle]
 
         # updating target velocity and steering angle
-        wanted_speed = self.speed + change_target_velocity * consts.speed_scalar
-        wanted_steering_angle = self.swivel + change_steering_angle * consts.steer_scalar
+        wanted_speed = action[0] * consts.max_velocity
+        wanted_steering_angle = action[1]
         if abs(wanted_steering_angle) > consts.max_steer:
             wanted_steering_angle = consts.max_steer * np.sign(wanted_steering_angle)
         if abs(wanted_speed) > consts.max_velocity:
@@ -348,29 +368,29 @@ class CarEnv(gym.Env):
 
         # moving
         for wheel in self.wheels:
-            self.p1.setJointMotorControl2(
+            p.setJointMotorControl2(
                 self.car_model,
                 wheel,
-                self.p1.VELOCITY_CONTROL,
+                p.VELOCITY_CONTROL,
                 targetVelocity=wanted_speed,
                 force=consts.max_force,
             )
 
         for steer in self.steering:
-            self.p1.setJointMotorControl2(
+            p.setJointMotorControl2(
                 self.car_model,
                 steer,
-                self.p1.POSITION_CONTROL,
+                p.POSITION_CONTROL,
                 targetPosition=wanted_steering_angle,
             )
-        self.p1.stepSimulation()
+        p.stepSimulation()
 
         self.run_time += 1
 
         self.scan_environment()
 
         # updating map;
-        self.pos, quaternions = self.p1.getBasePositionAndOrientation(self.car_model)
+        self.pos, quaternions = p.getBasePositionAndOrientation(self.car_model)
 
         self.velocity, self.angular_velocity = p.getBaseVelocity(self.car_model)
         self.velocity = self.velocity[:2]
@@ -386,7 +406,7 @@ class CarEnv(gym.Env):
             self.crashed = True
 
         self.pos = self.pos[:2]
-        self.rotation = self.p1.getEulerFromQuaternion(quaternions)[2]
+        self.rotation = p.getEulerFromQuaternion(quaternions)[2]
 
         self.last_speed = self.speed
         self.speed = norm(self.velocity)
@@ -395,10 +415,10 @@ class CarEnv(gym.Env):
         self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
 
         # saving for later
-        swivel_states = self.p1.getJointStates(self.car_model, self.steering)
-        self.swivel = sum((state[0] for state in swivel_states))/len(swivel_states)  # average among wheels
+        swivel_states = p.getJointStates(self.car_model, self.steering)
+        self.swivel = sum((state[0] for state in swivel_states)) / len(swivel_states)  # average among wheels
 
-        score = self.calculate_reward()
+        score = 0
         self.total_score += score
 
         self.prev_pos = self.pos
@@ -454,28 +474,28 @@ class CarEnv(gym.Env):
         :param position: position to place the car at
         :return:
         """
-        self.p1.resetBasePositionAndOrientation(self.car_model, position, [0, 0, 0, 1])
-        self.p1.resetBaseVelocity(self.car_model, [0, 0, 0], [0, 0, 0])
+        p.resetBasePositionAndOrientation(self.car_model, position, [0, 0, 0, 1])
+        p.resetBaseVelocity(self.car_model, [0, 0, 0], [0, 0, 0])
 
     def create_car_model(self):
         """
         create the car in pybullet
         :return: the car ID and important joint IDs for steering and setting speed
         """
-        car = self.p1.loadURDF(
+        car = p.loadURDF(
             os.path.join(pd.getDataPath(), "racecar/racecar.urdf")
         )
         inactive_wheels = [3, 5, 7]
         wheels = [2]
 
         for wheel in inactive_wheels:
-            self.p1.setJointMotorControl2(
-                car, wheel, self.p1.VELOCITY_CONTROL, targetVelocity=0, force=0
+            p.setJointMotorControl2(
+                car, wheel, p.VELOCITY_CONTROL, targetVelocity=0, force=0
             )
 
         steering = [4, 6]
 
-        self.p1.resetBasePositionAndOrientation(car, [0, 0, 0], [0, 0, 0, 1])
+        p.resetBasePositionAndOrientation(car, [0, 0, 0], [0, 0, 0, 1])
 
         return car, wheels, steering
 
@@ -489,84 +509,10 @@ class CarEnv(gym.Env):
         return maze, end, start
 
 
-def save_model(model_to_save, format_str, suffix=''):
-    """
-    saves the model with to the location returned by the given format string (formats the time of the run's end)
-    :param model_to_save: The ddpg model that needs to be saved
-    :param format_str: A format string for the saved file - will be passed to strftime
-    :param suffix: sting to add at the end of the file name
-    :return:
-    """
-    try:
-        os.mkdir("results_alt")
-    except:
-        pass
-    curr_time = datetime.now().strftime(format_str)
-    filename = f'run-{curr_time}{suffix}'
-    print(f"saving as {filename}")
-    model_to_save.save(f"results_alt/{filename}")
-
-
-def get_model(env, should_load, filename, verbose=True):
-    """
-    Returns a DDPG model from a save file or creates a new one
-    :param env: Gym environment for the model
-    :param should_load: Do we want to load a model or create a new one
-    :param filename: Wanted model filename - None if we want the last file in results
-    :param verbose: do we want  to print the file used for loading (might be
-    different from filename if the given file name doesn't exist)
-    :return: The created model
-    """
-    if should_load:
-        if filename is not None and os.path.exists(filename):
-            # file exists and will be loaded
-            if verbose:
-                print(f'loading file: {filename}')
-            model = SAC.load(filename, env, train_freq=1, gradient_steps=2,
-                             verbose=1)
-            return model
-
-        # searching for latest file
-        list_of_files = glob.glob("results_alt/*.zip")
-        if len(list_of_files) != 0:  # there is an existing file
-            latest_file = max(list_of_files, key=os.path.getctime)
-            if verbose:
-                print(f'loading file: {latest_file}')
-            model = SAC.load(latest_file, env, train_freq=1, gradient_steps=2,
-                             verbose=1)
-            return model
-
-    # creating new model
-    if verbose:
-        print("Creating a new model")
-    model = SAC("MultiInputPolicy", env, train_freq=1, gradient_steps=2, verbose=1, buffer_size=10000)
-    return model
-
-
-def evaluate(model, env):
-    """
-    Evaluating the model
-    :param env: Gym environment for the model
-    :param model: The model to evaluate
-    :return: the mean in the evaluations
-    """
-    env.reset()
-    mean_reward, std_reward = evaluate_policy(
-        model, env, n_eval_episodes=3, deterministic=True
-    )
-    print(f"mean_reward={mean_reward:.2f} +/- {std_reward}")
-    return mean_reward
-
-
 def main():
-    env = SubprocVecEnv([make_env(i) for i in range(consts.num_processes)])
-    print("loading")
-    model = get_model(env, consts.is_model_load, consts.loaded_model_path)
-    print("training")
+    env = CarEnv(0, consts.seed)
     while True:
-        model.learn(total_timesteps=consts.checkpoint_steps)
-        reward = evaluate(model, env)
-        save_model(model, "%m_%d-%H_%M_%S", suffix=f'${str(int(reward))}')
+        env.step()
 
 
 if __name__ == "__main__":
