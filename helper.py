@@ -1,5 +1,7 @@
+import heapq
 import itertools
 import math
+from typing import List
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -177,7 +179,7 @@ def get_neighbors(index, map_shape):
 def get_by_direction(index, map_shape, direction, distance):
     ray_end = [int(index[0] + distance * np.sin(direction)), int(index[1] + distance * np.cos(direction))]
     line = get_line(index[0], index[1], ray_end[0], ray_end[1], map_shape[0])
-    line.sort(key=lambda a: (a[0]-index[0])**2 + (a[1]-index[1])**2)
+    line.sort(key=lambda a: (a[0] - index[0]) ** 2 + (a[1] - index[1]) ** 2)
     return line[1:]
 
 
@@ -198,9 +200,70 @@ def calculate_distances(partial_map, index):
     while len(blocks_to_check) != 0:
         curr_idx, distance = blocks_to_check.pop(0)
         if partial_map[curr_idx[0]][curr_idx[1]] == 1 or distances[curr_idx] != np.inf:
-            continue    # don't process walls or visited cells
+            continue  # don't process walls or visited cells
         distances[curr_idx] = distance
         neighbors = get_neighbors(curr_idx, distances.shape)
         for n in neighbors:
             blocks_to_check.append((n, distance + 1))  # the neighbor and its distance
+    return distances
+
+
+def radius_delta(delta: float):
+    return 0  # chuparov implemented?
+
+
+def radius_x_y_squared(x, y):
+    t = (x ** 2 + 2 * consts.a_2 * x + y ** 2) / (2 * y ** 2)
+    return t**2 + consts.a_2 ** 2
+
+
+def theta_curve(x, y):
+    if y == 0:
+        return 0
+    val = (x + consts.a_2) / np.sqrt(radius_x_y_squared(x, y) - (x+consts.a_2)**2)
+    return np.sign(y) * np.arctan(val)
+
+
+
+def edge_generation(vertices: List, res: float, tol: float, max_radius: float) -> List[List[int]]:
+    """
+    edge generation for non holonomic prm grapg
+    :param vertices: Vertices of the graph ([x,y],theta) - [x,y] is numpy array
+    :param res: resolution of the path planner
+    :param tol: tolerance of the path planner
+    :return: connection graph for the path
+    """
+    graph = [[] for _ in range(len(vertices))]  # initialize an empty graph
+    for index, vertex in enumerate(vertices):
+        options = []
+        for index_2, vertex_2 in enumerate(vertices):
+            if index <= index_2:
+                continue
+            pos, theta = vertex_2
+            weight = dist(vertex[0], pos)
+            if weight <= res:
+                transformed = (radius_delta(-theta) * (pos - vertex[0]), theta - vertex[1])
+                x, y = transformed[0], transformed[1]
+                needed_theta = theta_curve(x, y)
+                if abs(needed_theta - theta) < tol and np.sqrt(radius_x_y_squared(x, y)) < max_radius:
+                    graph[index].append((index_2, weight))
+                    graph[index_2].append((index, weight))
+    return graph
+
+
+def dijkstra(graph, root):
+    n = len(graph)
+    distances = [np.inf for _ in range(n)]
+    distances[root] = 0
+    visited = [False for _ in range(n)]
+    pq = [(0, root)]
+    while len(pq) > 0:
+        _, u = heapq.heappop(pq)
+        if visited[u]:
+            continue
+        visited[u] = True
+        for v, l in graph[u]:
+            if distances[u] + l < distances[v]:
+                distances[v] = distances[u] + l
+                heapq.heappush(pq, (distances[v], v))
     return distances

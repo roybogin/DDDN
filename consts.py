@@ -34,3 +34,6 @@ max_hits_before_calculation = 10  # amounts of new hits before adding lines to t
 max_time = int(1.5e4)  # time before forcing a new maze
 print_runtime = False  # do we want to print the total time of the run
 
+
+a_2 = 0 # a_2 of the car TODO: fill
+
