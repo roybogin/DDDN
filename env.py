@@ -6,6 +6,7 @@ import pybullet_data as pd
 from gym import spaces
 from gym.utils import seeding
 from pybullet_utils import bullet_client
+from scan_to_map import Map
 
 import consts
 import map_create
@@ -84,6 +85,7 @@ class CarEnv(gym.Env):
         self.distances_to_end = None  # minimum distance in blocks (in the maze) to the end for each block
         self.map_changed = None  # did the perceived map change (we need to recalculate the distances)
         self.prev_pos = None
+        self.map2 = None
 
         '''structure of an observation
                 "position": 2,
@@ -225,10 +227,11 @@ class CarEnv(gym.Env):
                 [-consts.ray_length * np.cos(direction), -consts.ray_length * np.sin(direction), 0]
             )
             if did_hit:
-                x1, y1 = map_index_from_pos(end)
-                if self.map[x1][y1] != 1:
-                    self.map_changed = True
-                self.map[x1][y1] = 1
+                self.hits.append((end[0], end[1]))
+                if len(self.hits) == consts.max_hits_before_calculation:
+                    self.map2.add_points_to_map(self.hits)
+                    #TODO: change map 2 to an ACTUAL name 
+                    self.hits = []
             self.map_discovered = add_discovered_matrix(new_map_discovered, start, end)
 
         self.discovered = new_map_discovered
@@ -240,6 +243,7 @@ class CarEnv(gym.Env):
         self.remove_all_bodies()
         self.add_borders()
 
+        self.map2 = Map([consts.map_borders.copy()])
         self.maze, self.end_point, self.start_point = self.get_new_maze()
 
         self.swivel = 0

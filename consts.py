@@ -35,5 +35,7 @@ max_time = int(1.5e4)  # time before forcing a new maze
 print_runtime = False  # do we want to print the total time of the run
 
 
-a_2 = 0 # a_2 of the car TODO: fill
+length=0.325
+width=0.2
+a_2 = length/2 # a_2 of the car TODO: fill
 
