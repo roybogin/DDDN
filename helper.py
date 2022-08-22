@@ -208,7 +208,7 @@ def calculate_distances(partial_map, index):
     return distances
 
 
-def radius_delta(delta: float, length: float, length, precentage_of_length: float = 1.0):
+def radius_delta(delta: float, length: float, precentage_of_length: float = 1.0):
     return np.sqrt((length*precentage_of_length/2) ** 2 + (l/np.tan(delta)) ** 2)
 
 
@@ -223,7 +223,7 @@ def theta_curve(x, y):
     val = (x + consts.a_2) / np.sqrt(radius_x_y_squared(x, y) - (x+consts.a_2)**2)
     return np.sign(y) * np.arctan(val)
 
-def sample_points(N: int, width: float, length: float, num_sample_car: int = 10)
+def sample_points(Map, N: int, width: float, length: float, num_sample_car: int = 10):
     samples = []
     while len(samples) < N:
         x, y = np.random.rand(2) * 2 * consts.size_map_quarter - consts.size_map_quarter
@@ -234,12 +234,12 @@ def sample_points(N: int, width: float, length: float, num_sample_car: int = 10)
                 x_temp = width *(-1/2 + i/(num_sample_car-1))
                 y_temp = length*(-1/2 + j/(num_sample_car-1))
                 to_check.append((x_temp * np.cos(theta) - y_temp * np.sin(theta), x_temp * np.sin(theta) + y_temp * np.cos(theta)))
-        if scan_to_map.check_batch(to_check)
+        if Map.check_batch(to_check):
             samples.append((np.array([x, y]), theta))
     return samples
 
 
-def edge_generation(vertices: List, res: float, tol: float, max_radius: float, length: float, precentage_of_length: float: 1.0) -> List[List[int]]:
+def edge_generation(vertices: List, res: float, tol: float, max_radius: float, length: float, precentage_of_length: float= 1.0) -> List[List[int]]:
     """
     edge generation for non holonomic prm grapg
     :param vertices: Vertices of the graph ([x,y],theta) - [x,y] is numpy array
@@ -256,7 +256,7 @@ def edge_generation(vertices: List, res: float, tol: float, max_radius: float, l
             pos, theta = vertex_2
             weight = dist(vertex[0], pos)
             if weight <= res:
-                transformed = (radius_delta(-theta) * (pos - vertex[0]), theta - vertex[1])
+                transformed = (radius_delta(-theta, length, precentage_of_length) * (pos - vertex[0]), theta - vertex[1])
                 x, y = transformed[0], transformed[1]
                 needed_theta = theta_curve(x, y)
                 if abs(needed_theta - theta) < tol and np.sqrt(radius_x_y_squared(x, y)) < max_radius:
