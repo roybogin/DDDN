@@ -121,9 +121,8 @@ def create_map(in_map, end_point, epsilon, client):
     create_wall(end, p.getQuaternionFromEuler([0, 0, 0]), epsilon / 2, epsilon / 2, client)
     return walls
 
+
 # TODO: delete?
-
-
 """def main():
 
     cid = p.connect(p.SHARED_MEMORY)

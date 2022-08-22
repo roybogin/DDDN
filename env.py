@@ -1,11 +1,9 @@
 import os
 
-import gym
 import pybullet as p
 import pybullet_data as pd
 from gym import spaces
 from gym.utils import seeding
-from pybullet_utils import bullet_client
 from scan_to_map import Map
 
 import consts
@@ -36,21 +34,14 @@ def add_discovered_matrix(discovered_matrix, start, end):
     :param discovered_matrix: matrix that represents the discovered areas by the car
     :param start: start of the raycast
     :param end: end of the raycast
-    :return: the percentage of discovered area
+    :return: the indices of discovered area
     """
     x0, y0 = map_index_from_pos(start)
     x1, y1 = map_index_from_pos(end)
-    plot_line(x0, y0, x1, y1, discovered_matrix)
-
-    return (
-            sum([sum(discovered_matrix[i]) for i in
-                 range(len(discovered_matrix))])
-            / len(discovered_matrix) ** 2
-    )
+    return plot_line(x0, y0, x1, y1, discovered_matrix)
 
 
-# car api to use with the SAC algorithm
-class CarEnv(gym.Env):
+class CarEnv:
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
         self.direction = None
@@ -68,13 +59,13 @@ class CarEnv(gym.Env):
         self.pos = None  # position of the car on the map
         self.start_point = None  # starting point of the map
         self.discovered = None  # binary matrix which shows what regions of the map were seen by the car
-        self.map = None  # the map as perceived by the car - 0 means unexplored or empty and 1 means that the map has
+        self.discrete_partial_map = None  # the map as perceived by the car - 0 means unexplored or empty and 1 means that the map has
         # a wall
         self.bodies = None  # list of collision bodies the maze walls and perimeter
         self.last_speed = None  # speed of the car in the previous frame
         self.run_time = None  # time of the run
         self.finished = None  # did the car get to the goal
-        self.map_discovered = None  # percentage of the map that was discovered by the car
+        self.new_discovered = None  # new indices that were discovered by the car
         self.crashed = None  # did the car crash
         self.swivel = None  # swivel of the car - angle of steering wheel
         self.acceleration = None  # acceleration of the car (difference in speed)
@@ -85,7 +76,9 @@ class CarEnv(gym.Env):
         self.distances_to_end = None  # minimum distance in blocks (in the maze) to the end for each block
         self.map_changed = None  # did the perceived map change (we need to recalculate the distances)
         self.prev_pos = None
-        self.map2 = None
+        self.segments_partial_map = None
+        self.scanned_indices = None  # new indices since scan
+        self.hits = None
 
         '''structure of an observation
                 "position": 2,
@@ -161,28 +154,27 @@ class CarEnv(gym.Env):
             self.curr_goal = self.end_point
             return
         if self.map_changed:
-            self.distances_to_end = calculate_distances(self.map, end_block)
+            self.distances_to_end = calculate_distances(self.discrete_partial_map, end_block)
         self.map_changed = False  # no need to recalculate the distances
-        line = get_by_direction(curr_block, np.shape(self.map), self.rotation, 5)
+        line = get_by_direction(curr_block, np.shape(self.discrete_partial_map), self.rotation, 5)
         options1 = []
         for index in line[3:]:
             if self.distances_to_end[index] == np.inf:
                 break
             options1.append(index)
-            options1 += get_neighbors(index, np.shape(self.map))
+            options1 += get_neighbors(index, np.shape(self.discrete_partial_map))
         options1 += line[:3]
         options1 = list(set(options1))
-        next_block1 = min(options1, key=lambda idx: (self.distances_to_end[idx], dist(self.end_point,
-                                                                                      pos_from_map_index(
-                                                                                          idx))))
+        next_block1 = min(options1, key=lambda idx: (self.distances_to_end[idx],
+                                                     dist(self.end_point, pos_from_map_index(idx))))
 
-        line = get_by_direction(curr_block, np.shape(self.map), self.rotation + np.pi, 5)
+        line = get_by_direction(curr_block, np.shape(self.discrete_partial_map), self.rotation + np.pi, 5)
         options2 = []
         for index in line[3:]:
             if self.distances_to_end[index] == np.inf:
                 break
             options2.append(index)
-            options2 += get_neighbors(index, np.shape(self.map))
+            options2 += get_neighbors(index, np.shape(self.discrete_partial_map))
         options2 += line[:3]
         options2 = list(set(options2))
         next_block2 = min(options2, key=lambda idx: (self.distances_to_end[idx], dist(self.end_point,
@@ -229,10 +221,9 @@ class CarEnv(gym.Env):
             if did_hit:
                 self.hits.append((end[0], end[1]))
                 if len(self.hits) == consts.max_hits_before_calculation:
-                    self.map2.add_points_to_map(self.hits)
-                    #TODO: change map 2 to an ACTUAL name 
+                    self.segments_partial_map.add_points_to_map(self.hits)
                     self.hits = []
-            self.map_discovered = add_discovered_matrix(new_map_discovered, start, end)
+            self.new_discovered = add_discovered_matrix(new_map_discovered, start, end)
 
         self.discovered = new_map_discovered
 
@@ -240,10 +231,11 @@ class CarEnv(gym.Env):
         """
         resets the environment
         """
+        self.hits = []
         self.remove_all_bodies()
         self.add_borders()
 
-        self.map2 = Map([consts.map_borders.copy()])
+        self.segments_partial_map = Map([consts.map_borders.copy()])
         self.maze, self.end_point, self.start_point = self.get_new_maze()
 
         self.swivel = 0
@@ -255,7 +247,6 @@ class CarEnv(gym.Env):
         self.run_time = 0
 
         self.initial_distance_to_target = dist(self.start_point[:2], self.end_point[:2])
-        self.map_discovered = 0
         self.finished = False
         self.crashed = False
         self.pos = self.start_point
@@ -265,13 +256,13 @@ class CarEnv(gym.Env):
 
         self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1, client=p)
         self.bodies = self.borders + self.obstacles
-        self.map = [[0 for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))] for _ in
-                    range(int((2 * consts.size_map_quarter) // consts.block_size))]
+        self.discrete_partial_map = [[0 for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))] for _ in
+                                     range(int((2 * consts.size_map_quarter) // consts.block_size))]
         for i in range(int((2 * consts.size_map_quarter) // consts.block_size)):
-            self.map[i][0] = 1
-            self.map[0][i] = 1
-            self.map[i][int((2 * consts.size_map_quarter) // consts.block_size) - 1] = 1
-            self.map[int((2 * consts.size_map_quarter) // consts.block_size) - 1][i] = 1
+            self.discrete_partial_map[i][0] = 1
+            self.discrete_partial_map[0][i] = 1
+            self.discrete_partial_map[i][int((2 * consts.size_map_quarter) // consts.block_size) - 1] = 1
+            self.discrete_partial_map[int((2 * consts.size_map_quarter) // consts.block_size) - 1][i] = 1
         self.set_car_position(self.start_point)
         self.discovered = [
             [0 for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))]
@@ -351,9 +342,13 @@ class CarEnv(gym.Env):
     def step(self):
         """
         runs the simulation one step
-        :param action: the action to preform (tuple of speed change and steer change)
         :return: (next observation, reward, did the simulation finish, info)
         """
+
+        sampled = sample_points(self.segments_partial_map, consts.sample_amount, self.np_random, self.new_discovered)
+
+
+
         if consts.print_runtime:
             print(self.run_time)
 
@@ -509,6 +504,7 @@ class CarEnv(gym.Env):
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
+        self.maze_idx = 0
         maze, start, end = mazes.empty_set[self.maze_idx]
         return maze, end, start
 

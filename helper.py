@@ -1,7 +1,7 @@
 import heapq
 import itertools
 import math
-from typing import List
+from typing import List, Sequence
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -9,6 +9,7 @@ from matplotlib.colors import ListedColormap
 
 import consts
 import scan_to_map
+
 
 def dist(point1, point2):
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
@@ -117,10 +118,14 @@ def plot_line(x0, y0, x1, y1, matrix):
     :param x1: ending x coordinate of line
     :param y1: ending y coordinate of line
     :param matrix: matrix to draw the line in
-    :return:
+    :return: list of the new indices that were turned to 1
     """
+    new_ones = []
     for x, y in get_line(x0, y0, x1, y1, len(matrix)):
-        matrix[x][y] = 1
+        if matrix[x][y] == 0:
+            matrix[x][y] = 1
+            new_ones.append((x,y))
+    return new_ones
 
 
 def norm(a):
@@ -209,39 +214,52 @@ def calculate_distances(partial_map, index):
 
 
 def radius_delta(delta: float):
-    return np.sqrt(consts.a2 ** 2 + (consts.length/np.tan(delta) ** 2))
+    return np.sqrt(consts.a_2 ** 2 + (consts.length / (np.tan(delta) ** 2)))
 
 
 def radius_x_y_squared(x, y):
     t = (x ** 2 + 2 * consts.a_2 * x + y ** 2) / (2 * y ** 2)
-    return t**2 + consts.a_2 ** 2
+    return t ** 2 + consts.a_2 ** 2
 
 
 def theta_curve(x, y):
     if y == 0:
         return 0
-    val = (x + consts.a_2) / np.sqrt(radius_x_y_squared(x, y) - (x+consts.a_2)**2)
+    val = (x + consts.a_2) / np.sqrt(radius_x_y_squared(x, y) - (x + consts.a_2) ** 2)
     return np.sign(y) * np.arctan(val)
 
-def sample_points(Map, N: int, num_sample_car: int = 10):
+
+def sample_points(Map, N: int, np_random, indices: Sequence[Sequence[int]], num_sample_car: int = 10):
     samples = []
-    while len(samples) < N:
-        x, y = np.random.rand(2) * 2 * consts.size_map_quarter - consts.size_map_quarter
-        theta = np.random.rand() * 2 * np.pi
-        to_check = []
-        for i in range(num_sample_car):
-            for j in range(num_sample_car):
-                x_temp = consts.width *(-1/2 + i/(num_sample_car-1))
-                y_temp = consts.length*(-1/2 + j/(num_sample_car-1))
-                to_check.append((x_temp * np.cos(theta) - y_temp * np.sin(theta), x_temp * np.sin(theta) + y_temp * np.cos(theta)))
-        if Map.check_batch(to_check):
-            samples.append((np.array([x, y]), theta))
+    samples_block_count = N * int((2 * consts.size_map_quarter) // consts.block_size)
+    for index in indices:
+        count = 0
+        block_x, block_y = pos_from_map_index(index)
+        block_x -= consts.block_size / 2
+        block_y -= consts.block_size / 2
+        while count < samples_block_count:
+            x, y = np_random.rand(2) * consts.block_size
+            x += block_x
+            y += block_y
+            theta = np_random.rand() * 2 * np.pi
+            to_check = []
+            for i in range(num_sample_car):
+                for j in range(num_sample_car):
+                    x_temp = consts.width * (1 / 2 + i / (num_sample_car - 1))
+                    y_temp = consts.length * (1 / 2 + j / (num_sample_car - 1))
+                    to_check.append(
+                        (x + x_temp * np.cos(theta) - y_temp * np.sin(theta),
+                         y + x_temp * np.sin(theta) + y_temp * np.cos(theta)))
+                    # TODO: check confuse between x and y with angle
+            if Map.check_batch(to_check):
+                samples.append((np.array([x, y]), theta))
+                count += 1
     return samples
 
 
 def edge_generation(vertices: List, res: float, tol: float, max_radius: float) -> List[List[int]]:
     """
-    edge generation for non holonomic prm grapg
+    edge generation for non holonomic prm graph
     :param vertices: Vertices of the graph ([x,y],theta) - [x,y] is numpy array
     :param res: resolution of the path planner
     :param tol: tolerance of the path planner
@@ -249,7 +267,6 @@ def edge_generation(vertices: List, res: float, tol: float, max_radius: float) -
     """
     graph = [[] for _ in range(len(vertices))]  # initialize an empty graph
     for index, vertex in enumerate(vertices):
-        options = []
         for index_2, vertex_2 in enumerate(vertices):
             if index <= index_2:
                 continue

@@ -1,4 +1,6 @@
 # pybullet simulation
+from gym.utils import seeding
+
 is_visual = False  # do we want to see visual footage
 use_real_time = 0  # is the simulation running in real time - probably should always be 0
 time_step = 0.01    # what is a time step in the pybullet simulation
@@ -28,7 +30,9 @@ map_borders = [
     (-size_map_quarter, size_map_quarter),
     (size_map_quarter, size_map_quarter),
 ]
+
 seed = None  # randomness seed
+
 
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
 max_time = int(1.5e4)  # time before forcing a new maze
@@ -37,5 +41,7 @@ print_runtime = False  # do we want to print the total time of the run
 
 length=0.325
 width=0.2
-a_2 = length/2 # a_2 of the car TODO: fill
+a_2 = 0.1477 # a_2 of the car TODO: fill
+
+sample_amount = 10000
 
