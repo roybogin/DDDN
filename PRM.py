@@ -1,5 +1,5 @@
 import heapq
-from typing import Sequence
+from typing import Sequence, Set
 
 import numpy as np
 
@@ -9,10 +9,41 @@ from helper import pos_from_map_index, dist
 
 
 class Vertex:
-    def __init__(self, pos, theta, index):
-        self.pos = pos
-        self.index = index
-        self.theta = theta
+    def __init__(self, pos: np.ndarray, theta: float):
+        self.pos: np.ndarray = pos
+        self.theta: float = theta
+        self.edges: Set[Edge] = set()  # the corresponding edges in the graph
+
+
+class Edge:
+    def __init__(self, vertex_1: Vertex, vertex_2: Vertex, weight: float):
+        self.v1: Vertex = vertex_1
+        self.v2: Vertex = vertex_2
+        self.weight: float = weight
+
+
+class WeightedGraph:
+    def __init__(self):
+        self.graph: Set[Vertex] = set()
+        self.n: int = 0
+
+    def add_vertex(self, pos: np.ndarray, theta: float):
+        new_vertex = Vertex(pos, theta)
+        self.graph.add(new_vertex)
+        self.n += 1
+
+    def add_edge(self, vertex_1: Vertex, vertex_2: Vertex, weight: float):
+        edge = Edge(vertex_1, vertex_2, weight)
+        vertex_1.edges.add(edge)
+        vertex_2.edges.add(edge)
+
+    def remove_vertex(self, v: Vertex):
+        for edge in v.edges:
+            other_vertex = edge.v1
+            if v == other_vertex:
+                other_vertex = edge.v2
+            other_vertex.edges.remove(edge)
+        self.graph.remove(v)
 
 
 class PRM:
@@ -78,7 +109,7 @@ class PRM:
         """
         for index in range(len(self.vertices)):
             vertex = self.vertices[index]
-            for index_2 in range(index+1, len(self.vertices)):
+            for index_2 in range(index + 1, len(self.vertices)):
                 vertex_2 = self.vertices[index_2]
                 pos, theta = vertex_2.pos, vertex_2.theta
                 weight = dist(vertex[0], pos)
