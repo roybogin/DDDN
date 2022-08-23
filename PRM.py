@@ -1,34 +1,49 @@
 import heapq
 from itertools import combinations
-from typing import Sequence, Set
+from typing import Set
 
 import numpy as np
 
 import consts
 import scan_to_map
-from helper import pos_from_map_index, dist, map_index_from_pos
+from helper import dist, map_index_from_pos
 
 
 class Vertex:
+    """
+    Class to represent a graph vertex for the PRM
+    """
     def __init__(self, pos: np.ndarray, theta: float):
-        self.pos: np.ndarray = pos
-        self.theta: float = theta
+        self.pos: np.ndarray = pos  # position of the car
+        self.theta: float = theta   # angle if the car
         self.edges: Set[Edge] = set()  # the corresponding edges in the graph
 
 
 class Edge:
+    """
+    Class to represent a graph edge for the PRM
+    """
     def __init__(self, vertex_1: Vertex, vertex_2: Vertex, weight: float):
-        self.v1: Vertex = vertex_1
-        self.v2: Vertex = vertex_2
-        self.weight: float = weight
+        self.v1: Vertex = vertex_1      # first vertex in the edge
+        self.v2: Vertex = vertex_2      # second vertex in the edge
+        self.weight: float = weight     # weight of the edge
 
 
 class WeightedGraph:
+    """
+    Class to represent a weighted graph for the PRM
+    """
     def __init__(self):
-        self.vertices: Set[Vertex] = set()
-        self.n: int = 0
+        self.vertices: Set[Vertex] = set()  # A set of the graph vertices
+        self.n: int = 0                     # size of the graph
 
-    def add_vertex(self, pos: np.ndarray, theta: float):
+    def add_vertex(self, pos: np.ndarray, theta: float) -> None:
+        """
+        add a vertex to the graph
+        :param pos: the corresponding  position of the car
+        :param theta: the corresponding ange of the car
+        :return:
+        """
         new_vertex = Vertex(pos, theta)
         self.vertices.add(new_vertex)
         self.n += 1
