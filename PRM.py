@@ -79,26 +79,15 @@ class PRM:
         val = (x + self.a_2) / np.sqrt(self.radius_x_y_squared(x, y) - (x + self.a_2) ** 2)
         return np.sign(y) * np.arctan(val)
 
-
     def sample_points(self, segment_map: scan_to_map.Map, np_random, num_sample_car: int = 10):
         while self.graph.n < self.sample_amount:
             x, y = np_random.rand(2) * 2 * consts.size_map_quarter - consts.size_map_quarter
             theta = np_random.rand() * 2 * np.pi
-            to_check = []
-            for i in range(num_sample_car):
-                for j in range(num_sample_car):
-                    x_temp = self.length * (i / (num_sample_car - 1))
-                    y_temp = self.width * (-1/2 + j / (num_sample_car - 1))
-                    to_check.append(
-                        (x + x_temp * np.cos(theta) - y_temp * np.sin(theta),
-                         y + x_temp * np.sin(theta) + y_temp * np.cos(theta)))
-                    # TODO: check confuse between x and y with angle
-            if segment_map.check_batch(to_check):
+            if segment_map.check_state(x, y, theta, self.length, self.width, num_sample_car):
                 new_vertex = self.graph.add_vertex(np.array([x, y]), theta)
                 block = map_index_from_pos(new_vertex.pos)
                 self.vertices_by_blocks.setdefault(block, [])
                 self.vertices_by_blocks[block].append(new_vertex)
-
 
     def edge_generation(self) -> None:
         """
