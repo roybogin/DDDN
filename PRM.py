@@ -7,7 +7,7 @@ import numpy as np
 
 import consts
 import scan_to_map
-from helper import dist, map_index_from_pos
+from helper import dist, map_index_from_pos, get_neighbors
 
 
 def pos_to_car_center(pos: np.ndarray, theta) -> np.ndarray:
@@ -74,11 +74,11 @@ class WeightedGraph:
 
 
 class PRM:
-    def __init__(self):
+    def __init__(self, shape):
 
         self.sample_amount = 10000
         self.graph = WeightedGraph()
-
+        self.shape = shape
         self.vertices_by_blocks = defaultdict(lambda: [])
 
         self.max_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
@@ -125,8 +125,12 @@ class PRM:
         """
         edge generation for non holonomic prm graph
         """
-        for v_1, v_2 in combinations(self.graph.vertices, 2):
-            self.try_add_edge(v_1, v_2)
+        for v_1 in self.graph.vertices:
+            vertices_to_check = set()
+            for block in get_neighbors(map_index_from_pos(v_1.pos), self.shape):
+                vertices_to_check.update(self.prm.vertices_by_blocks[block])
+            for v_2 in vertices_to_check:
+                self.try_add_edge(v_1, v_2)
 
     def add_vertex(self, pos: np.ndarray, theta: float, angle_matters: bool = True) -> Vertex:
         """

@@ -82,7 +82,7 @@ class CarEnv:
         self.scanned_indices = None  # new indices since scan
         self.hits = None
 
-        self.prm = PRM.PRM()
+        self.prm = PRM.PRM((int((2 * consts.size_map_quarter) // consts.block_size), int((2 * consts.size_map_quarter) // consts.block_size)))
 
         '''structure of an observation
                 "position": 2,
