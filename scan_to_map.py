@@ -92,6 +92,7 @@ class Map:
                     return False
         return True
 
+
     def check_state(self, x: float, y: float, theta: float, length: float, width: float, num_sample_car=10):
         to_check = []
         for i in range(num_sample_car):
