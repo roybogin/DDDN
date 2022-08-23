@@ -152,46 +152,7 @@ class CarEnv:
         self.car_model, self.wheels, self.steering = self.create_car_model()
 
     def calculate_next_goal(self):
-        end_block = map_index_from_pos(self.end_point)
-        curr_block = map_index_from_pos(self.pos)
-        if end_block == curr_block or dist(self.pos, self.end_point) <= consts.block_size / 2:
-            self.curr_goal = self.end_point
-            return
-        if self.map_changed:
-            self.distances_to_end = calculate_distances(self.discrete_partial_map, end_block)
-        self.map_changed = False  # no need to recalculate the distances
-        line = get_by_direction(curr_block, np.shape(self.discrete_partial_map), self.rotation, 5)
-        options1 = []
-        for index in line[3:]:
-            if self.distances_to_end[index] == np.inf:
-                break
-            options1.append(index)
-            options1 += get_neighbors(index, np.shape(self.discrete_partial_map))
-        options1 += line[:3]
-        options1 = list(set(options1))
-        next_block1 = min(options1, key=lambda idx: (self.distances_to_end[idx],
-                                                     dist(self.end_point, pos_from_map_index(idx))))
-
-        line = get_by_direction(curr_block, np.shape(self.discrete_partial_map), self.rotation + np.pi, 5)
-        options2 = []
-        for index in line[3:]:
-            if self.distances_to_end[index] == np.inf:
-                break
-            options2.append(index)
-            options2 += get_neighbors(index, np.shape(self.discrete_partial_map))
-        options2 += line[:3]
-        options2 = list(set(options2))
-        next_block2 = min(options2, key=lambda idx: (self.distances_to_end[idx], dist(self.end_point,
-                                                                                      pos_from_map_index(
-                                                                                          idx))))
-        next_block = min((next_block1, next_block2), key=lambda idx: (self.distances_to_end[idx], dist(self.end_point,
-                                                                                                       pos_from_map_index(
-                                                                                                        idx))))
-        if next_block == next_block1:
-            self.direction = 1
-        else:
-            self.direction = -1
-        self.curr_goal = pos_from_map_index(next_block)
+        pass
 
     def add_borders(self):
         """
@@ -234,12 +195,13 @@ class CarEnv:
                             affected.update(get_neighbors(map_index_from_pos(point), np.shape(self.discovered)))
             self.new_discovered = add_discovered_matrix(new_map_discovered, start, end)
         self.discovered = new_map_discovered
+
         for block in affected:
             vertices_to_check.update(self.prm.vertices_by_blocks[block])
         for vertex in vertices_to_check:
-            if self.segments_partial_map.check_state(vertex.pos[0], vertex.pos[1], vertex.theta, consts.length, consts.width):
+            if self.segments_partial_map.check_state(vertex.pos[0], vertex.pos[1], vertex.theta, self.prm.length,
+                                                     self.prm.width):
                 self.prm.graph.remove_vertex(vertex)
-
 
     def reset(self):
         """
@@ -288,6 +250,9 @@ class CarEnv:
 
         self.map_changed = True
         self.calculate_next_goal()
+
+        end_vertex = self.prm.add_end_vertex(self.end_point)
+        self.prm.dijkstra(end_vertex)
 
         return self.get_observation()
 
@@ -362,10 +327,9 @@ class CarEnv:
         if consts.print_runtime:
             print(self.run_time)
 
-        vector = np.array(self.curr_goal) - np.array(self.pos[:2])
-        angle = np.arccos((self.curr_goal[0] - self.pos[0]) / norm(vector)) * np.sign(vector[1])
+        curr_vertex = self.prm.add_vertex(np.array(self.pos), self.swivel)
 
-        action = [self.direction, angle]
+        action = [1, 1]
 
         # updating target velocity and steering angle
         wanted_speed = action[0] * consts.max_velocity
@@ -514,6 +478,7 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
+        self.maze_idx = 0
         maze, start, end = mazes.empty_set[self.maze_idx]
         return maze, end, start
 
