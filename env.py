@@ -118,7 +118,7 @@ class CarEnv:
         self.obstacles = []  # list of obstacle IDs in pybullet
         self.bodies = []  # list of all collision body IDs in pybullet
         self.start_env()
-        self.seed(seed)
+        # self.seed(seed)
         self.reset()
 
     def start_env(self):
