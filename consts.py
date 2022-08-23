@@ -39,9 +39,3 @@ max_time = int(1.5e4)  # time before forcing a new maze
 print_runtime = False  # do we want to print the total time of the run
 
 
-length=0.325
-width=0.2
-a_2 = 0.1477 # a_2 of the car TODO: fill
-
-sample_amount = 10000
-

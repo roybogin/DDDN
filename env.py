@@ -4,6 +4,8 @@ import pybullet as p
 import pybullet_data as pd
 from gym import spaces
 from gym.utils import seeding
+
+import PRM
 from scan_to_map import Map
 
 import consts
@@ -79,6 +81,8 @@ class CarEnv:
         self.segments_partial_map = None
         self.scanned_indices = None  # new indices since scan
         self.hits = None
+
+        self.prm = PRM.PRM()
 
         '''structure of an observation
                 "position": 2,
