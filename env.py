@@ -213,9 +213,9 @@ class CarEnv:
         scans the environment and updates the discovery values
         :return:
         """
-        # TODO: get rid of new_map_discovered? - doesn't copy
         directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
         new_map_discovered = self.discovered
+        affected = set()
         for direction in directions:
 
             did_hit, start, end = self.ray_cast(
@@ -227,6 +227,11 @@ class CarEnv:
                 if len(self.hits) == consts.max_hits_before_calculation:
                     self.segments_partial_map.add_points_to_map(self.hits)
                     self.hits = []
+                    new = self.segments_partial_map.new_segments
+                    for segment in new:
+                        for point in segment:
+                            affected.update(get_neighbors(map_index_from_pos(point), np.shape(self.discovered)))
+
             self.new_discovered = add_discovered_matrix(new_map_discovered, start, end)
 
         self.discovered = new_map_discovered

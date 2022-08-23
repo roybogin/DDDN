@@ -81,7 +81,7 @@ class PRM:
 
     def sample_points(self, segment_map: scan_to_map.Map, np_random, num_sample_car: int = 10):
         while self.graph.n < self.sample_amount:
-            x, y = np_random.rand(2) * 2 * consts.size_map_quarter
+            x, y = np_random.rand(2) * 2 * consts.size_map_quarter - consts.size_map_quarter
             theta = np_random.rand() * 2 * np.pi
             to_check = []
             for i in range(num_sample_car):

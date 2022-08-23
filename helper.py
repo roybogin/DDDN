@@ -178,7 +178,7 @@ def get_neighbors(index, map_shape):
     if c != map_shape[1] - 1:
         cols.append(c + 1)
     neighbors = list(itertools.product(rows, cols))
-    return neighbors[1:]  # the cell itself is not a neighbor
+    return neighbors
 
 
 def get_by_direction(index, map_shape, direction, distance):
