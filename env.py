@@ -237,7 +237,7 @@ class CarEnv:
         for block in affected:
             vertices_to_check.update(self.prm.vertices_by_blocks[block])
         for vertex in vertices_to_check:
-            if check_state(vertex):
+            if self.segments_partial_map.check_state(vertex.pos[0], vertex.pos[1], vertex.theta, consts.length, consts.width):
                 self.prm.graph.remove_vertex(vertex)
 
 
