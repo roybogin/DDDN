@@ -4,6 +4,7 @@ from itertools import combinations
 from typing import Set
 
 import numpy as np
+from tqdm import tqdm
 
 import consts
 import scan_to_map
@@ -76,7 +77,7 @@ class WeightedGraph:
 class PRM:
     def __init__(self, shape):
 
-        self.sample_amount = 10000
+        self.sample_amount = 1e6
         self.graph = WeightedGraph()
         self.shape = shape
         self.vertices_by_blocks = defaultdict(lambda: [])
@@ -92,6 +93,8 @@ class PRM:
         return np.sqrt(consts.a_2 ** 2 + (consts.length / (np.tan(delta) ** 2)))
 
     def radius_x_y_squared(self, x, y):
+        if y == 0:
+            return 0
         t = (x ** 2 + 2 * consts.a_2 * x + y ** 2) / (2 * y)
         return t ** 2 + consts.a_2 ** 2
 
@@ -125,12 +128,12 @@ class PRM:
         """
         edge generation for non holonomic prm graph
         """
-        for v_1 in self.graph.vertices:
-            vertices_to_check = set()
-            for block in get_neighbors(map_index_from_pos(v_1.pos), self.shape):
-                vertices_to_check.update(self.prm.vertices_by_blocks[block])
-            for v_2 in vertices_to_check:
-                self.try_add_edge(v_1, v_2)
+        for v_1 in tqdm(self.graph.vertices):
+            for block in get_neighbors(map_index_from_pos(v_1.pos), self.shape, True):
+                for v_2 in self.vertices_by_blocks[block]:
+                    if v_1 == v_2:
+                        continue
+                    self.try_add_edge(v_1, v_2)
 
     def add_vertex(self, pos: np.ndarray, theta: float, angle_matters: bool = True) -> Vertex:
         """

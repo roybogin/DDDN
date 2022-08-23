@@ -157,7 +157,7 @@ def pos_from_map_index(block_index):
     return [consts.block_size * (value + 0.5) - consts.size_map_quarter for value in block_index]
 
 
-def get_neighbors(index, map_shape):
+def get_neighbors(index, map_shape, only_positives = False):
     """
     returns the neighbors of a block in the map (including diagonal)
     :param index: the index of the block in the map (list with length 2)
@@ -178,6 +178,8 @@ def get_neighbors(index, map_shape):
     if c != map_shape[1] - 1:
         cols.append(c + 1)
     neighbors = list(itertools.product(rows, cols))
+    if only_positives:
+        neighbors = [n for n in neighbors if n >= (r, c)]
     return neighbors
 
 

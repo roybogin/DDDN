@@ -126,8 +126,9 @@ class CarEnv:
         start the pybullet environment and create the car
         :return:
         """
-        a = p.connect(p.GUI)
-        p.setAdditionalSearchPath(pd.getDataPath(), a)
+        if consts.is_visual:
+            a = p.connect(p.GUI)
+            p.setAdditionalSearchPath(pd.getDataPath(), a)
 
         b = p.connect(p.DIRECT)
         p.setAdditionalSearchPath(pd.getDataPath(), b)
@@ -251,16 +252,14 @@ class CarEnv:
         self.map_changed = True
         self.calculate_next_goal()
 
+        print("sampling")
         self.prm.sample_points(self.segments_partial_map, self.np_random)
 
-        x = [v.pos[0] for v in self.prm.graph.vertices]
-        y = [v.pos[1] for v in self.prm.graph.vertices]
-
-        plt.scatter(x, y)
-        plt.show()
+        print("generating edges")
 
         self.prm.edge_generation()
-        end_vertex = self.prm.add_vertex(self.end_point, 0, False)
+        end_vertex = self.prm.add_vertex(np.array(self.end_point[:2]), 0, False)
+        print("dijkstra")
         self.prm.dijkstra(end_vertex)
 
         return self.get_observation()
