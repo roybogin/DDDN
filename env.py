@@ -354,10 +354,6 @@ class CarEnv:
         :return: (next observation, reward, did the simulation finish, info)
         """
 
-        sampled = sample_points(self.segments_partial_map, consts.sample_amount, self.np_random, self.new_discovered)
-
-
-
         if consts.print_runtime:
             print(self.run_time)
 

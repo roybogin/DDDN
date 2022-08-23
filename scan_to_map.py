@@ -91,6 +91,18 @@ class Map:
                 if perpendicularDistance(point, segment[0], segment[1]) < self.epsilon:
                     return False
         return True
+
+    def check_state(self, x: float, y: float, theta: float, length: float, width: float, num_sample_car=10):
+        to_check = []
+        for i in range(num_sample_car):
+            for j in range(num_sample_car):
+                x_temp = length * (i / (num_sample_car - 1))
+                y_temp = width * (- 1 / 2 + j / (num_sample_car - 1))
+                to_check.append(
+                    (x + x_temp * np.cos(theta) - y_temp * np.sin(theta),
+                     y + x_temp * np.sin(theta) + y_temp * np.cos(theta)))
+        return self.check_batch(to_check)
+
     def add_points_to_map(self, points):
         new_points = []
         if testing:
