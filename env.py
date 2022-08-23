@@ -513,7 +513,6 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 0
         maze, start, end = mazes.empty_set[self.maze_idx]
         return maze, end, start
 

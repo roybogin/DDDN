@@ -6,7 +6,7 @@ use_real_time = 0  # is the simulation running in real time - probably should al
 time_step = 0.01    # what is a time step in the pybullet simulation
 
 cameraDistance = 11
-cameraYaw = -89.9
+cameraYaw = 0
 cameraPitch = -89.9
 cameraTargetPosition = [0, 0, 0]
 
