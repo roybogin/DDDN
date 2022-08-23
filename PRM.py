@@ -80,6 +80,7 @@ class PRM:
         # planner
         # TODO: fill values
         self.tol = 0  # tolerance of the path planner
+        self.distances = None
 
     def radius_delta(self, delta: float):
         return np.sqrt(self.a_2 ** 2 + (self.length / (np.tan(delta) ** 2)))
@@ -119,8 +120,8 @@ class PRM:
                     self.graph.add_edge(v_1, v_2, weight)
 
     def dijkstra(self, root: Vertex):
-        distances = {v: np.inf for v in self.graph.vertices}
-        distances[root] = 0
+        self.distances = {v: np.inf for v in self.graph.vertices}
+        self.distances[root] = 0
         visited = {v: False for v in self.graph.vertices}
         pq = [(0, root)]
         while len(pq) > 0:
@@ -133,10 +134,20 @@ class PRM:
                 v = edge.v1
                 if v == u:
                     v = edge.v2
-                dist_u_weight = distances[u] + weight
-                dist_v = distances[v]
+                dist_u_weight = self.distances[u] + weight
+                dist_v = self.distances[v]
                 if dist_u_weight < dist_v:
-                    distances[v] = dist_u_weight
+                    self.distances[v] = dist_u_weight
                     dist_v = dist_u_weight
                     heapq.heappush(pq, (dist_v, v))
-        return distances
+
+    def next_in_path(self, root: Vertex):
+        for edge in root.edges:
+            weight = edge.weight
+            v = edge.v1
+            if v == root:
+                v = edge.v2
+            dist_root_weight = self.distances[root]
+            dist_v = self.distances[v] + weight
+            if dist_v == dist_root_weight:
+                return v
