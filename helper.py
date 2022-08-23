@@ -145,7 +145,7 @@ def map_index_from_pos(pos):
     """
     indices = [int((value + consts.size_map_quarter) / consts.block_size) for value in pos[:2]]
     # keep the return value within the wanted limits for edge cases
-    return [max(0, min(idx, int((2 * consts.size_map_quarter) // consts.block_size) - 1)) for idx in indices]
+    return tuple([max(0, min(idx, int((2 * consts.size_map_quarter) // consts.block_size) - 1)) for idx in indices])
 
 
 def pos_from_map_index(block_index):
