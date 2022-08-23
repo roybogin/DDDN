@@ -37,7 +37,7 @@ class WeightedGraph:
         self.vertices: Set[Vertex] = set()  # A set of the graph vertices
         self.n: int = 0                     # size of the graph
 
-    def add_vertex(self, pos: np.ndarray, theta: float) -> None:
+    def add_vertex(self, pos: np.ndarray, theta: float) -> Vertex:
         """
         add a vertex to the graph
         :param pos: the corresponding  position of the car
@@ -105,19 +105,49 @@ class PRM:
                 self.vertices_by_blocks.setdefault(block, [])
                 self.vertices_by_blocks[block].append(new_vertex)
 
+    def try_add_edge(self, v_1: Vertex, v_2: Vertex, angle_matters: bool = True):
+        weight = dist(v_1.pos, v_2.pos)
+        if weight <= self.res:
+            transformed = (self.radius_delta(-v_2.theta) * (v_2.pos - v_1.pos), v_2.theta - v_1.theta)
+            x_tag, y_tag = transformed[0][0], transformed[0][1]
+            differential_theta = self.theta_curve(x_tag, y_tag)
+            if (not angle_matters) or abs(differential_theta - transformed[1]) < self.tol:
+                if np.sqrt(self.radius_x_y_squared(x_tag, y_tag)) < self.max_radius:
+                    self.graph.add_edge(v_1, v_2, weight)
+
     def edge_generation(self) -> None:
         """
         edge generation for non holonomic prm graph
         """
         for v_1, v_2 in combinations(self.graph.vertices, 2):
-            weight = dist(v_1.pos, v_2.pos)
-            if weight <= self.res:
-                transformed = (self.radius_delta(-v_2.theta) * (v_2.pos - v_1.pos), v_2.theta - v_1.theta)
-                x, y = transformed[0], transformed[1]
-                needed_theta = self.theta_curve(x, y)
-                if abs(needed_theta - v_2.theta) < self.tol and \
-                        np.sqrt(self.radius_x_y_squared(x, y)) < self.max_radius:
-                    self.graph.add_edge(v_1, v_2, weight)
+            self.try_add_edge(v_1, v_2)
+
+    def add_vertex(self, pos: np.ndarray, theta: float) -> Vertex:
+        """
+        add vertex for the prm
+        :param pos: corresponding position for the car
+        :param theta: angle of the car
+        :return:
+        """
+        new_vertex = self.graph.add_vertex(pos, theta)
+        for vertex in self.graph.vertices:
+            if vertex == new_vertex:
+                continue
+            self.try_add_edge(vertex, new_vertex)
+        return new_vertex
+
+    def add_end_vertex(self, pos: np.ndarray) -> Vertex:
+        """
+        adding the end verex to the graph, we don't care about the angle
+        :param pos: position of the end
+        :return: the end vertex
+        """
+        end_vertex = self.graph.add_vertex(pos, 0)
+        for vertex in self.graph.vertices:
+            if vertex == end_vertex:
+                continue
+            self.try_add_edge(end_vertex, vertex, False)
+        return end_vertex
 
     def dijkstra(self, root: Vertex):
         self.distances = {v: np.inf for v in self.graph.vertices}
