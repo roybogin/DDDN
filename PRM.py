@@ -1,4 +1,5 @@
 import heapq
+from itertools import combinations
 from typing import Sequence, Set
 
 import numpy as np
@@ -24,12 +25,12 @@ class Edge:
 
 class WeightedGraph:
     def __init__(self):
-        self.graph: Set[Vertex] = set()
+        self.vertices: Set[Vertex] = set()
         self.n: int = 0
 
     def add_vertex(self, pos: np.ndarray, theta: float):
         new_vertex = Vertex(pos, theta)
-        self.graph.add(new_vertex)
+        self.vertices.add(new_vertex)
         self.n += 1
 
     def add_edge(self, vertex_1: Vertex, vertex_2: Vertex, weight: float):
@@ -43,7 +44,8 @@ class WeightedGraph:
             if v == other_vertex:
                 other_vertex = edge.v2
             other_vertex.edges.remove(edge)
-        self.graph.remove(v)
+        self.vertices.remove(v)
+        self.n -= 1
 
 
 class PRM:
@@ -53,13 +55,13 @@ class PRM:
         self.a_2 = 0.1477  # a_2 of the car
 
         self.sample_amount = 10000
-        self.graph = []
-        self.vertices = []
+        self.graph = WeightedGraph()
 
+        self.max_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
+        self.res = 0.7 * np.sqrt(self.max_radius ** 2 + (self.max_radius - self.a_2) ** 2)  # resolution of the path
+        # planner
         # TODO: fill values
-        self.res = 0  # resolution of the path planner
         self.tol = 0  # tolerance of the path planner
-        self.max_radius = 0  # maximum radius of arc possible for the car
 
     def radius_delta(self, delta: float):
         return np.sqrt(self.a_2 ** 2 + (self.length / (np.tan(delta) ** 2)))
@@ -76,7 +78,7 @@ class PRM:
 
     def sample_points(self, segment_map: scan_to_map.Map, np_random, indices: Sequence[Sequence[int]],
                       num_sample_car: int = 10):
-        new_index = len(self.vertices)
+        new_index = self.graph.n
         samples_block_count = self.sample_amount * int((2 * consts.size_map_quarter) // consts.block_size)
         for index in indices:
             count = 0
@@ -98,8 +100,7 @@ class PRM:
                              y + x_temp * np.sin(theta) + y_temp * np.cos(theta)))
                         # TODO: check confuse between x and y with angle
                 if segment_map.check_batch(to_check):
-                    new_vertex = Vertex(np.array([x, y]), theta, len(self.vertices))
-                    self.vertices.append(new_vertex)
+                    self.graph.add_vertex(np.array([x, y]), theta)
                     count += 1
         return new_index
 
@@ -107,34 +108,35 @@ class PRM:
         """
         edge generation for non holonomic prm graph
         """
-        for index in range(len(self.vertices)):
-            vertex = self.vertices[index]
-            for index_2 in range(index + 1, len(self.vertices)):
-                vertex_2 = self.vertices[index_2]
-                pos, theta = vertex_2.pos, vertex_2.theta
-                weight = dist(vertex[0], pos)
-                if weight <= self.res:
-                    transformed = (self.radius_delta(-theta) * (pos - vertex.pos), theta - vertex.theta)
-                    x, y = transformed[0], transformed[1]
-                    needed_theta = self.theta_curve(x, y)
-                    if abs(needed_theta - theta) < self.tol and \
-                            np.sqrt(self.radius_x_y_squared(x, y)) < self.max_radius:
-                        self.graph[index].append((index_2, weight))
-                        self.graph[index_2].append((index, weight))
+        for v_1, v_2 in combinations(self.graph.vertices, 2):
+            weight = dist(v_1.pos, v_2.pos)
+            if weight <= self.res:
+                transformed = (self.radius_delta(-v_2.theta) * (v_2.pos - v_1.pos), v_2.theta - v_1.theta)
+                x, y = transformed[0], transformed[1]
+                needed_theta = self.theta_curve(x, y)
+                if abs(needed_theta - v_2.theta) < self.tol and \
+                        np.sqrt(self.radius_x_y_squared(x, y)) < self.max_radius:
+                    self.graph.add_edge(v_1, v_2, weight)
 
-    def dijkstra(self, root):
-        n = len(self.vertices)
-        distances = [np.inf for _ in range(n)]
+    def dijkstra(self, root: Vertex):
+        distances = {v: np.inf for v in self.graph.vertices}
         distances[root] = 0
-        visited = [False for _ in range(n)]
+        visited = {v: False for v in self.graph.vertices}
         pq = [(0, root)]
         while len(pq) > 0:
             _, u = heapq.heappop(pq)
             if visited[u]:
                 continue
             visited[u] = True
-            for v, l in self.graph[u]:
-                if distances[u] + l < distances[v]:
-                    distances[v] = distances[u] + l
-                    heapq.heappush(pq, (distances[v], v))
+            for edge in u.edges:
+                weight = edge.weight
+                v = edge.v1
+                if v == u:
+                    v = edge.v2
+                dist_u_weight = distances[u] + weight
+                dist_v = distances[v]
+                if dist_u_weight < dist_v:
+                    distances[v] = dist_u_weight
+                    dist_v = dist_u_weight
+                    heapq.heappush(pq, (dist_v, v))
         return distances
