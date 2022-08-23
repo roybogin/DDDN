@@ -97,7 +97,7 @@ class Map:
         to_check = []
         for i in range(num_sample_car):
             for j in range(num_sample_car):
-                x_temp = length * (i / (num_sample_car - 1))
+                x_temp = length * (-1 / 2 + i / (num_sample_car - 1))
                 y_temp = width * (- 1 / 2 + j / (num_sample_car - 1))
                 to_check.append(
                     (x + x_temp * np.cos(theta) - y_temp * np.sin(theta),

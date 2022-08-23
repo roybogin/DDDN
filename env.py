@@ -251,7 +251,16 @@ class CarEnv:
         self.map_changed = True
         self.calculate_next_goal()
 
-        end_vertex = self.prm.add_end_vertex(self.end_point)
+        self.prm.sample_points(self.segments_partial_map, self.np_random)
+
+        x = [v.pos[0] for v in self.prm.graph.vertices]
+        y = [v.pos[1] for v in self.prm.graph.vertices]
+
+        plt.scatter(x, y)
+        plt.show()
+
+        self.prm.edge_generation()
+        end_vertex = self.prm.add_vertex(self.end_point, 0, False)
         self.prm.dijkstra(end_vertex)
 
         return self.get_observation()
@@ -329,7 +338,14 @@ class CarEnv:
 
         curr_vertex = self.prm.add_vertex(np.array(self.pos), self.swivel)
 
-        action = [1, 1]
+        next_vertex = self.prm.next_in_path(curr_vertex)
+
+        transformed = (self.prm.radius_delta(-next_vertex.theta) * (next_vertex.pos - curr_vertex.pos),
+                       next_vertex.theta - curr_vertex.theta)
+        x_tag, y_tag = transformed[0][0], transformed[0][1]
+        differential_theta = self.prm.theta_curve(x_tag, y_tag)
+
+        action = [0.5, differential_theta]
 
         # updating target velocity and steering angle
         wanted_speed = action[0] * consts.max_velocity
@@ -417,12 +433,14 @@ class CarEnv:
                 f" - total score is {self.total_score}"
                 f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
                 f" - time {self.run_time}")
+            exit(666)
         if self.finished:
             print(
                 f"finished maze {self.maze_idx}"
                 f" - total score is {self.total_score}"
                 f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
                 f" - time {self.run_time}")
+            exit(0)
         return self.get_observation(), score, True, {}
 
     def get_observation(self):
