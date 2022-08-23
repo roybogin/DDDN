@@ -1,4 +1,6 @@
+import json
 import os
+import pickle
 
 import pybullet as p
 import pybullet_data as pd
@@ -118,7 +120,7 @@ class CarEnv:
         self.obstacles = []  # list of obstacle IDs in pybullet
         self.bodies = []  # list of all collision body IDs in pybullet
         self.start_env()
-        # self.seed(seed)
+        self.seed(seed)
         self.reset()
 
     def start_env(self):
@@ -247,17 +249,24 @@ class CarEnv:
         ]
         self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
 
-        self.scan_environment()
-
         self.map_changed = True
         self.calculate_next_goal()
 
-        print("sampling")
-        self.prm.sample_points(self.segments_partial_map, self.np_random)
+        if consts.generate_new_points:
 
-        print("generating edges")
+            print("sampling")
+            self.prm.sample_points(self.segments_partial_map, self.np_random)
 
-        self.prm.edge_generation()
+            print("generating edges")
+
+            self.prm.edge_generation()
+
+            with open(consts.graph_file, 'wb') as f:
+                pickle.dump(self.prm, f)
+        else:
+            with open(consts.graph_file, 'rb') as f:
+                self.prm = pickle.load(f)
+
         end_vertex = self.prm.add_vertex(np.array(self.end_point[:2]), 0, False)
         print("dijkstra")
         self.prm.dijkstra(end_vertex)
@@ -331,6 +340,9 @@ class CarEnv:
         runs the simulation one step
         :return: (next observation, reward, did the simulation finish, info)
         """
+
+        self.scan_environment()
+
 
         if consts.print_runtime:
             print(self.run_time)

@@ -1,6 +1,5 @@
 import heapq
 from collections import defaultdict
-from itertools import combinations
 from typing import Set
 
 import numpy as np
@@ -12,21 +11,37 @@ from helper import dist, map_index_from_pos, get_neighbors
 
 
 def pos_to_car_center(pos: np.ndarray, theta) -> np.ndarray:
-    return pos + consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
+    return pos[:2] + consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
 
 
 def car_center_to_pos(pos: np.ndarray, theta) -> np.ndarray:
-    return pos - consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
+    return pos[:2] - consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
 
 
 class Vertex:
     """
     Class to represent a graph vertex for the PRM
     """
-    def __init__(self, pos: np.ndarray, theta: float):
+    def __init__(self, pos: np.ndarray, theta: float, index: int):
         self.pos: np.ndarray = pos  # position of the car
         self.theta: float = theta   # angle if the car
         self.edges: Set[Edge] = set()  # the corresponding edges in the graph
+        self.index = index
+
+    def __getstate__(self):
+        neighbors = []
+        for edge in self.edges:
+            neighbor = edge.v1
+            if neighbor == self:
+                neighbor = edge.v2
+            neighbors.append((neighbor.index, edge.weight))
+        pos_in_normal = car_center_to_pos(self.pos, self.theta)
+        return {
+            'pos': list(pos_in_normal),
+            'theta': self.theta,
+            'index': self.index,
+            'edges': neighbors
+            }
 
 
 class Edge:
@@ -47,14 +62,16 @@ class WeightedGraph:
         self.vertices: Set[Vertex] = set()  # A set of the graph vertices
         self.n: int = 0                     # size of the graph
 
-    def add_vertex(self, pos: np.ndarray, theta: float) -> Vertex:
+    def add_vertex(self, pos: np.ndarray, theta: float, index: int = None) -> Vertex:
         """
         add a vertex to the graph
         :param pos: the corresponding position of the car - middle of rear wheels
         :param theta: the corresponding ange of the car
         :return:
         """
-        new_vertex = Vertex(pos_to_car_center(pos, theta), theta)
+        if index is None:
+            index = self.n
+        new_vertex = Vertex(pos_to_car_center(pos, theta), theta, index)
         self.vertices.add(new_vertex)
         self.n += 1
         return new_vertex
@@ -73,6 +90,19 @@ class WeightedGraph:
         self.vertices.remove(v)
         self.n -= 1
 
+    def __getstate__(self):
+        return [v.__getstate__() for v in self.vertices]
+
+    def __setstate__(self, state):
+        vertex_list = [None for _ in state]
+        for s in state:
+            v = self.add_vertex(np.array(s['pos']), s['theta'], s['index'])
+            vertex_list[s['index']] = v
+            for index, weight in s['edges']:
+                if vertex_list[index] is not None:
+                    self.add_edge(v, vertex_list[index], weight)
+        self.vertices = set(vertex_list)
+
 
 class PRM:
     def __init__(self, shape):
@@ -85,11 +115,12 @@ class PRM:
         self.max_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
         self.res = 0.7 * np.sqrt(self.max_radius ** 2 + (self.max_radius - consts.a_2) ** 2)  # resolution of the path
         # planner
-        # TODO: fill values
         self.tol = 0.02  # tolerance of the path planner
         self.distances = defaultdict(lambda: np.inf)
 
     def radius_delta(self, delta: float):
+        if np.tan(delta) == 0:
+            return 0
         return np.sqrt(consts.a_2 ** 2 + (consts.length / (np.tan(delta) ** 2)))
 
     def radius_x_y_squared(self, x, y):
@@ -146,7 +177,7 @@ class PRM:
         for vertex in self.graph.vertices:
             if vertex == new_vertex:
                 continue
-            self.try_add_edge(vertex, new_vertex, angle_matters)
+            self.try_add_edge(new_vertex, vertex, angle_matters)
         return new_vertex
 
     def dijkstra(self, root: Vertex):
@@ -186,3 +217,11 @@ class PRM:
                 best_neighbor = v
         self.distances[root] = min_dist
         return best_neighbor
+
+    def __getstate__(self):
+        return self.shape, self.graph.__getstate__()
+
+    def __setstate__(self, state):
+        self.__init__(state[0])
+        self.graph.__setstate__(state[1])
+
