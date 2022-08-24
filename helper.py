@@ -6,6 +6,7 @@ from typing import List, Sequence
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
+from shapely.geometry import LineString
 
 import consts
 
@@ -185,8 +186,11 @@ def get_by_direction(index, map_shape, direction, distance):
     line.sort(key=lambda a: (a[0] - index[0]) ** 2 + (a[1] - index[1]) ** 2)
     return line[1:]
 
-
 def distance_between_lines(start_point1, end_point1, start_point2, end_point2):
+    line = LineString([tuple(start_point1), tuple(end_point1)])
+    other = LineString([tuple(start_point2), tuple(end_point2)])
+    if line.intersects(other):
+        return 0
     return min([perpendicularDistance(start_point1, start_point2, end_point2), perpendicularDistance(end_point1, start_point2, end_point2), perpendicularDistance(start_point2, start_point1, end_point1), perpendicularDistance(end_point2, start_point1, end_point1)])
 
 
@@ -209,7 +213,3 @@ def perpendicularDistance(point, start_point, end_point):
     if min(x0, x1) <= inter_x <= max(x0, x1):
         return sqrt((x - inter_x) ** 2 + (y - inter_y) ** 2)
     return def_val
-
-
-
-
