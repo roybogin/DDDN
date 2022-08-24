@@ -206,13 +206,13 @@ class CarEnv:
                         for point in segment:
                             for block in block_options(map_index_from_pos(point),vertex_removal_radius, np.shape(self.discovered)):
                                 for vertex in self.prm.vertices_by_blocks[block]:
-                                    if self.segments_partial_map.check_state(vertex.pos[0], vertex.pos[1], vertex.theta):
+                                    if not self.segments_partial_map.check_state(vertex.pos[0], vertex.pos[1], vertex.theta):
                                         self.prm.graph.remove_vertex(vertex)
-                    for segment in new:
-                        for point in segment:
-                            for block in block_options(map_index_from_pos(point), edge_removal_radius, np.shape(self.discovered)):
-                                problematic_vertices.update(self.prm.vertices_by_blocks[block])
             self.new_discovered = add_discovered_matrix(new_map_discovered, start, end)
+        for segment in new_segments:
+            for point in segment:
+                for block in block_options(map_index_from_pos(point), edge_removal_radius, np.shape(self.discovered)):
+                    problematic_vertices.update(self.prm.vertices_by_blocks[block])
 
         for vertex in problematic_vertices:
             for edge in vertex.edges:
