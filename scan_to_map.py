@@ -127,7 +127,7 @@ class Map:
                 self.distances.append(dist(new_points[i], new_points[i + 1]))
             if dist(new_points[i], new_points[i + 1]) > SAMPLE_DIST:
                 new_segment = self.points_to_line(segment_to_add)
-                self.new_segments.append(new_segment)
+                self.new_segments.append(segment_to_add)
                 self.add(new_segment)
                 segment_to_add = [new_points[i + 1]]
             else:

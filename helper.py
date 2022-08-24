@@ -186,6 +186,7 @@ def get_by_direction(index, map_shape, direction, distance):
     line.sort(key=lambda a: (a[0] - index[0]) ** 2 + (a[1] - index[1]) ** 2)
     return line[1:]
 
+
 def distance_between_lines(start_point1, end_point1, start_point2, end_point2):
     line = LineString([tuple(start_point1), tuple(end_point1)])
     other = LineString([tuple(start_point2), tuple(end_point2)])
