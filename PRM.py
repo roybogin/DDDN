@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 import consts
 import scan_to_map
-from helper import dist, map_index_from_pos, get_neighbors
+from helper import dist, map_index_from_pos, block_options
 
 
 def pos_to_car_center(pos: np.ndarray, theta) -> np.ndarray:
@@ -176,7 +176,7 @@ class PRM:
         new_vertex = self.graph.add_vertex(pos, theta)
         if block is None:
             block = map_index_from_pos(pos)
-        for neighbor_block in block_options(block):  # TODO: generate appropriate function
+        for neighbor_block in block_options(block, np.ceil(self.res / consts.block_size), self.shape):
             for vertex in self.vertices_by_blocks[neighbor_block]:
                 if vertex == new_vertex:
                     continue

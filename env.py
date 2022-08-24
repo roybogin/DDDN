@@ -166,7 +166,7 @@ class CarEnv:
         """
         adds the boarders to the maze
         """
-        self.borders = map_create.create_poly_wall(consts.map_borders, epsilon=0.1, client=p)
+        self.borders = map_create.create_poly_wall(consts.map_borders, epsilon=consts.epsilon, client=p)
 
     def remove_all_bodies(self):
         """
@@ -184,8 +184,11 @@ class CarEnv:
         """
         directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
         new_map_discovered = self.discovered
-        affected = set()
-        vertices_to_check = set()
+        vertex_removal_radius = 2
+        edge_removal_radius = np.ceil(self.prm.res / consts.block_size)
+        problematic_vertices = set()
+        problematic_edges = set()
+        new_segments = []
         for direction in directions:
 
             did_hit, start, end = self.ray_cast(
@@ -198,17 +201,33 @@ class CarEnv:
                     self.segments_partial_map.add_points_to_map(self.hits)
                     self.hits = []
                     new = self.segments_partial_map.new_segments
+                    new_segments += new
                     for segment in new:
                         for point in segment:
-                            affected.update(get_neighbors(map_index_from_pos(point), np.shape(self.discovered)))
+                            for block in block_options(map_index_from_pos(point),vertex_removal_radius, np.shape(self.discovered)):
+                                for vertex in self.prm.vertices_by_blocks[block]:
+                                    if self.segments_partial_map.check_state(vertex.pos[0], vertex.pos[1], vertex.theta):
+                                        self.prm.graph.remove_vertex(vertex)
+                    for segment in new:
+                        for point in segment:
+                            for block in block_options(map_index_from_pos(point), edge_removal_radius, np.shape(self.discovered)):
+                                problematic_vertices.update(self.prm.vertices_by_blocks[block])
             self.new_discovered = add_discovered_matrix(new_map_discovered, start, end)
+
+        for vertex in problematic_vertices:
+            for edge in vertex.edges:
+                if edge.v1 in problematic_vertices and edge.v2 in problematic_vertices:
+                    problematic_edges.add(edge)
+
+        for segment in new_segments:
+            for i in range(len(segment) - 1):
+                for edge in problematic_edges:
+                    if distance_between_lines(segment[i], segment[i+1], edge.v1, edge.v2) < consts.width + 2 * consts.epsilon:
+                        edge.v1.edges.remove(edge.v2)
+                        edge.v2.edges.remove(edge.v1)
+
         self.discovered = new_map_discovered
 
-        for block in affected:
-            vertices_to_check.update(self.prm.vertices_by_blocks[block])
-        for vertex in vertices_to_check:
-            if self.segments_partial_map.check_state(vertex.pos[0], vertex.pos[1], vertex.theta):
-                self.prm.graph.remove_vertex(vertex)
 
     def reset(self):
         """
@@ -238,7 +257,7 @@ class CarEnv:
         self.last_speed = 0
         self.total_score = 0
 
-        self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=0.1, client=p)
+        self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=consts.epsilon, client=p)
         self.bodies = self.borders + self.obstacles
         self.discrete_partial_map = [[0 for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))] for _ in
                                      range(int((2 * consts.size_map_quarter) // consts.block_size))]

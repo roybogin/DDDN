@@ -2,6 +2,7 @@ from math import sqrt
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle, Circle
+from helper import perpendicularDistance
 import consts
 
 SAMPLE_DIST = 0.8
@@ -10,10 +11,9 @@ testing = True
 
 class Map:
     # map is a list of segments, the obstacles
-    def __init__(self, map=[], size=int(consts.size_map_quarter * 1.2), epsilon=0.1):
+    def __init__(self, map=[], size=int(consts.size_map_quarter * 1.2)):
         # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
         self.map = map
-        self.epsilon = epsilon
         self.size = size
 
         ##for testing:
@@ -43,22 +43,22 @@ class Map:
             if x1 == x2:
                 ax.add_patch(
                     Rectangle(
-                        (x1 - self.epsilon, min(y1, y2) - self.epsilon),
-                        2 * self.epsilon,
-                        2 * self.epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
+                        (x1 - consts.epsilon, min(y1, y2) - self.epsilon),
+                        2 * consts.epsilon,
+                        2 * consts.epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
                     )
                 )
 
             else:
                 m = (y1 - y2) / (x1 - x2)
                 theta = np.arctan(m)
-                x = x1 - self.epsilon * sqrt(2) * np.cos(theta + np.pi / 4)
-                y = y1 - self.epsilon * sqrt(2) * np.sin(theta + np.pi / 4)
+                x = x1 - consts.epsilon * sqrt(2) * np.cos(theta + np.pi / 4)
+                y = y1 - consts.epsilon * sqrt(2) * np.sin(theta + np.pi / 4)
                 ax.add_patch(
                     Rectangle(
                         (x, y),
-                        2 * self.epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
-                        2 * self.epsilon,
+                        2 * consts.epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
+                        2 * consts.epsilon,
                         theta * 180 / np.pi,
                     )
                 )
@@ -88,7 +88,7 @@ class Map:
         segment_representation = self.segment_representation()
         for point in points:
             for segment in segment_representation:
-                if perpendicularDistance(point, segment[0], segment[1]) < self.epsilon:
+                if perpendicularDistance(point, segment[0], segment[1]) < consts.epsilon:
                     return False
         return True
 
@@ -176,7 +176,7 @@ class Map:
         string += "]"
         return string
 
-    # given a polygonial chain, adds it to map
+    # given a polygonal chain, adds it to map
     # assumes points are given in order of the polygonal chain
     def add(self, chain):
         self.map.append(chain)
@@ -221,30 +221,8 @@ def dist(point1, point2):
     return sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
 
-def perpendicularDistance(point, start_point, end_point):
-    x0, y0 = start_point
-    x1, y1 = end_point
-    x, y = point
-    def_val = min(euler_length(point, start_point), euler_length(point, end_point))
-    if x0 == x1:
-        if min(y0, y1) <= y <= max(y0, y1):
-            return abs(x - x0)
-        return def_val
-    if y0 == y1:
-        if min(x0, x1) <= x <= max(x0, x1):
-            return abs(y - y0)
-        return def_val
-    m = (y0 - y1) / (x0 - x1)
-    inter_x = (y - y0 + m * x0 + x / m) / (m + 1 / m)
-    inter_y = y0 + m * (inter_x - x0)
-    if min(x0, x1) <= inter_x <= max(x0, x1):
-        return sqrt((x - inter_x) ** 2 + (y - inter_y) ** 2)
-    return def_val
-
-
 if __name__ == "__main__":
-    epsilon = 0.1
-    new_map = Map([], 10, epsilon)
+    new_map = Map([], 10)
 
     new_map.add_points_to_map(
         [(0, 0), (0, 0.1), (0, 0.3), (0.1, 0.4), (1, 1), (0.9, 1.1), (0.95, 1)]

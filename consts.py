@@ -16,7 +16,7 @@ steer_scalar = 0.1
 max_steer = 0.5
 max_velocity = 30
 max_force = 100
-
+epsilon = 0.1
 
 min_dist_to_target = 0.5  # distance from target that is treated as success
 ray_length = 5  # length of ray

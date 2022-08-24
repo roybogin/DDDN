@@ -8,8 +8,6 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
 
 import consts
-import scan_to_map
-
 
 def dist(point1, point2):
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
@@ -157,27 +155,25 @@ def pos_from_map_index(block_index):
     return [consts.block_size * (value + 0.5) - consts.size_map_quarter for value in block_index]
 
 
-def get_neighbors(index, map_shape, only_positives = False):
+def block_options(index, radius, map_shape, only_positives = False):
     """
     returns the neighbors of a block in the map (including diagonal)
     :param index: the index of the block in the map (list with length 2)
+    :param radius: the radius around the block we will return
     :param map_shape: the shape of the map
+    :param only_positives: indicates if we only want values lexicographically larger
     :return: list of the neighbors in the map
     """
 
     r, c = index
-    if r < 0 or r >= map_shape[0] or c < 0 or c >= map_shape[1]:
+    if r < 3 or r >= map_shape[0] - 3 or c < 3 or c >= map_shape[1] - 3:
         return []
-    rows, cols = [r], [c]  # possible rows and columns for neighbors
-    if r != 0:
-        rows.append(r - 1)
-    if r != map_shape[0] - 1:
-        rows.append(r + 1)
-    if c != 0:
-        cols.append(c - 1)
-    if c != map_shape[1] - 1:
-        cols.append(c + 1)
-    neighbors = list(itertools.product(rows, cols))
+    neighbors = []
+    for x in range(-radius, radius + 1):
+        for y in range(-radius, radius + 1):
+            if 3 <= r + x < map_shape[0] - 3 and 3 <= c + x < map_shape[1] - 3:
+                if x*x + y*y <= radius*radius + radius:
+                    neighbors.append((r+x, c+y))
     if only_positives:
         neighbors = [n for n in neighbors if n >= (r, c)]
     return neighbors
@@ -190,29 +186,30 @@ def get_by_direction(index, map_shape, direction, distance):
     return line[1:]
 
 
-def calculate_distances(partial_map, index):
-    """
-    calculates the distance in steps to all blocks from the given location using BFS
-    :param partial_map: the partial obstacle map - 0 if unexplored or empty and 1 if the block has an obstacle
-    :param index: index from which we calculate the distances
-    :return: a new map if the distances
-    """
-    index = tuple(index)
-    distances = np.full(np.shape(partial_map), np.inf)
-    distances[index] = 0
-    blocks_to_check = []  # BFS queue
-    neighbors = get_neighbors(index, distances.shape)
-    for n in neighbors:
-        blocks_to_check.append((n, 1))  # the neighbor and its distance
-    while len(blocks_to_check) != 0:
-        curr_idx, distance = blocks_to_check.pop(0)
-        if partial_map[curr_idx[0]][curr_idx[1]] == 1 or distances[curr_idx] != np.inf:
-            continue  # don't process walls or visited cells
-        distances[curr_idx] = distance
-        neighbors = get_neighbors(curr_idx, distances.shape)
-        for n in neighbors:
-            blocks_to_check.append((n, distance + 1))  # the neighbor and its distance
-    return distances
+def distance_between_lines(start_point1, end_point1, start_point2, end_point2):
+    return min([perpendicularDistance(start_point1, start_point2, end_point2), perpendicularDistance(end_point1, start_point2, end_point2), perpendicularDistance(start_point2, start_point1, end_point1), perpendicularDistance(end_point2, start_point1, end_point1)])
+
+
+def perpendicularDistance(point, start_point, end_point):
+    x0, y0 = start_point
+    x1, y1 = end_point
+    x, y = point
+    def_val = min(dist(point, start_point), dist(point, end_point))
+    if x0 == x1:
+        if min(y0, y1) <= y <= max(y0, y1):
+            return abs(x - x0)
+        return def_val
+    if y0 == y1:
+        if min(x0, x1) <= x <= max(x0, x1):
+            return abs(y - y0)
+        return def_val
+    m = (y0 - y1) / (x0 - x1)
+    inter_x = (y - y0 + m * x0 + x / m) / (m + 1 / m)
+    inter_y = y0 + m * (inter_x - x0)
+    if min(x0, x1) <= inter_x <= max(x0, x1):
+        return sqrt((x - inter_x) ** 2 + (y - inter_y) ** 2)
+    return def_val
+
 
 
 
