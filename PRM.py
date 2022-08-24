@@ -112,14 +112,14 @@ class WeightedGraph:
 class PRM:
     def __init__(self, shape):
 
-        self.sample_amount = 5e4 #1e6
+        self.sample_amount = 1e6
         self.graph = WeightedGraph()
         self.shape = shape
         self.vertices_by_blocks = defaultdict(lambda: [])
 
         self.max_angle_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
-        self.res = 0.7 * np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  # resolution of the path
-        # planner
+        self.res = 0.9 * np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
+        # resolution of the path planner
         self.tol = 0.02  # tolerance of the path planner
         self.distances = defaultdict(lambda: np.inf)
 
@@ -141,13 +141,13 @@ class PRM:
     def theta_curve(self, x_tag, y_tag):
         if y_tag == 0:
             return 0
-        to_root = self.radius_x_y_squared(x_tag, y_tag) - (x_tag + consts.a_2) ** 2
+        to_root = self.radius_x_y_squared(x_tag, y_tag) - (consts.a_2 ** 2)
         val = consts.a_2 / np.sqrt(to_root)
         return np.sign(y_tag) * np.arctan(val)
 
     def sample_points(self, segment_map: scan_to_map.Map, np_random, num_sample_car: int = 3):
         while self.graph.n < self.sample_amount:
-            x, y = np_random.rand(2) * 2 - 1 #2 * consts.size_map_quarter - consts.size_map_quarter
+            x, y = np_random.rand(2) * 2 * consts.size_map_quarter - consts.size_map_quarter
             theta = np_random.rand() * 2 * np.pi
             if segment_map.check_state(x, y, theta, num_sample_car):
                 new_vertex = self.graph.add_vertex(np.array([x, y]), theta)
@@ -241,3 +241,6 @@ class PRM:
         :return:
         """
         return self.rotate_angle(vertex_2.pos - vertex_1.pos, -vertex_1.theta), vertex_2.theta - vertex_1.theta
+
+    def transform_by_values(self, pos: np.ndarray, theta: float, vertex_2: Vertex):
+        return self.rotate_angle(vertex_2.pos - pos, -theta), vertex_2.theta - theta

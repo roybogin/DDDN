@@ -1,6 +1,7 @@
 import json
 import os
 import pickle
+import random
 
 import numpy as np
 import pybullet as p
@@ -49,6 +50,8 @@ def add_discovered_matrix(discovered_matrix, start, end):
 class CarEnv:
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
+        self.next_vertex = None
+        self.count = None
         self.end_vertex = None
         self.direction = None
         self.distances_from_pos = None
@@ -211,6 +214,7 @@ class CarEnv:
         """
         resets the environment
         """
+        self.count = 0
         self.hits = []
         self.remove_all_bodies()
         self.add_borders()
@@ -266,6 +270,7 @@ class CarEnv:
 
             with open(consts.graph_file, 'wb') as f:
                 pickle.dump(self.prm, f)
+            exit(1337)
         else:
             print("loading graph")
             with open(consts.graph_file, 'rb') as f:
@@ -274,6 +279,7 @@ class CarEnv:
         self.end_vertex = self.prm.add_vertex(np.array(self.end_point[:2]), 0, False)
         print("dijkstra")
         self.prm.dijkstra(self.end_vertex)
+        print("finished dijkstra")
 
         return self.get_observation()
 
@@ -350,15 +356,28 @@ class CarEnv:
         if consts.print_runtime:
             print(self.run_time)
 
-        curr_vertex = self.prm.add_vertex(np.array(self.pos), self.swivel)
+        if self.count % 200 == 0 or dist(np.array(self.pos[:2]), self.next_vertex.pos) <= 0.05:
+            self.count = 0
+        self.count += 1
 
-        next_vertex = self.prm.next_in_path(curr_vertex)
 
-        transformed = self.prm.transform_pov(curr_vertex, next_vertex)
+        if self.count == 1:
+            curr_vertex = self.prm.add_vertex(np.array(self.pos), self.swivel)
+
+            self.next_vertex = self.prm.next_in_path(curr_vertex)
+
+            if self.prm.distances[self.next_vertex] != np.inf:
+                next_edge = random.choice(tuple(curr_vertex.edges))
+                self.next_vertex = next_edge.v1
+                if self.next_vertex == curr_vertex:
+                    self.next_vertex = next_edge.v2
+
+        transformed = self.prm.transform_by_values(np.array(self.pos[:2]), self.swivel, self.next_vertex)
         x_tag, y_tag = transformed[0][0], transformed[0][1]
         differential_theta = self.prm.theta_curve(x_tag, y_tag)
 
-        action = [0.5, differential_theta]
+        action = [np.sign(x_tag) * 0.5, differential_theta]
+        print(action, self.pos)
 
         # updating target velocity and steering angle
         wanted_speed = action[0] * consts.max_velocity
@@ -480,7 +499,7 @@ class CarEnv:
         :param position: position to place the car at
         :return:
         """
-        p.resetBasePositionAndOrientation(self.car_model, position, [0, 0, 0, 1])
+        p.resetBasePositionAndOrientation(self.car_model, position, [0.0, 0.0, 0.0, 1.0])
         p.resetBaseVelocity(self.car_model, [0, 0, 0], [0, 0, 0])
 
     def create_car_model(self):
@@ -511,7 +530,7 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 0
+        self.maze_idx = 1
         maze, start, end = mazes.empty_set[self.maze_idx]
         return maze, end, start
 
