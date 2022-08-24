@@ -222,7 +222,7 @@ class CarEnv:
         for segment in new_segments:
             for i in range(len(segment) - 1):
                 for edge in problematic_edges:
-                    if distance_between_lines(segment[i], segment[i+1], edge.v1, edge.v2) < consts.width + 2 * consts.epsilon:
+                    if distance_between_lines(segment[i], segment[i+1], edge.v1.pos, edge.v2.pos) < consts.width + 2 * consts.epsilon:
                         edge.v1.edges.remove(edge.v2)
                         edge.v2.edges.remove(edge.v1)
 

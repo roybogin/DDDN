@@ -8,7 +8,6 @@ import consts
 SAMPLE_DIST = 0.8
 testing = True
 
-
 class Map:
     # map is a list of segments, the obstacles
     def __init__(self, map=[], size=int(consts.size_map_quarter * 1.2)):
@@ -134,7 +133,7 @@ class Map:
             else:
                 segment_to_add.append(new_points[i + 1])
         new_segment = self.points_to_line(segment_to_add)
-        self.new_segments.append(new_segment)
+        self.new_segments.append(segment_to_add)
         self.add(new_segment)
 
     def segment_representation(self):
