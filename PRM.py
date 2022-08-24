@@ -1,6 +1,6 @@
 import heapq
 from collections import defaultdict
-from typing import Set
+from typing import Set, Tuple
 
 import numpy as np
 from tqdm import tqdm
@@ -145,14 +145,18 @@ class PRM:
         val = consts.a_2 / np.sqrt(to_root)
         return np.sign(y_tag) * np.arctan(val)
 
-    def sample_points(self, segment_map: scan_to_map.Map, np_random, num_sample_car: int = 3):
-        while self.graph.n < self.sample_amount:
-            x, y = np_random.rand(2) * 2 * consts.size_map_quarter - consts.size_map_quarter
-            theta = np_random.rand() * 2 * np.pi
-            if segment_map.check_state(x, y, theta, num_sample_car):
-                new_vertex = self.graph.add_vertex(np.array([x, y]), theta)
-                block = map_index_from_pos(new_vertex.pos)
-                self.vertices_by_blocks[block].append(new_vertex)
+    def generate_graph(self, np_random):
+        block_cnt = (self.shape[0] - 6) * (self.shape[1] - 6)
+        for row_idx in range(3, self.shape[0] - 3):
+            for col_idx in range(3, self.shape[1] - 3):
+                count = 0
+                while count < self.sample_amount/block_cnt:
+                    x, y = np_random.rand(2) * consts.block_size
+                    theta = np_random.rand() * 2 * np.pi
+                    x += col_idx * consts.block_size
+                    y += row_idx * consts.block_size
+                    new_vertex = self.add_vertex(np.array([x, y]), theta)
+                    self.vertices_by_blocks[(row_idx, col_idx)].append(new_vertex)
 
     def try_add_edge(self, v_1: Vertex, v_2: Vertex, angle_matters: bool = True):
         weight = dist(v_1.pos, v_2.pos)
@@ -164,29 +168,19 @@ class PRM:
                 if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
                     self.graph.add_edge(v_1, v_2, weight)
 
-    def edge_generation(self) -> None:
-        """
-        edge generation for non holonomic prm graph
-        """
-        for v_1 in tqdm(self.graph.vertices):
-            for block in get_neighbors(map_index_from_pos(v_1.pos), self.shape, True):
-                for v_2 in self.vertices_by_blocks[block]:
-                    if v_1 == v_2:
-                        continue
-                    self.try_add_edge(v_1, v_2)
-
-    def add_vertex(self, pos: np.ndarray, theta: float, angle_matters: bool = True) -> Vertex:
+    def add_vertex(self, pos: np.ndarray, theta: float, angle_matters: bool = True, block: Tuple[int, int] = None) -> \
+            Vertex:
         """
         add vertex for the prm
-        :param pos: corresponding position for the car
-        :param theta: angle of the car
-        :return:
         """
         new_vertex = self.graph.add_vertex(pos, theta)
-        for vertex in self.graph.vertices:
-            if vertex == new_vertex:
-                continue
-            self.try_add_edge(new_vertex, vertex, angle_matters)
+        if block is None:
+            block = map_index_from_pos(pos)
+        for neighbor_block in block_options(block):  # TODO: generate appropriate function
+            for vertex in self.vertices_by_blocks[neighbor_block]:
+                if vertex == new_vertex:
+                    continue
+                self.try_add_edge(new_vertex, vertex, angle_matters)
         return new_vertex
 
     def dijkstra(self, root: Vertex):

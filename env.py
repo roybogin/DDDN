@@ -259,12 +259,8 @@ class CarEnv:
 
         if consts.generate_new_points:
 
-            print("sampling")
-            self.prm.sample_points(self.segments_partial_map, self.np_random)
-
-            print("generating edges")
-
-            self.prm.edge_generation()
+            print("generating graph")
+            self.prm.generate_graph(self.np_random)
 
             print(self.prm.graph.n, self.prm.graph.e)
 
