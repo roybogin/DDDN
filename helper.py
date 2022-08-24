@@ -171,9 +171,9 @@ def block_options(index, radius, map_shape, only_positives = False):
     neighbors = []
     for x in range(-radius, radius + 1):
         for y in range(-radius, radius + 1):
-            if 3 <= r + x < map_shape[0] - 3 and 3 <= c + x < map_shape[1] - 3:
+            if 3 <= c + x < map_shape[0] - 3 and 3 <= r + y < map_shape[1] - 3:
                 if x*x + y*y <= radius*radius + radius:
-                    neighbors.append((r+x, c+y))
+                    neighbors.append((c+x, r+y))
     if only_positives:
         neighbors = [n for n in neighbors if n >= (r, c)]
     return neighbors
