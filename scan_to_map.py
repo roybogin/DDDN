@@ -43,7 +43,7 @@ class Map:
             if x1 == x2:
                 ax.add_patch(
                     Rectangle(
-                        (x1 - consts.epsilon, min(y1, y2) - self.epsilon),
+                        (x1 - consts.epsilon, min(y1, y2) - consts.epsilon),
                         2 * consts.epsilon,
                         2 * consts.epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
                     )
@@ -112,7 +112,7 @@ class Map:
         for point in points:
             should_add = True
             for segment in segment_representation:
-                if perpendicularDistance(point, segment[0], segment[1]) < self.epsilon:
+                if perpendicularDistance(point, segment[0], segment[1]) < consts.epsilon:
                     should_add = False
             if should_add:
                 new_points.append(point)
@@ -199,7 +199,7 @@ class Map:
                 dmax = d
 
         # If max distance is greater than epsilon, recursively simplify
-        if dmax > self.epsilon:
+        if dmax > consts.epsilon:
             # Recursive call
             recResults1 = self.points_to_line(points[: index + 1])
             recResults2 = self.points_to_line(points[index:])
