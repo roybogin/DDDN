@@ -165,7 +165,7 @@ def block_options(index, radius, map_shape, only_positives = False):
     :param only_positives: indicates if we only want values lexicographically larger
     :return: list of the neighbors in the map
     """
-
+    radius = int(radius)
     r, c = index
     if r < 3 or r >= map_shape[0] - 3 or c < 3 or c >= map_shape[1] - 3:
         return []
