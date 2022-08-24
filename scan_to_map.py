@@ -92,13 +92,12 @@ class Map:
                     return False
         return True
 
-
-    def check_state(self, x: float, y: float, theta: float, length: float, width: float, num_sample_car=10):
+    def check_state(self, x: float, y: float, theta: float, num_sample_car=10):
         to_check = []
         for i in range(num_sample_car):
             for j in range(num_sample_car):
-                x_temp = length * (-1 / 2 + i / (num_sample_car - 1))
-                y_temp = width * (- 1 / 2 + j / (num_sample_car - 1))
+                x_temp = consts.length * (-1 / 2 + i / (num_sample_car - 1))
+                y_temp = consts.width * (- 1 / 2 + j / (num_sample_car - 1))
                 to_check.append(
                     (x + x_temp * np.cos(theta) - y_temp * np.sin(theta),
                      y + x_temp * np.sin(theta) + y_temp * np.cos(theta)))

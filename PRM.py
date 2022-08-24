@@ -22,9 +22,10 @@ class Vertex:
     """
     Class to represent a graph vertex for the PRM
     """
+
     def __init__(self, pos: np.ndarray, theta: float, index: int):
         self.pos: np.ndarray = pos  # position of the car
-        self.theta: float = theta   # angle if the car
+        self.theta: float = theta  # angle if the car
         self.edges: Set[Edge] = set()  # the corresponding edges in the graph
         self.index = index
 
@@ -41,26 +42,29 @@ class Vertex:
             'theta': self.theta,
             'index': self.index,
             'edges': neighbors
-            }
+        }
 
 
 class Edge:
     """
     Class to represent a graph edge for the PRM
     """
+
     def __init__(self, vertex_1: Vertex, vertex_2: Vertex, weight: float):
-        self.v1: Vertex = vertex_1      # first vertex in the edge
-        self.v2: Vertex = vertex_2      # second vertex in the edge
-        self.weight: float = weight     # weight of the edge
+        self.v1: Vertex = vertex_1  # first vertex in the edge
+        self.v2: Vertex = vertex_2  # second vertex in the edge
+        self.weight: float = weight  # weight of the edge
 
 
 class WeightedGraph:
     """
     Class to represent a weighted graph for the PRM
     """
+
     def __init__(self):
         self.vertices: Set[Vertex] = set()  # A set of the graph vertices
-        self.n: int = 0                     # size of the graph
+        self.n: int = 0  # size of the graph
+        self.e: int = 0  # amount of edges in the graph
 
     def add_vertex(self, pos: np.ndarray, theta: float, index: int = None) -> Vertex:
         """
@@ -80,6 +84,7 @@ class WeightedGraph:
         edge = Edge(vertex_1, vertex_2, weight)
         vertex_1.edges.add(edge)
         vertex_2.edges.add(edge)
+        self.e += 1
 
     def remove_vertex(self, v: Vertex):
         for edge in v.edges:
@@ -107,40 +112,44 @@ class WeightedGraph:
 class PRM:
     def __init__(self, shape):
 
-        self.sample_amount = 1e6
+        self.sample_amount = 5e4 #1e6
         self.graph = WeightedGraph()
         self.shape = shape
         self.vertices_by_blocks = defaultdict(lambda: [])
 
-        self.max_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
-        self.res = 0.7 * np.sqrt(self.max_radius ** 2 + (self.max_radius - consts.a_2) ** 2)  # resolution of the path
+        self.max_angle_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
+        self.res = 0.7 * np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  # resolution of the path
         # planner
         self.tol = 0.02  # tolerance of the path planner
         self.distances = defaultdict(lambda: np.inf)
 
     def radius_delta(self, delta: float):
         if np.tan(delta) == 0:
-            return 0
+            return np.inf
         return np.sqrt(consts.a_2 ** 2 + (consts.length / (np.tan(delta) ** 2)))
+
+    def rotate_angle(self, vec: np.ndarray, alpha: float):
+        cos, sin = np.cos(alpha), np.sin(alpha)
+        return np.array([[cos, -sin], [sin, cos]]) @ vec
 
     def radius_x_y_squared(self, x, y):
         if y == 0:
-            return 0
+            return np.inf
         t = (x ** 2 + 2 * consts.a_2 * x + y ** 2) / (2 * y)
         return t ** 2 + consts.a_2 ** 2
 
-    def theta_curve(self, x, y):
-        if y == 0:
+    def theta_curve(self, x_tag, y_tag):
+        if y_tag == 0:
             return 0
-        to_root = self.radius_x_y_squared(x, y) - (x + consts.a_2) ** 2
-        val = (x + consts.a_2) / np.sqrt(to_root)
-        return np.sign(y) * np.arctan(val)
+        to_root = self.radius_x_y_squared(x_tag, y_tag) - (x_tag + consts.a_2) ** 2
+        val = consts.a_2 / np.sqrt(to_root)
+        return np.sign(y_tag) * np.arctan(val)
 
     def sample_points(self, segment_map: scan_to_map.Map, np_random, num_sample_car: int = 3):
         while self.graph.n < self.sample_amount:
-            x, y = np_random.rand(2) * 2 * consts.size_map_quarter - consts.size_map_quarter
+            x, y = np_random.rand(2) * 2 - 1 #2 * consts.size_map_quarter - consts.size_map_quarter
             theta = np_random.rand() * 2 * np.pi
-            if segment_map.check_state(x, y, theta, consts.length, consts.width, num_sample_car):
+            if segment_map.check_state(x, y, theta, num_sample_car):
                 new_vertex = self.graph.add_vertex(np.array([x, y]), theta)
                 block = map_index_from_pos(new_vertex.pos)
                 self.vertices_by_blocks[block].append(new_vertex)
@@ -148,11 +157,11 @@ class PRM:
     def try_add_edge(self, v_1: Vertex, v_2: Vertex, angle_matters: bool = True):
         weight = dist(v_1.pos, v_2.pos)
         if weight <= self.res:
-            transformed = (self.radius_delta(-v_2.theta) * (v_2.pos - v_1.pos), v_2.theta - v_1.theta)
+            transformed = self.transform_pov(v_1, v_2)  # show v_2 from POV of v_1
             x_tag, y_tag = transformed[0][0], transformed[0][1]
             differential_theta = self.theta_curve(x_tag, y_tag)
             if (not angle_matters) or abs(differential_theta - transformed[1]) < self.tol:
-                if np.sqrt(self.radius_x_y_squared(x_tag, y_tag)) < self.max_radius:
+                if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
                     self.graph.add_edge(v_1, v_2, weight)
 
     def edge_generation(self) -> None:
@@ -224,3 +233,11 @@ class PRM:
         self.__init__(state[0])
         self.graph.__setstate__(state[1])
 
+    def transform_pov(self, vertex_1: Vertex, vertex_2: Vertex):
+        """
+        show vertex_2 from the POV of vertex_1
+        :param vertex_1:
+        :param vertex_2:
+        :return:
+        """
+        return self.rotate_angle(vertex_2.pos - vertex_1.pos, -vertex_1.theta), vertex_2.theta - vertex_1.theta

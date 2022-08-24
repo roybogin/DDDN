@@ -2,6 +2,7 @@ import json
 import os
 import pickle
 
+import numpy as np
 import pybullet as p
 import pybullet_data as pd
 from gym import spaces
@@ -48,6 +49,7 @@ def add_discovered_matrix(discovered_matrix, start, end):
 class CarEnv:
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
+        self.end_vertex = None
         self.direction = None
         self.distances_from_pos = None
         self.index = index  # index of environment in multiprocessing
@@ -202,8 +204,7 @@ class CarEnv:
         for block in affected:
             vertices_to_check.update(self.prm.vertices_by_blocks[block])
         for vertex in vertices_to_check:
-            if self.segments_partial_map.check_state(vertex.pos[0], vertex.pos[1], vertex.theta, self.prm.length,
-                                                     self.prm.width):
+            if self.segments_partial_map.check_state(vertex.pos[0], vertex.pos[1], vertex.theta):
                 self.prm.graph.remove_vertex(vertex)
 
     def reset(self):
@@ -261,6 +262,8 @@ class CarEnv:
 
             self.prm.edge_generation()
 
+            print(self.prm.graph.n, self.prm.graph.e)
+
             with open(consts.graph_file, 'wb') as f:
                 pickle.dump(self.prm, f)
         else:
@@ -268,9 +271,9 @@ class CarEnv:
             with open(consts.graph_file, 'rb') as f:
                 self.prm = pickle.load(f)
 
-        end_vertex = self.prm.add_vertex(np.array(self.end_point[:2]), 0, False)
+        self.end_vertex = self.prm.add_vertex(np.array(self.end_point[:2]), 0, False)
         print("dijkstra")
-        self.prm.dijkstra(end_vertex)
+        self.prm.dijkstra(self.end_vertex)
 
         return self.get_observation()
 
@@ -344,7 +347,6 @@ class CarEnv:
 
         self.scan_environment()
 
-
         if consts.print_runtime:
             print(self.run_time)
 
@@ -352,8 +354,7 @@ class CarEnv:
 
         next_vertex = self.prm.next_in_path(curr_vertex)
 
-        transformed = (self.prm.radius_delta(-next_vertex.theta) * (next_vertex.pos - curr_vertex.pos),
-                       next_vertex.theta - curr_vertex.theta)
+        transformed = self.prm.transform_pov(curr_vertex, next_vertex)
         x_tag, y_tag = transformed[0][0], transformed[0][1]
         differential_theta = self.prm.theta_curve(x_tag, y_tag)
 
@@ -417,7 +418,9 @@ class CarEnv:
 
         # saving for later
         swivel_states = p.getJointStates(self.car_model, self.steering)
-        self.swivel = sum((state[0] for state in swivel_states)) / len(swivel_states)  # average among wheels
+        angles = [state[0] for state in swivel_states]
+        cot_delta = (1/np.tan(angles[0]) + 1/np.tan(angles[1])) / 2
+        self.swivel = np.arctan(1/cot_delta)
 
         score = 0
         self.total_score += score

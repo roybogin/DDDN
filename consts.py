@@ -13,7 +13,7 @@ cameraTargetPosition = [0, 0, 0]
 # interpreting NN outputs
 speed_scalar = 1
 steer_scalar = 0.1
-max_steer = 0.3
+max_steer = 0.5
 max_velocity = 30
 max_force = 100
 
@@ -43,5 +43,5 @@ length = 0.325
 width = 0.2
 a_2 = 0.1477  # a_2 of the car
 
-generate_new_points = False
-graph_file = 'one_million_vertices.pickle'
+generate_new_points = True
+graph_file = 'small_sample.pickle'
