@@ -43,5 +43,5 @@ length = 0.325
 width = 0.2
 a_2 = 0.1477  # a_2 of the car
 
-generate_new_points = True
-graph_file = 'one_million_vertices'
+generate_new_points = False
+graph_file = 'one_million_vertices.pickle'

@@ -95,7 +95,7 @@ class WeightedGraph:
 
     def __setstate__(self, state):
         vertex_list = [None for _ in state]
-        for s in state:
+        for s in tqdm(state):
             v = self.add_vertex(np.array(s['pos']), s['theta'], s['index'])
             vertex_list[s['index']] = v
             for index, weight in s['edges']:
@@ -181,7 +181,6 @@ class PRM:
         return new_vertex
 
     def dijkstra(self, root: Vertex):
-        self.distances = {v: np.inf for v in self.graph.vertices}
         self.distances[root] = 0
         visited = {v: False for v in self.graph.vertices}
         pq = [(0, root)]

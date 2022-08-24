@@ -264,6 +264,7 @@ class CarEnv:
             with open(consts.graph_file, 'wb') as f:
                 pickle.dump(self.prm, f)
         else:
+            print("loading graph")
             with open(consts.graph_file, 'rb') as f:
                 self.prm = pickle.load(f)
 
