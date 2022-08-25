@@ -117,7 +117,7 @@ class WeightedGraph:
 class PRM:
     def __init__(self, shape):
 
-        self.sample_amount = 1e5
+        self.sample_amount = 1e6
         self.graph = WeightedGraph()
         self.shape = shape
         self.vertices_by_blocks = defaultdict(lambda: [])
