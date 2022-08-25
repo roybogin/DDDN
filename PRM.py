@@ -162,6 +162,7 @@ class PRM:
                     y += row_idx * consts.block_size
                     new_vertex = self.add_vertex(np.array([x, y]), theta)
                     self.vertices_by_blocks[(row_idx, col_idx)].append(new_vertex)
+                    print(self.vertices_by_blocks[(row_idx, col_idx)])
                     count += 1
 
     def try_add_edge(self, v_1: Vertex, v_2: Vertex, angle_matters: bool = True):
