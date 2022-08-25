@@ -64,7 +64,8 @@ class WeightedGraph:
     def __init__(self):
         self.vertices: Set[Vertex] = set()  # A set of the graph vertices
         self.n: int = 0  # size of the graph
-        self.e: int = 0  # amount of edges in the graph
+        self.e: int = 0  # amount of edges in the grapp
+        self.e_counter = 0
 
     def add_vertex(self, pos: np.ndarray, theta: float, index: int = None) -> Vertex:
         """
@@ -85,6 +86,10 @@ class WeightedGraph:
         vertex_1.edges.add(edge)
         vertex_2.edges.add(edge)
         self.e += 1
+        self.e_counter += 1
+        if e_counter == 10000:
+            print("number of edges is", e)
+            e_counter = 0
 
     def remove_vertex(self, v: Vertex):
         for edge in v.edges:
