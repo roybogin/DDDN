@@ -165,6 +165,7 @@ class PRM:
                     count += 1
 
     def try_add_edge(self, v_1: Vertex, v_2: Vertex, angle_matters: bool = True):
+        print("1")
         weight = dist(v_1.pos, v_2.pos)
         if weight <= self.res:
             transformed = self.transform_pov(v_1, v_2)  # show v_2 from POV of v_1
