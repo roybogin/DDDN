@@ -89,7 +89,7 @@ class WeightedGraph:
         self.e_counter += 1
         if self.e_counter == 10000:
             print("number of edges is", self.e)
-            e_counter = 0
+            self.e_counter = 0
 
     def remove_vertex(self, v: Vertex):
         for edge in v.edges:
@@ -171,6 +171,7 @@ class PRM:
             if (not angle_matters) or abs(differential_theta - transformed[1]) < self.tol:
                 if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
                     self.graph.add_edge(v_1, v_2, weight)
+                    print("added")
 
     def add_vertex(self, pos: np.ndarray, theta: float, angle_matters: bool = True, block: Tuple[int, int] = None) -> \
             Vertex:

@@ -156,7 +156,7 @@ def pos_from_map_index(block_index):
     return [consts.block_size * (value + 0.5) - consts.size_map_quarter for value in block_index]
 
 
-def block_options(index, radius, map_shape, only_positives = False):
+def block_options(index, radius, map_shape, only_positives=False):
     """
     returns the neighbors of a block in the map (including diagonal)
     :param index: the index of the block in the map (list with length 2)
