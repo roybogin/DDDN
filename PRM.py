@@ -5,6 +5,7 @@ from typing import Set, Tuple
 import numpy as np
 from tqdm import tqdm
 
+import pickle
 import consts
 import scan_to_map
 from helper import dist, map_index_from_pos, block_options
@@ -163,6 +164,8 @@ class PRM:
                     new_vertex = self.add_vertex(np.array([x, y]), theta, block=(row_idx, col_idx))
                     self.vertices_by_blocks[(row_idx, col_idx)].append(new_vertex)
                     count += 1
+            with open(consts.graph_file, 'wb') as f:
+                pickle.dump(self, f)
 
     def try_add_edge(self, v_1: Vertex, v_2: Vertex, angle_matters: bool = True):
         weight = dist(v_1.pos, v_2.pos)
