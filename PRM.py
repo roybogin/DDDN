@@ -82,6 +82,7 @@ class WeightedGraph:
         return new_vertex
 
     def add_edge(self, vertex_1: Vertex, vertex_2: Vertex, weight: float):
+        print("1")
         edge = Edge(vertex_1, vertex_2, weight)
         vertex_1.edges.add(edge)
         vertex_2.edges.add(edge)
