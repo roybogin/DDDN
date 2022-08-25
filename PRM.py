@@ -152,9 +152,9 @@ class PRM:
 
     def generate_graph(self, np_random):
         block_cnt = (self.shape[0] - 6) * (self.shape[1] - 6)
-        for row_idx in range(3, self.shape[0] - 3):
+        for row_idx in tqdm(range(3, self.shape[0] - 3)):
             for col_idx in range(3, self.shape[1] - 3):
-                for _ in tqdm(range(int(self.sample_amount/block_cnt))):
+                for _ in range(int(self.sample_amount/block_cnt)):
                     x, y = np_random.rand(2) * consts.block_size
                     theta = np_random.rand() * 2 * np.pi
                     x += col_idx * consts.block_size
