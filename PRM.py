@@ -88,7 +88,7 @@ class WeightedGraph:
         self.e += 1
         self.e_counter += 1
         if self.e_counter == 10000:
-            print("number of edges is", e)
+            print("number of edges is", self.e)
             self.e_counter = 0
 
     def remove_vertex(self, v: Vertex):
@@ -158,9 +158,9 @@ class PRM:
                 while count < self.sample_amount/block_cnt:
                     x, y = np_random.rand(2) * consts.block_size
                     theta = np_random.rand() * 2 * np.pi
-                    x += col_idx * consts.block_size
-                    y += row_idx * consts.block_size
-                    new_vertex = self.add_vertex(np.array([x, y]), theta)
+                    x += col_idx * consts.block_size - consts.size_map_quarter
+                    y += row_idx * consts.block_size - consts.size_map_quarter
+                    new_vertex = self.add_vertex(np.array([x, y]), theta, block=(row_idx, col_idx))
                     self.vertices_by_blocks[(row_idx, col_idx)].append(new_vertex)
                     print(self.vertices_by_blocks[(row_idx, col_idx)])
                     count += 1
