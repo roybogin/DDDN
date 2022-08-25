@@ -88,7 +88,7 @@ class WeightedGraph:
         self.e += 1
         self.e_counter += 1
         if self.e_counter == 10000:
-            print("number of edges is", self.e)
+            print("number of edges is", e)
             self.e_counter = 0
 
     def remove_vertex(self, v: Vertex):
@@ -152,15 +152,17 @@ class PRM:
 
     def generate_graph(self, np_random):
         block_cnt = (self.shape[0] - 6) * (self.shape[1] - 6)
-        for row_idx in tqdm(range(3, self.shape[0] - 3)):
+        for row_idx in range(3, self.shape[0] - 3):
             for col_idx in range(3, self.shape[1] - 3):
-                for _ in range(int(self.sample_amount/block_cnt)):
+                count = 0
+                while count < self.sample_amount/block_cnt:
                     x, y = np_random.rand(2) * consts.block_size
                     theta = np_random.rand() * 2 * np.pi
                     x += col_idx * consts.block_size
                     y += row_idx * consts.block_size
                     new_vertex = self.add_vertex(np.array([x, y]), theta)
                     self.vertices_by_blocks[(row_idx, col_idx)].append(new_vertex)
+                    count += 1
 
     def try_add_edge(self, v_1: Vertex, v_2: Vertex, angle_matters: bool = True):
         weight = dist(v_1.pos, v_2.pos)
@@ -171,7 +173,6 @@ class PRM:
             if (not angle_matters) or abs(differential_theta - transformed[1]) < self.tol:
                 if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
                     self.graph.add_edge(v_1, v_2, weight)
-                    print("added")
 
     def add_vertex(self, pos: np.ndarray, theta: float, angle_matters: bool = True, block: Tuple[int, int] = None) -> \
             Vertex:

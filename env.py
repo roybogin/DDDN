@@ -225,6 +225,7 @@ class CarEnv:
                     if distance_between_lines(segment[i], segment[i+1], edge.v1.pos, edge.v2.pos) < consts.width + 2 * consts.epsilon:
                         edge.v1.edges.remove(edge.v2)
                         edge.v2.edges.remove(edge.v1)
+                        self.prm.graph.e -= 1
 
         self.discovered = new_map_discovered
 
