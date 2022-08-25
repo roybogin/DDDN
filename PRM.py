@@ -166,7 +166,6 @@ class PRM:
                     count += 1
 
     def try_add_edge(self, v_1: Vertex, v_2: Vertex, angle_matters: bool = True):
-        print("1")
         weight = dist(v_1.pos, v_2.pos)
         if weight <= self.res:
             transformed = self.transform_pov(v_1, v_2)  # show v_2 from POV of v_1
@@ -185,8 +184,6 @@ class PRM:
         if block is None:
             block = map_index_from_pos(pos)
         for neighbor_block in block_options(block, np.ceil(self.res / consts.block_size), self.shape):
-            print(neighbor_block)
-            print(self.vertices_by_blocks)
             for vertex in self.vertices_by_blocks[neighbor_block]:
                 if vertex == new_vertex:
                     continue
