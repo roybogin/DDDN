@@ -164,7 +164,7 @@ class PRM:
                     new_vertex = self.add_vertex(np.array([x, y]), theta, block=(row_idx, col_idx))
                     self.vertices_by_blocks[(row_idx, col_idx)].append(new_vertex)
                     count += 1
-            if row_id % 5 == 0:
+            if row_idx % 5 == 0:
                 with open(consts.graph_file, 'wb') as f:
                     pickle.dump(self, f)
 
