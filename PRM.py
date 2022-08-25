@@ -185,6 +185,7 @@ class PRM:
             block = map_index_from_pos(pos)
         for neighbor_block in block_options(block, np.ceil(self.res / consts.block_size), self.shape):
             for vertex in self.vertices_by_blocks[neighbor_block]:
+                print("1")
                 if vertex == new_vertex:
                     continue
                 print("2")
