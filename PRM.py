@@ -187,6 +187,7 @@ class PRM:
             for vertex in self.vertices_by_blocks[neighbor_block]:
                 if vertex == new_vertex:
                     continue
+                print("2")
                 self.try_add_edge(new_vertex, vertex, angle_matters)
         return new_vertex
 
