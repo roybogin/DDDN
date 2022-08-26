@@ -379,7 +379,6 @@ class CarEnv:
 
         if self.count == 1:
             curr_vertex = self.prm.add_vertex(np.array(self.pos), self.swivel)
-
             self.next_vertex = self.prm.next_in_path(curr_vertex)
 
             if self.prm.distances[self.next_vertex] != np.inf:

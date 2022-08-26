@@ -34,6 +34,9 @@ map_borders = [
 seed = None  # randomness seed
 
 
+direction_per_vertex = 36
+vertices_per_block_horizontal = 2
+
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
 max_time = int(1.5e4)  # time before forcing a new maze
 print_runtime = False  # do we want to print the total time of the run
@@ -43,5 +46,5 @@ length = 0.325
 width = 0.2
 a_2 = 0.1477  # a_2 of the car
 
-generate_new_points = False
-graph_file = 'a_million.pickle'
+generate_new_points = True
+graph_file = 'grid-4-36.pickle'

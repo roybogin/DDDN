@@ -252,7 +252,7 @@ def doIntersect(p1,q1,p2,q2):
     return False
 
 def distance_between_lines(start_point1, end_point1, start_point2, end_point2):
-    if doIntersect(start_point1, end_point1, start_point2, end_point2)
+    if doIntersect(start_point1, end_point1, start_point2, end_point2):
         return 0
     return min([perpendicularDistance(start_point1, start_point2, end_point2), perpendicularDistance(end_point1, start_point2, end_point2), perpendicularDistance(start_point2, start_point1, end_point1), perpendicularDistance(end_point2, start_point1, end_point1)])
 
@@ -274,5 +274,5 @@ def perpendicularDistance(point, start_point, end_point):
     inter_x = (y - y0 + m * x0 + x / m) / (m + 1 / m)
     inter_y = y0 + m * (inter_x - x0)
     if min(x0, x1) <= inter_x <= max(x0, x1):
-        return sqrt((x - inter_x) ** 2 + (y - inter_y) ** 2)
+        return math.sqrt((x - inter_x) ** 2 + (y - inter_y) ** 2)
     return def_val

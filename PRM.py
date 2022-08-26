@@ -68,6 +68,38 @@ class WeightedGraph:
         self.e: int = 0  # amount of edges in the grapp
         self.e_counter = 0
 
+
+    def DFSUtil(self, temp, v, visited):
+ 
+        # Mark the current vertex as visited
+        visited[v] = True
+ 
+        # Store the vertex to list
+        temp.append(v)
+ 
+        # Repeat for all vertices adjacent
+        # to this vertex v
+        for e in v.edges:
+            u = e.v1
+            if u == v:
+                u = e.v2
+            if not visited[u]:
+                temp = self.DFSUtil(temp, u, visited)
+        return temp
+ 
+    # Method to retrieve connected components
+    # in an undirected graph
+    def connectedComponents(self):
+        visited = {}
+        cc = []
+        for v in self.vertices:
+            visited[v]=False
+        for v in self.vertices:
+            if not visited[v]:
+                temp = []
+                cc.append(self.DFSUtil(temp, v, visited))
+        return cc
+
     def add_vertex(self, pos: np.ndarray, theta: float, index: int = None) -> Vertex:
         """
         add a vertex to the graph
@@ -87,10 +119,6 @@ class WeightedGraph:
         vertex_1.edges.add(edge)
         vertex_2.edges.add(edge)
         self.e += 1
-        self.e_counter += 1
-        if self.e_counter == 10000:
-            print("number of edges is", self.e)
-            self.e_counter = 0
 
     def remove_vertex(self, v: Vertex):
         for edge in v.edges:
@@ -153,17 +181,35 @@ class PRM:
 
     def generate_graph(self, np_random):
         block_cnt = (self.shape[0] - 6) * (self.shape[1] - 6)
+        offset = consts.block_size / consts.vertices_per_block_horizontal
+        angle_offset = 2 * np.pi / consts.direction_per_vertex
         for row_idx in tqdm(range(3, self.shape[0] - 3)):
             for col_idx in range(3, self.shape[1] - 3):
-                count = 0
-                while count < self.sample_amount/block_cnt:
-                    x, y = np_random.rand(2) * consts.block_size
-                    theta = np_random.rand() * 2 * np.pi
-                    x += col_idx * consts.block_size - consts.size_map_quarter
-                    y += row_idx * consts.block_size - consts.size_map_quarter
-                    new_vertex = self.add_vertex(np.array([x, y]), theta, block=(row_idx, col_idx))
-                    self.vertices_by_blocks[(row_idx, col_idx)].append(new_vertex)
-                    count += 1
+            #     count = 0
+            #     while count < self.sample_amount/block_cnt:
+            #         x, y = np_random.rand(2) * consts.block_size
+            #         theta = np_random.rand() * 2 * np.pi
+            #         x += col_idx * consts.block_size - consts.size_map_quarter
+            #         y += row_idx * consts.block_size - consts.size_map_quarter
+            #         new_vertex = self.add_vertex(np.array([x, y]), theta, block=(row_idx, col_idx))
+            #         self.vertices_by_blocks[(row_idx, col_idx)].append(new_vertex)
+            #         count += 1
+            # if row_idx % 5 == 0:
+            #     with open(consts.graph_file, 'wb') as f:
+            #         pickle.dump(self, f)
+                x = offset / 2
+                for i in range(consts.vertices_per_block_horizontal):
+                    y = offset / 2
+                    for j in range(consts.vertices_per_block_horizontal):
+                        theta = 0
+                        for k in range(consts.direction_per_vertex):
+                            x_temp = x + col_idx * consts.block_size - consts.size_map_quarter + (offset/10) * np.cos(theta)
+                            y_temp = y + row_idx * consts.block_size - consts.size_map_quarter + (offset/10) * np.sin(theta)
+                            new_vertex = self.add_vertex(np.array([x_temp, y_temp]), theta, block=(row_idx, col_idx))
+                            self.vertices_by_blocks[(row_idx, col_idx)].append(new_vertex)
+                            theta += angle_offset
+                        y += offset
+                    x += offset
             if row_idx % 5 == 0:
                 with open(consts.graph_file, 'wb') as f:
                     pickle.dump(self, f)
@@ -236,6 +282,8 @@ class PRM:
     def __setstate__(self, state):
         self.__init__(state[0])
         self.graph.__setstate__(state[1])
+        for vertex in self.graph.vertices:
+            self.vertices_by_blocks[map_index_from_pos(vertex.pos)].append(vertex)
 
     def transform_pov(self, vertex_1: Vertex, vertex_2: Vertex):
         """
