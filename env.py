@@ -8,7 +8,7 @@ import pybullet as p
 import pybullet_data as pd
 from gym import spaces
 from gym.utils import seeding
-
+import time
 import PRM
 from scan_to_map import Map
 
@@ -89,7 +89,7 @@ class CarEnv:
         self.scanned_indices = None  # new indices since scan
         self.hits = None
 
-        self.prm = PRM.PRM((int((2 * consts.size_map_quarter) // consts.block_size), int((2 * consts.size_map_quarter) // consts.block_size)))
+        self.prm = PRM.PRM((int((2 * consts.size_map_quarter) // consts.vertex_offset), int((2 * consts.size_map_quarter) // consts.vertex_offset)))
 
         '''structure of an observation
                 "position": 2,
@@ -185,7 +185,7 @@ class CarEnv:
         directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
         new_map_discovered = self.discovered
         vertex_removal_radius = 2
-        edge_removal_radius = np.ceil(self.prm.res / consts.block_size)
+        edge_removal_radius = np.ceil(self.prm.res / consts.vertex_offset)
         problematic_vertices = set()
         problematic_edges = set()
         new_segments = []
@@ -260,42 +260,33 @@ class CarEnv:
 
         self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=consts.epsilon, client=p)
         self.bodies = self.borders + self.obstacles
-        self.discrete_partial_map = [[0 for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))] for _ in
-                                     range(int((2 * consts.size_map_quarter) // consts.block_size))]
-        for i in range(int((2 * consts.size_map_quarter) // consts.block_size)):
+        self.discrete_partial_map = [[0 for _ in range(int((2 * consts.size_map_quarter) // consts.vertex_offset))] for _ in
+                                     range(int((2 * consts.size_map_quarter) // consts.vertex_offset))]
+        for i in range(int((2 * consts.size_map_quarter) // consts.vertex_offset)):
             self.discrete_partial_map[i][0] = 1
             self.discrete_partial_map[0][i] = 1
-            self.discrete_partial_map[i][int((2 * consts.size_map_quarter) // consts.block_size) - 1] = 1
-            self.discrete_partial_map[int((2 * consts.size_map_quarter) // consts.block_size) - 1][i] = 1
+            self.discrete_partial_map[i][int((2 * consts.size_map_quarter) // consts.vertex_offset) - 1] = 1
+            self.discrete_partial_map[int((2 * consts.size_map_quarter) // consts.vertex_offset) - 1][i] = 1
         self.set_car_position(self.start_point)
         self.discovered = [
-            [0 for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))]
-            for _ in range(int((2 * consts.size_map_quarter) // consts.block_size))
+            [0 for _ in range(int((2 * consts.size_map_quarter) // consts.vertex_offset))]
+            for _ in range(int((2 * consts.size_map_quarter) // consts.vertex_offset))
         ]
         self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
 
         self.map_changed = True
         self.calculate_next_goal()
+        print("generating graph")
+        self.prm.generate_graph()
 
-        if consts.generate_new_points:
+        print(self.prm.graph.n, self.prm.graph.e)
 
-            print("generating graph")
-            self.prm.generate_graph(self.np_random)
-
-            print(self.prm.graph.n, self.prm.graph.e)
-
-            with open(consts.graph_file, 'wb') as f:
-                pickle.dump(self.prm, f)
-            exit(1337)
-        else:
-            print("loading graph")
-            with open(consts.graph_file, 'rb') as f:
-                self.prm = pickle.load(f)
-
-        self.end_vertex = self.prm.add_vertex(np.array(self.end_point[:2]), 0, False)
+        self.prm.set_end(np.array(self.end_point[:2]))
         print("dijkstra")
-        self.prm.dijkstra(self.end_vertex)
+        t1 = time.time()
+        self.prm.dijkstra(self.prm.end)
         print("finished dijkstra")
+        print(time.time() - t1)
 
         return self.get_observation()
 
@@ -379,6 +370,7 @@ class CarEnv:
 
         if self.count == 1:
             curr_vertex = self.prm.add_vertex(np.array(self.pos), self.swivel)
+            print(curr_vertex.edges)
             self.next_vertex = self.prm.next_in_path(curr_vertex)
 
             if self.prm.distances[self.next_vertex] != np.inf:

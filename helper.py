@@ -141,9 +141,9 @@ def map_index_from_pos(pos):
     :param pos: (x,y) pair on the map
     :return: (x, y) indices that the point is contained in
     """
-    indices = [int((value + consts.size_map_quarter) / consts.block_size) for value in pos[:2]]
+    indices = [int((value + consts.size_map_quarter) / consts.vertex_offset) for value in pos[:2]]
     # keep the return value within the wanted limits for edge cases
-    return tuple([max(0, min(idx, int((2 * consts.size_map_quarter) // consts.block_size) - 1)) for idx in indices])
+    return tuple([max(0, min(idx, int((2 * consts.size_map_quarter) // consts.vertex_offset) - 1)) for idx in indices])
 
 
 def pos_from_map_index(block_index):
@@ -152,7 +152,7 @@ def pos_from_map_index(block_index):
     :param block_index: index of block in the matrix (2 dimensional)
     :return: (x, y) pair to mark the position in the map
     """
-    return [consts.block_size * (value + 0.5) - consts.size_map_quarter for value in block_index]
+    return [consts.vertex_offset * (value + 0.5) - consts.size_map_quarter for value in block_index]
 
 
 def block_options(index, radius, map_shape, only_positives=False):
@@ -250,6 +250,7 @@ def doIntersect(p1,q1,p2,q2):
   
     # If none of the cases
     return False
+
 
 def distance_between_lines(start_point1, end_point1, start_point2, end_point2):
     if doIntersect(start_point1, end_point1, start_point2, end_point2):

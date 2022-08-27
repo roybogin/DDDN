@@ -5,9 +5,7 @@ from typing import Set, Tuple
 import numpy as np
 from tqdm import tqdm
 
-import pickle
 import consts
-import scan_to_map
 from helper import dist, map_index_from_pos, block_options
 
 
@@ -29,6 +27,9 @@ class Vertex:
         self.theta: float = theta  # angle if the car
         self.edges: Set[Edge] = set()  # the corresponding edges in the graph
         self.index = index
+
+    def __lt__(self, other):
+        return self.index < other.index
 
     def __getstate__(self):
         neighbors = []
@@ -149,23 +150,23 @@ class PRM:
         self.graph = WeightedGraph()
         self.shape = shape
         self.vertices = []
-        offset = consts.block_size
+        self.end = None
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         for _ in range(shape[0]):
             self.vertices.append([])
             for _ in range(shape[1]):
                 self.vertices[-1].append([])
-        x_temp = offset / 2 + consts.amount_blocks_from_edge * offset
-        for row_idx in tqdm(range(consts.amount_blocks_from_edge, self.shape[0] - consts.amount_blocks_from_edge)):
-            y_temp = offset / 2 + consts.amount_blocks_from_edge * offset
-            for col_idx in range(consts.amount_blocks_from_edge, self.shape[1] - consts.amount_blocks_from_edge):
+        x_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset
+        for row_idx in tqdm(range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge)):
+            y_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset
+            for col_idx in range(consts.amount_vertices_from_edge, self.shape[1] - consts.amount_vertices_from_edge):
                 theta_temp = 0
                 for angle_idx in range(consts.directions_per_vertex):
                     new_vertex = self.graph.add_vertex(np.array([x_temp, y_temp]), theta_temp)
                     self.vertices[row_idx][col_idx].append(new_vertex)
                     theta_temp += angle_offset
-                y_temp += offset
-            x_temp += offset
+                y_temp += consts.vertex_offset
+            x_temp += consts.vertex_offset
         self.max_angle_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
         self.res = 0.9 * np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
         # resolution of the path planner
@@ -191,55 +192,50 @@ class PRM:
         if y_tag == 0:
             return 0
         to_root = self.radius_x_y_squared(x_tag, y_tag) - (consts.a_2 ** 2)
+        if to_root == 0:
+            return np.sign(y_tag) * np.pi / 2
         val = consts.a_2 / np.sqrt(to_root)
         return np.sign(y_tag) * np.arctan(val)
 
     def possible_edges(self):
         ret = []
-        x = consts.size_map_quarter / consts.block_size
+        x = int(consts.size_map_quarter / consts.vertex_offset)
         y = x
+        angle_offset = 2 * np.pi / consts.directions_per_vertex
         block = np.array([x, y])
         for theta in range(consts.directions_per_vertex):
             ret.append([])
             v = self.vertices[x][y][theta]
-            for neighbor_block in block_options(block, np.ceil(self.res / consts.block_size), self.shape):
+            for neighbor_block in block_options(block, np.ceil(self.res / consts.vertex_offset), self.shape):
                 for u in self.vertices[neighbor_block[0]][neighbor_block[1]]:
-                    if all(v.pos == u.pos):
+                    weight = dist(v.pos, u.pos)
+                    if weight == 0:
                         continue
-                weight = dist(v.pos, u.pos)
-                if weight <= self.res:
-                    transformed = self.transform_pov(v, u)  # show v_2 from POV of v_1
-                    x_tag, y_tag = transformed[0][0], transformed[0][1]
-                    differential_theta = self.theta_curve(x_tag, y_tag)
-                    if abs(differential_theta - transformed[1]) < self.tol:
-                        if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
-                            ret[-1].append((u.pos[0] - v.pos[0], u.pos[1] - v.pos[1], u.theta - v.theta))
+                    if weight <= self.res:
+                        transformed = self.transform_pov(v, u)
+                        x_tag, y_tag = transformed[0][0], transformed[0][1]
+                        differential_theta = self.theta_curve(x_tag, y_tag)
+                        if abs(differential_theta - transformed[1]) < self.tol:
+                            if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
+                                ret[-1].append((int((u.pos[0] - v.pos[0])/consts.vertex_offset), int((u.pos[1] - v.pos[1])/consts.vertex_offset), int((u.theta - v.theta)/angle_offset)))
         return ret
 
     def generate_graph(self):
-        offset = consts.block_size / consts.vertices_per_block_horizontal
-        angle_offset = 2 * np.pi / consts.directions_per_vertex
-        for row_idx in tqdm(range(3, self.shape[0] - 3)):
-            for col_idx in range(3, self.shape[1] - 3):
-                x = offset / 2
-                for i in range(consts.vertices_per_block_horizontal):
-                    y = offset / 2
-                    for j in range(consts.vertices_per_block_horizontal):
-                        theta = 0
-                        for k in range(consts.directions_per_vertex):
-                            x_temp = x + col_idx * consts.block_size - consts.size_map_quarter + (offset/10) * np.cos(theta)
-                            y_temp = y + row_idx * consts.block_size - consts.size_map_quarter + (offset/10) * np.sin(theta)
-                            new_vertex = self.add_vertex(np.array([x_temp, y_temp]), theta, block=(row_idx, col_idx))
-                            self.vertices_by_blocks[(row_idx, col_idx)].append(new_vertex)
-                            theta += angle_offset
-                        y += offset
-                    x += offset
-            if row_idx % 5 == 0:
-                with open(consts.graph_file, 'wb') as f:
-                    pickle.dump(self, f)
+        to_add = self.possible_edges()
+        for theta, angle in tqdm(enumerate(to_add)):
+            for diff in angle:
+                for x in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
+                    for y in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
+                        if consts.amount_vertices_from_edge <= x+diff[0] < self.shape[0] - consts.amount_vertices_from_edge and consts.amount_vertices_from_edge <= y + diff[1] < self.shape[1] - consts.amount_vertices_from_edge:
+                            v1 = self.vertices[x][y][theta]
+                            v2 = self.vertices[x+diff[0]][y+diff[1]][(theta+diff[2]) % consts.directions_per_vertex]
+                            weight = dist(v1.pos, v2.pos)
+                            self.graph.add_edge(v1, v2, weight)
 
     def try_add_edge(self, v_1: Vertex, v_2: Vertex, angle_matters: bool = True):
         weight = dist(v_1.pos, v_2.pos)
+        if weight == 0 and angle_matters:
+            return
         if weight <= self.res:
             transformed = self.transform_pov(v_1, v_2)  # show v_2 from POV of v_1
             x_tag, y_tag = transformed[0][0], transformed[0][1]
@@ -256,12 +252,16 @@ class PRM:
         new_vertex = self.graph.add_vertex(pos, theta)
         if block is None:
             block = map_index_from_pos(pos)
-        for neighbor_block in block_options(block, np.ceil(self.res / consts.block_size), self.shape):
-            for vertex in self.vertices_by_blocks[neighbor_block]:
-                if vertex == new_vertex:
-                    continue
+        for neighbor_block in block_options(block, np.ceil(self.res / consts.vertex_offset), self.shape):
+            for vertex in self.vertices[neighbor_block[0]][neighbor_block[1]]:
                 self.try_add_edge(new_vertex, vertex, angle_matters)
         return new_vertex
+
+    def set_end(self, pos):
+        index = map_index_from_pos(pos)
+        self.end = self.graph.add_vertex(pos, 0, index)
+        for v in self.vertices[index[0]][index[1]]:
+            self.graph.add_edge(self.end, v, 0)
 
     def dijkstra(self, root: Vertex):
         self.distances[root] = 0
