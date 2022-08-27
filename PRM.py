@@ -146,11 +146,26 @@ class WeightedGraph:
 class PRM:
     def __init__(self, shape):
 
-        self.sample_amount = 7e5
         self.graph = WeightedGraph()
         self.shape = shape
-        self.vertices_by_blocks = defaultdict(lambda: [])
-
+        self.vertices = []
+        offset = consts.block_size
+        angle_offset = 2 * np.pi / consts.directions_per_vertex
+        for _ in range(shape[0]):
+            self.vertices.append([])
+            for _ in range(shape[1]):
+                self.vertices[-1].append([])
+        x_temp = offset / 2 + consts.amount_blocks_from_edge * offset
+        for row_idx in tqdm(range(consts.amount_blocks_from_edge, self.shape[0] - consts.amount_blocks_from_edge)):
+            y_temp = offset / 2 + consts.amount_blocks_from_edge * offset
+            for col_idx in range(consts.amount_blocks_from_edge, self.shape[1] - consts.amount_blocks_from_edge):
+                theta_temp = 0
+                for angle_idx in range(consts.directions_per_vertex):
+                    new_vertex = self.graph.add_vertex(np.array([x_temp, y_temp]), theta_temp)
+                    self.vertices[row_idx][col_idx].append(new_vertex)
+                    theta_temp += angle_offset
+                y_temp += offset
+            x_temp += offset
         self.max_angle_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
         self.res = 0.9 * np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
         # resolution of the path planner
@@ -179,30 +194,39 @@ class PRM:
         val = consts.a_2 / np.sqrt(to_root)
         return np.sign(y_tag) * np.arctan(val)
 
-    def generate_graph(self, np_random):
-        block_cnt = (self.shape[0] - 6) * (self.shape[1] - 6)
+    def possible_edges(self):
+        ret = []
+        x = consts.size_map_quarter / consts.block_size
+        y = x
+        block = np.array([x, y])
+        for theta in range(consts.directions_per_vertex):
+            ret.append([])
+            v = self.vertices[x][y][theta]
+            for neighbor_block in block_options(block, np.ceil(self.res / consts.block_size), self.shape):
+                for u in self.vertices[neighbor_block[0]][neighbor_block[1]]:
+                    if all(v.pos == u.pos):
+                        continue
+                weight = dist(v.pos, u.pos)
+                if weight <= self.res:
+                    transformed = self.transform_pov(v, u)  # show v_2 from POV of v_1
+                    x_tag, y_tag = transformed[0][0], transformed[0][1]
+                    differential_theta = self.theta_curve(x_tag, y_tag)
+                    if abs(differential_theta - transformed[1]) < self.tol:
+                        if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
+                            ret[-1].append((u.pos[0] - v.pos[0], u.pos[1] - v.pos[1], u.theta - v.theta))
+        return ret
+
+    def generate_graph(self):
         offset = consts.block_size / consts.vertices_per_block_horizontal
-        angle_offset = 2 * np.pi / consts.direction_per_vertex
+        angle_offset = 2 * np.pi / consts.directions_per_vertex
         for row_idx in tqdm(range(3, self.shape[0] - 3)):
             for col_idx in range(3, self.shape[1] - 3):
-            #     count = 0
-            #     while count < self.sample_amount/block_cnt:
-            #         x, y = np_random.rand(2) * consts.block_size
-            #         theta = np_random.rand() * 2 * np.pi
-            #         x += col_idx * consts.block_size - consts.size_map_quarter
-            #         y += row_idx * consts.block_size - consts.size_map_quarter
-            #         new_vertex = self.add_vertex(np.array([x, y]), theta, block=(row_idx, col_idx))
-            #         self.vertices_by_blocks[(row_idx, col_idx)].append(new_vertex)
-            #         count += 1
-            # if row_idx % 5 == 0:
-            #     with open(consts.graph_file, 'wb') as f:
-            #         pickle.dump(self, f)
                 x = offset / 2
                 for i in range(consts.vertices_per_block_horizontal):
                     y = offset / 2
                     for j in range(consts.vertices_per_block_horizontal):
                         theta = 0
-                        for k in range(consts.direction_per_vertex):
+                        for k in range(consts.directions_per_vertex):
                             x_temp = x + col_idx * consts.block_size - consts.size_map_quarter + (offset/10) * np.cos(theta)
                             y_temp = y + row_idx * consts.block_size - consts.size_map_quarter + (offset/10) * np.sin(theta)
                             new_vertex = self.add_vertex(np.array([x_temp, y_temp]), theta, block=(row_idx, col_idx))

@@ -22,7 +22,7 @@ min_dist_to_target = 0.5  # distance from target that is treated as success
 ray_length = 5  # length of ray
 ray_amount = 6
 size_map_quarter = 10
-block_size = 0.2
+block_size = 0.1
 map_borders = [
     (size_map_quarter, size_map_quarter),
     (size_map_quarter, -size_map_quarter),
@@ -34,13 +34,12 @@ map_borders = [
 seed = None  # randomness seed
 
 
-direction_per_vertex = 36
-vertices_per_block_horizontal = 2
+directions_per_vertex = 36
+amount_blocks_from_edge = 3
 
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
 max_time = int(1.5e4)  # time before forcing a new maze
 print_runtime = False  # do we want to print the total time of the run
-
 
 length = 0.325
 width = 0.2
