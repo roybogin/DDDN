@@ -4,9 +4,11 @@ import numpy as np
 from matplotlib.patches import Rectangle, Circle
 from helper import perpendicularDistance
 import consts
+from PRM import Vertex
 
 SAMPLE_DIST = 0.8
 testing = True
+
 
 class Map:
     # map is a list of segments, the obstacles
@@ -23,14 +25,20 @@ class Map:
             self.number_of_segment = []
 
     def show(self):
+        """
+        a function to draw the current map,
+        used for debuging and demos
+        """
         segments = self.segment_representation()
-        # we can find the left,bottom point with two lines of length epsilon, one going from x1y1 in on the line, and one perpendicular to it.
+        # we can find the left,bottom point with two lines of length epsilon,
+        # one going from x1y1 in on the line, and one perpendicular to it.
         # should be a bit more accurate
 
         # define Matplotlib figure and axis
         fig, ax = plt.subplots()
         plt.axis([-self.size, self.size, -self.size, self.size])
 
+        # add a rectangle for each segment:
         for segment in segments:
             x1 = segment[0][0]
             x2 = segment[1][0]
@@ -61,57 +69,82 @@ class Map:
                         theta * 180 / np.pi,
                     )
                 )
-        # drawing the scan points:
+        # drawing the end_points of each segment:
         for segment in self.new_segments:
             for point in segment:
                 ax.add_patch(Circle(point, 0.05, color="r"))
 
-        # print("number of segments  = ", len(self.segment_representation()))
         self.number_of_segment.append(len(self.segment_representation()))
         plt.show()
         ax.cla()
 
-        # plt.plot(
-        #     [i + 1 for i in range(len(self.number_of_segment))], self.number_of_segment
-        # )
-        # print("number of segments after each addition = ", self.number_of_segment)
-        # plt.show()
-        # if testing:
-        #     print("avrage distance =", sum(self.distances) / len(self.distances))
-        #     plt.hist(self.distances)
-        #     plt.show()
-
         return
 
     def check_batch(self, points):
+        """
+        checks if the batch of points representing the car might colide with some segment in the map.
+
+        :param points: the list of points which is the car.
+        :return: True if none of the points are too close to an obstacle.
+        """
         segment_representation = self.segment_representation()
         for point in points:
             for segment in segment_representation:
-                if perpendicularDistance(point, segment[0], segment[1]) < consts.epsilon:
+                if (
+                    perpendicularDistance(point, segment[0], segment[1])
+                    < consts.epsilon
+                ):
                     return False
         return True
 
-    def check_state(self, x: float, y: float, theta: float, num_sample_car=10):
+    def check_state(self, vertex: Vertex, num_sample_car=2):
+        """
+        the code used to check which vertecies we need to remove from the PRM graph.
+        the car is split into evenly num_sample_car^2 points,
+        and checks if any of them is too close to an obstacle on the map.
+
+        :param vertex: the position vertex of the car.
+        :param num_sample_car: the number of vertecies to represent the car's position.
+        :return: True if the state is valid with the current map.
+        """
         to_check = []
         for i in range(num_sample_car):
             for j in range(num_sample_car):
                 x_temp = consts.length * (-1 / 2 + i / (num_sample_car - 1))
-                y_temp = consts.width * (- 1 / 2 + j / (num_sample_car - 1))
+                y_temp = consts.width * (-1 / 2 + j / (num_sample_car - 1))
                 to_check.append(
-                    (x + x_temp * np.cos(theta) - y_temp * np.sin(theta),
-                     y + x_temp * np.sin(theta) + y_temp * np.cos(theta)))
+                    (
+                        vertex.pos[0]
+                        + x_temp * np.cos(vertex.theta)
+                        - y_temp * np.sin(vertex.theta),
+                        vertex.pos[1]
+                        + x_temp * np.sin(vertex.theta)
+                        + y_temp * np.cos(vertex.theta),
+                    )
+                )
         return self.check_batch(to_check)
 
     def add_points_to_map(self, points):
+        """
+        given a list of scan points, add new segments to the map.
+        the new segments are an approximation of the true obstacles.
+
+        :param points: the points to add.
+        """
         new_points = []
         if testing:
             self.points += points
             self.new_segments = []
         segment_representation = self.segment_representation()
+
+        # filtering the points we don't need to add.
         for point in points:
             should_add = True
             for segment in segment_representation:
-                if perpendicularDistance(point, segment[0], segment[1]) < consts.epsilon:
+                if (
+                    perpendicularDistance(point, segment[0], segment[1])
+                    < consts.epsilon
+                ):
                     should_add = False
             if should_add:
                 new_points.append(point)
@@ -120,11 +153,13 @@ class Map:
             new_points = points
         if len(new_points) == 0:
             return
+
         # dividing the points into segments (for when the samples come from 2 diffrent obstacles):
         segment_to_add = [new_points[0]]
         for i in range(len(new_points) - 1):
             if testing:
                 self.distances.append(dist(new_points[i], new_points[i + 1]))
+            # if the next point is too far away, start a new segment
             if dist(new_points[i], new_points[i + 1]) > SAMPLE_DIST:
                 new_segment = self.points_to_line(segment_to_add)
                 self.new_segments.append(segment_to_add)
@@ -137,6 +172,9 @@ class Map:
         self.add(new_segment)
 
     def segment_representation(self):
+        """
+        returns a list of all of the segments in the map.
+        """
         segments = []
         for i in range(len(self.map)):
             for j in range(1, len((self.map[i]))):
@@ -145,12 +183,20 @@ class Map:
         return segments
 
     def map_length(self):
+        """
+        returns the cumulative length of the map
+        #not_used
+        """
         total_length = 0
         for segment in self.segment_representation():
             total_length += dist(segment[0], segment[1])
         return total_length
 
     def segment_representation_as_points(self):
+        """
+        should probably be deleted, not sure how this gives something better then segment_representation
+        #not_used
+        """
         segments = ()
         for i in range(len(self.map)):
             for j in range(1, len((self.map[i]))):
@@ -160,6 +206,9 @@ class Map:
         return segments
 
     def __str__(self):
+        """
+        :return: a string representation of the map
+        """
         out = ""
         for i in range(len(self.map)):
             out += self.polygonal_chain_to_str(self.map[i])
@@ -167,6 +216,11 @@ class Map:
         return out
 
     def polygonal_chain_to_str(self, list_of_points):
+        """
+        a helper function to __str__
+        :param list_of_points: list of points to get the string representation of
+        :return: string representation of the list 
+        """
         string = "["
         for i in range(len(list_of_points)):
             string += (
@@ -175,17 +229,27 @@ class Map:
         string += "]"
         return string
 
-    # given a polygonal chain, adds it to map
-    # assumes points are given in order of the polygonal chain
+    #
     def add(self, chain):
+        """
+        given a polygonal chain, adds it to map
+        assumes points are given in order of the polygonal chain
+        """
         self.map.append(chain)
 
-    # remove the chain from map, if it is in the map
     def remove(self, chain):
+        """
+        remove the chain from map, if it is in the map
+        #not_used
+        """
         self.map.remove(chain)
 
     def points_to_line(self, points):
-        # Find the point with the maximum distance
+        """
+        an implementation of the Ramer–Douglas–Peucker algorithm
+        to make a set of points into a polygonal chain.
+        """
+        # Find the point with the maximum distance from the line from the first and last points.
         dmax = 0
         index = 0
         end = len(points)
@@ -210,13 +274,20 @@ class Map:
         return result
 
 
-def euler_length(point1, point2):
+def euler_dist(point1, point2):
+    """
+    :return: the l2 distance between point1 and point2
+    #not_used
+    """
     x1, y1 = point1
     x2, y2 = point2
     return sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
 
 def dist(point1, point2):
+    """
+    :return: the l2 distance between point1 and point2
+    """
     return sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
 
