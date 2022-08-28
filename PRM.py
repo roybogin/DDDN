@@ -269,7 +269,7 @@ class PRM:
 
     def set_end(self, pos):
         index = map_index_from_pos(pos)
-        self.end = self.graph.add_vertex(pos, 0, index)
+        self.end = self.graph.add_vertex(self.vertices[index[0]][index[1]][0].pos, 0)
         for v in self.vertices[index[0]][index[1]]:
             self.graph.add_edge(self.end, v, 0)
 
