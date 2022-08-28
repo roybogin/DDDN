@@ -50,6 +50,7 @@ def add_discovered_matrix(discovered_matrix, start, end):
 class CarEnv:
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
+        self.current_vertex = None
         self.next_vertex = None
         self.count = None
         self.end_vertex = None
@@ -205,14 +206,14 @@ class CarEnv:
                     for segment in new:
                         for point in segment:
                             for block in block_options(map_index_from_pos(point),vertex_removal_radius, np.shape(self.discovered)):
-                                for vertex in self.prm.vertices_by_blocks[block]:
-                                    if not self.segments_partial_map.check_state(vertex.pos[0], vertex.pos[1], vertex.theta):
+                                for vertex in self.prm.vertices[block[0]][block[1]]:
+                                    if not self.segments_partial_map.check_state(vertex):
                                         self.prm.graph.remove_vertex(vertex)
             self.new_discovered = add_discovered_matrix(new_map_discovered, start, end)
         for segment in new_segments:
             for point in segment:
                 for block in block_options(map_index_from_pos(point), edge_removal_radius, np.shape(self.discovered)):
-                    problematic_vertices.update(self.prm.vertices_by_blocks[block])
+                    problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
 
         for vertex in problematic_vertices:
             for edge in vertex.edges:
@@ -223,8 +224,14 @@ class CarEnv:
             for i in range(len(segment) - 1):
                 for edge in problematic_edges:
                     if distance_between_lines(segment[i], segment[i+1], edge.v1.pos, edge.v2.pos) < consts.width + 2 * consts.epsilon:
-                        edge.v1.edges.remove(edge.v2)
-                        edge.v2.edges.remove(edge.v1)
+                        try:
+                            edge.v1.edges.remove(edge.v2)
+                        except:
+                            pass
+                        try:
+                            edge.v2.edges.remove(edge.v1)
+                        except:
+                            pass
                         self.prm.graph.e -= 1
 
         self.discovered = new_map_discovered
@@ -285,9 +292,10 @@ class CarEnv:
         print("dijkstra")
         t1 = time.time()
         self.prm.dijkstra(self.prm.end)
+        print(len([v for v in self.prm.graph.vertices if self.prm.distances[v] == np.inf]))
         print("finished dijkstra")
         print(time.time() - t1)
-
+        self.current_vertex = self.prm.get_closest_vertex(self.pos, self.swivel)
         return self.get_observation()
 
     def ray_cast(self, car, offset, direction):
@@ -366,25 +374,19 @@ class CarEnv:
         if self.count % 200 == 0 or dist(np.array(self.pos[:2]), self.next_vertex.pos) <= 0.05:
             self.count = 0
         self.count += 1
-
-
         if self.count == 1:
-            curr_vertex = self.prm.add_vertex(np.array(self.pos), self.swivel)
-            print(curr_vertex.edges)
-            self.next_vertex = self.prm.next_in_path(curr_vertex)
+            self.next_vertex = self.prm.next_in_path(self.pos, self.rotation)
+            print(self.next_vertex.pos, self.next_vertex.theta, self.prm.distances[self.next_vertex])
+            if not self.next_vertex:
+                self.next_vertex = self.current_vertex
+            else:
+                self.current_vertex = self.prm.get_closest_vertex(self.pos, self.rotation)
 
-            if self.prm.distances[self.next_vertex] != np.inf:
-                next_edge = random.choice(tuple(curr_vertex.edges))
-                self.next_vertex = next_edge.v1
-                if self.next_vertex == curr_vertex:
-                    self.next_vertex = next_edge.v2
-
-        transformed = self.prm.transform_by_values(np.array(self.pos[:2]), self.swivel, self.next_vertex)
+        transformed = self.prm.transform_by_values(np.array(self.pos[:2]), self.rotation, self.next_vertex)
         x_tag, y_tag = transformed[0][0], transformed[0][1]
         differential_theta = self.prm.theta_curve(x_tag, y_tag)
 
         action = [np.sign(x_tag) * 0.5, differential_theta]
-        print(action, self.pos)
 
         # updating target velocity and steering angle
         wanted_speed = action[0] * consts.max_velocity

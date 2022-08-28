@@ -126,8 +126,14 @@ class WeightedGraph:
             other_vertex = edge.v1
             if v == other_vertex:
                 other_vertex = edge.v2
-            other_vertex.edges.remove(edge)
-        self.vertices.remove(v)
+            try:
+                other_vertex.edges.remove(edge)
+            except:
+                pass
+        try:
+            self.vertices.remove(v)
+        except:
+                pass
         self.n -= 1
 
     def __getstate__(self):
@@ -156,9 +162,9 @@ class PRM:
             self.vertices.append([])
             for _ in range(shape[1]):
                 self.vertices[-1].append([])
-        x_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset
+        x_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset - consts.size_map_quarter
         for row_idx in tqdm(range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge)):
-            y_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset
+            y_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset - consts.size_map_quarter
             for col_idx in range(consts.amount_vertices_from_edge, self.shape[1] - consts.amount_vertices_from_edge):
                 theta_temp = 0
                 for angle_idx in range(consts.directions_per_vertex):
@@ -197,31 +203,33 @@ class PRM:
         val = consts.a_2 / np.sqrt(to_root)
         return np.sign(y_tag) * np.arctan(val)
 
-    def possible_edges(self):
+    def possible_offsets_angle(self, pos: np.ndarray, angle: int):
         ret = []
-        x = int(consts.size_map_quarter / consts.vertex_offset)
-        y = x
+        block = map_index_from_pos(pos)
         angle_offset = 2 * np.pi / consts.directions_per_vertex
-        block = np.array([x, y])
+        v = self.vertices[block[0]][block[1]][angle]
+        for neighbor_block in block_options(block, np.ceil(self.res / consts.vertex_offset), self.shape):
+            for u in self.vertices[neighbor_block[0]][neighbor_block[1]]:
+                weight = dist(v.pos, u.pos)
+                if weight == 0:
+                    continue
+                if weight <= self.res:
+                    transformed = self.transform_pov(v, u)
+                    x_tag, y_tag = transformed[0][0], transformed[0][1]
+                    differential_theta = self.theta_curve(x_tag, y_tag)
+                    if abs(differential_theta - transformed[1]) < self.tol:
+                        if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
+                            ret.append((int((u.pos[0] - v.pos[0])/consts.vertex_offset), int((u.pos[1] - v.pos[1])/consts.vertex_offset), int((u.theta - v.theta)/angle_offset)))
+        return ret
+
+    def possible_offsets(self, pos: np.ndarray):
+        ret = []
         for theta in range(consts.directions_per_vertex):
-            ret.append([])
-            v = self.vertices[x][y][theta]
-            for neighbor_block in block_options(block, np.ceil(self.res / consts.vertex_offset), self.shape):
-                for u in self.vertices[neighbor_block[0]][neighbor_block[1]]:
-                    weight = dist(v.pos, u.pos)
-                    if weight == 0:
-                        continue
-                    if weight <= self.res:
-                        transformed = self.transform_pov(v, u)
-                        x_tag, y_tag = transformed[0][0], transformed[0][1]
-                        differential_theta = self.theta_curve(x_tag, y_tag)
-                        if abs(differential_theta - transformed[1]) < self.tol:
-                            if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
-                                ret[-1].append((int((u.pos[0] - v.pos[0])/consts.vertex_offset), int((u.pos[1] - v.pos[1])/consts.vertex_offset), int((u.theta - v.theta)/angle_offset)))
+            ret.append(self.possible_offsets_angle(pos, theta))
         return ret
 
     def generate_graph(self):
-        to_add = self.possible_edges()
+        to_add = self.possible_offsets(np.array([0, 0]))
         for theta, angle in tqdm(enumerate(to_add)):
             for diff in angle:
                 for x in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
@@ -232,6 +240,7 @@ class PRM:
                             weight = dist(v1.pos, v2.pos)
                             self.graph.add_edge(v1, v2, weight)
 
+    # TODO: possibly remove, not needed
     def try_add_edge(self, v_1: Vertex, v_2: Vertex, angle_matters: bool = True):
         weight = dist(v_1.pos, v_2.pos)
         if weight == 0 and angle_matters:
@@ -244,6 +253,7 @@ class PRM:
                 if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
                     self.graph.add_edge(v_1, v_2, weight)
 
+    # TODO: possibly remove, not needed
     def add_vertex(self, pos: np.ndarray, theta: float, angle_matters: bool = True, block: Tuple[int, int] = None) -> \
             Vertex:
         """
@@ -284,20 +294,29 @@ class PRM:
                     dist_v = dist_u_weight
                     heapq.heappush(pq, (dist_v, v))
 
-    def next_in_path(self, root: Vertex):
-        min_dist = self.distances[root]
-        best_neighbor = None
-        for edge in root.edges:
-            weight = edge.weight
-            v = edge.v1
-            if v == root:
-                v = edge.v2
+    def get_closest_vertex(self, pos: np.ndarray, theta: float):
+        block = map_index_from_pos(pos)
+        angle_offset = 2 * np.pi / consts.directions_per_vertex
+        angle = round(theta / angle_offset)
+        return self.vertices[block[0]][block[1]][angle]
 
-            dist_v = self.distances[v] + weight
+    def next_in_path(self, pos: np.ndarray, theta: float):
+        block = map_index_from_pos(pos)
+        min_dist = np.inf
+        best_neighbor = None
+        angle_offset = 2 * np.pi / consts.directions_per_vertex
+        angle = round(theta / angle_offset)
+        offsets = self.possible_offsets_angle(pos, angle)
+        for offset in offsets:
+            if consts.amount_vertices_from_edge <= block[0]+offset[0] < self.shape[0] - consts.amount_vertices_from_edge and consts.amount_vertices_from_edge <= block[1] + offset[1] < self.shape[1] - consts.amount_vertices_from_edge:
+                v2 = self.vertices[block[0]+offset[0]][block[1]+offset[1]][(angle+offset[2]) % consts.directions_per_vertex]
+            else:
+                continue
+            weight = dist(pos, v2.pos)
+            dist_v = self.distances[v2] + weight
             if dist_v <= min_dist:
                 min_dist = dist_v
-                best_neighbor = v
-        self.distances[root] = min_dist
+                best_neighbor = v2
         return best_neighbor
 
     def __getstate__(self):
