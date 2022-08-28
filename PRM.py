@@ -306,17 +306,15 @@ class PRM:
         best_neighbor = None
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(theta / angle_offset)
-        offsets = self.possible_offsets_angle(pos, angle)
-        for offset in offsets:
-            if consts.amount_vertices_from_edge <= block[0]+offset[0] < self.shape[0] - consts.amount_vertices_from_edge and consts.amount_vertices_from_edge <= block[1] + offset[1] < self.shape[1] - consts.amount_vertices_from_edge:
-                v2 = self.vertices[block[0]+offset[0]][block[1]+offset[1]][(angle+offset[2]) % consts.directions_per_vertex]
-            else:
-                continue
-            weight = dist(pos, v2.pos)
-            dist_v = self.distances[v2] + weight
+        vertex = self.vertices[block[0]][block[1]][angle]
+        for edge in vertex.edges:
+            u = edge.v1
+            if u == vertex:
+                u = edge.v2
+            dist_v = self.distances[u] + edge.weight
             if dist_v <= min_dist:
                 min_dist = dist_v
-                best_neighbor = v2
+                best_neighbor = u
         return best_neighbor
 
     def __getstate__(self):

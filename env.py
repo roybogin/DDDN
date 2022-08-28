@@ -185,7 +185,7 @@ class CarEnv:
         """
         directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
         new_map_discovered = self.discovered
-        vertex_removal_radius = 2
+        vertex_removal_radius = math.ceil(0.4 / consts.vertex_offset)
         edge_removal_radius = np.ceil(self.prm.res / consts.vertex_offset)
         problematic_vertices = set()
         problematic_edges = set()
@@ -296,6 +296,7 @@ class CarEnv:
         print("finished dijkstra")
         print(time.time() - t1)
         self.current_vertex = self.prm.get_closest_vertex(self.pos, self.swivel)
+        self.next_vertex = self.current_vertex
         return self.get_observation()
 
     def ray_cast(self, car, offset, direction):
@@ -372,10 +373,12 @@ class CarEnv:
             print(self.run_time)
 
         if self.count % 200 == 0 or dist(np.array(self.pos[:2]), self.next_vertex.pos) <= 0.05:
+            if self.next_vertex and dist(np.array(self.pos[:2]), self.next_vertex.pos) <= 0.05:
+                print("got to", self.next_vertex.pos, self.next_vertex.theta)
             self.count = 0
         self.count += 1
         if self.count == 1:
-            self.next_vertex = self.prm.next_in_path(self.pos, self.rotation)
+            self.next_vertex = self.prm.next_in_path(self.next_vertex.pos, self.next_vertex.theta)
             print(self.next_vertex.pos, self.next_vertex.theta, self.prm.distances[self.next_vertex])
             if not self.next_vertex:
                 self.next_vertex = self.current_vertex
