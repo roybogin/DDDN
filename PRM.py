@@ -1,6 +1,6 @@
 import heapq
 from collections import defaultdict
-from typing import Set, Tuple, List
+from typing import Set, Tuple, List, Dict
 
 import numpy as np
 from tqdm import tqdm
@@ -177,7 +177,7 @@ class PRM:
         self.res = 0.9 * np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
         # resolution of the path planner
         self.tol = 0.02  # tolerance of the path planner
-        self.distances = defaultdict(lambda: np.inf)
+        self.distances: Dict[Vertex, Tuple[float, Vertex]] = defaultdict(lambda: (np.inf, None))
 
     def radius_delta(self, delta: float):
         if np.tan(delta) == 0:
@@ -274,11 +274,12 @@ class PRM:
             self.graph.add_edge(self.end, v, 0)
 
     def dijkstra(self, root: Vertex):
-        self.distances[root] = 0
+        self.distances[root] = (0, root)
         visited = {v: False for v in self.graph.vertices}
-        pq = [(0, root)]
+        pq = [(0.0, root)]
         while len(pq) > 0:
             _, u = heapq.heappop(pq)
+            dist_u = self.distances[u][0]
             if visited[u]:
                 continue
             visited[u] = True
@@ -287,11 +288,10 @@ class PRM:
                 v = edge.v1
                 if v == u:
                     v = edge.v2
-                dist_u_weight = self.distances[u] + weight
-                dist_v = self.distances[v]
-                if dist_u_weight < dist_v:
-                    self.distances[v] = dist_u_weight
-                    dist_v = dist_u_weight
+                dist_v = self.distances[v][0]
+                if dist_u + weight < dist_v:
+                    self.distances[v] = (dist_u + weight, u)
+                    dist_v = dist_u + weight
                     heapq.heappush(pq, (dist_v, v))
 
     def get_closest_vertex(self, pos: np.ndarray, theta: float):
@@ -302,20 +302,10 @@ class PRM:
 
     def next_in_path(self, pos: np.ndarray, theta: float):
         block = map_index_from_pos(pos)
-        min_dist = np.inf
-        best_neighbor = None
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(theta / angle_offset)
         vertex = self.vertices[block[0]][block[1]][angle]
-        for edge in vertex.edges:
-            u = edge.v1
-            if u == vertex:
-                u = edge.v2
-            dist_v = self.distances[u] + edge.weight
-            if dist_v <= min_dist:
-                min_dist = dist_v
-                best_neighbor = u
-        return best_neighbor
+        return self.distances[vertex][1]
 
     def __getstate__(self):
         return self.shape, self.graph.__getstate__()

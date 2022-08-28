@@ -92,6 +92,8 @@ class CarEnv:
 
         self.prm = PRM.PRM((int((2 * consts.size_map_quarter) // consts.vertex_offset), int((2 * consts.size_map_quarter) // consts.vertex_offset)))
 
+        self.generate_graph()
+
         '''structure of an observation
                 "position": 2,
                 "goal": 2,
@@ -125,9 +127,28 @@ class CarEnv:
         self.steering = None  # pybullet ID of the wheels for steering
         self.obstacles = []  # list of obstacle IDs in pybullet
         self.bodies = []  # list of all collision body IDs in pybullet
-        self.start_env()
         self.seed(seed)
+        self.maze, self.end_point, self.start_point = self.get_new_maze()
+
+        self.prm.set_end(np.array(self.end_point[:2]))
+        print("dijkstra")
+        t1 = time.time()
+        self.prm.dijkstra(self.prm.end)
+        print(time.time() - t1)
+        print("finished dijkstra")
+
+        print(len([v for v in self.prm.graph.vertices if self.prm.distances[v] == np.inf]))
+        self.current_vertex = self.prm.get_closest_vertex(np.array(self.start_point[:2]), 0)
+        self.next_vertex = None
+
+        self.start_env()
         self.reset()
+
+    def generate_graph(self):
+        print("generating graph")
+        self.prm.generate_graph()
+
+        print(self.prm.graph.n, self.prm.graph.e)
 
     def start_env(self):
         """
@@ -247,7 +268,6 @@ class CarEnv:
         self.add_borders()
 
         self.segments_partial_map = Map([consts.map_borders.copy()])
-        self.maze, self.end_point, self.start_point = self.get_new_maze()
 
         self.swivel = 0
         self.speed = 0
@@ -283,20 +303,6 @@ class CarEnv:
 
         self.map_changed = True
         self.calculate_next_goal()
-        print("generating graph")
-        self.prm.generate_graph()
-
-        print(self.prm.graph.n, self.prm.graph.e)
-
-        self.prm.set_end(np.array(self.end_point[:2]))
-        print("dijkstra")
-        t1 = time.time()
-        self.prm.dijkstra(self.prm.end)
-        print(len([v for v in self.prm.graph.vertices if self.prm.distances[v] == np.inf]))
-        print("finished dijkstra")
-        print(time.time() - t1)
-        self.current_vertex = self.prm.get_closest_vertex(self.pos, self.swivel)
-        self.next_vertex = self.current_vertex
         return self.get_observation()
 
     def ray_cast(self, car, offset, direction):
@@ -378,7 +384,7 @@ class CarEnv:
             self.count = 0
         self.count += 1
         if self.count == 1:
-            self.next_vertex = self.prm.next_in_path(self.next_vertex.pos, self.next_vertex.theta)
+            self.next_vertex = self.prm.next_in_path(PRM.pos_to_car_center(np.array(self.pos), self.rotation), self.rotation)
             print(self.next_vertex.pos, self.next_vertex.theta, self.prm.distances[self.next_vertex])
             if not self.next_vertex:
                 self.next_vertex = self.current_vertex
