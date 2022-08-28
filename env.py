@@ -378,7 +378,7 @@ class CarEnv:
             self.count = 0
         self.count += 1
         if self.count == 1:
-            self.next_vertex = self.prm.next_in_path(self.next_vertex.pos, self.next_vertex.theta)
+            self.next_vertex = self.prm.next_in_path(self.pos, self.rotation)
             print(self.next_vertex.pos, self.next_vertex.theta, self.prm.distances[self.next_vertex])
             if not self.next_vertex:
                 self.next_vertex = self.current_vertex
