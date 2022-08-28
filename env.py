@@ -469,15 +469,6 @@ class CarEnv:
 
         self.calculate_next_goal()
 
-        if self.run_time >= consts.max_time:
-            print(
-                f"time's up maze {self.maze_idx}"
-                f" - distance is {dist(self.pos, self.end_point)}"
-                f" - total score is {self.total_score}"
-                f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
-                f" - time {self.run_time}")
-            return self.get_observation(), score, True, {}
-
         if not (self.crashed or self.finished):
             return self.get_observation(), score, False, {}
 
@@ -485,15 +476,11 @@ class CarEnv:
             print(
                 f"crashed maze {self.maze_idx}"
                 f" - distance is {dist(self.pos, self.end_point)}"
-                f" - total score is {self.total_score}"
-                f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
                 f" - time {self.run_time}")
             exit(666)
         if self.finished:
             print(
                 f"finished maze {self.maze_idx}"
-                f" - total score is {self.total_score}"
-                f" - initial distance {dist(self.start_point[:2], self.end_point[:2])}"
                 f" - time {self.run_time}")
             exit(0)
         return self.get_observation(), score, True, {}
