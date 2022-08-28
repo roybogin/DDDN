@@ -1,6 +1,6 @@
 import heapq
 from collections import defaultdict
-from typing import Set, Tuple
+from typing import Set, Tuple, List
 
 import numpy as np
 from tqdm import tqdm
@@ -155,7 +155,7 @@ class PRM:
 
         self.graph = WeightedGraph()
         self.shape = shape
-        self.vertices = []
+        self.vertices: List[List[List[Vertex]]] = []
         self.end = None
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         for _ in range(shape[0]):
@@ -230,7 +230,7 @@ class PRM:
 
     def generate_graph(self):
         to_add = self.possible_offsets(np.array([0, 0]))
-        for theta, angle in tqdm(enumerate(to_add)):
+        for theta, angle in tqdm(enumerate(to_add), total=consts.directions_per_vertex):
             for diff in angle:
                 for x in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
                     for y in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
