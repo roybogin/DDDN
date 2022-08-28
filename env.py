@@ -378,18 +378,21 @@ class CarEnv:
         if consts.print_runtime:
             print(self.run_time)
 
-        if self.count % 200 == 0 or dist(np.array(self.pos[:2]), self.next_vertex.pos) <= 0.05:
-            if self.next_vertex and dist(np.array(self.pos[:2]), self.next_vertex.pos) <= 0.05:
-                print("got to", self.next_vertex.pos, self.next_vertex.theta)
+        self.car_center = PRM.pos_to_car_center(np.array(self.pos[:2]), self.rotation)
+
+        if self.next_vertex and dist(self.car_center, self.next_vertex.pos) <= 0.05:
+            print("got to", self.next_vertex.pos, self.next_vertex.theta)
+            self.count = 0
+        if self.count == 100:
             self.count = 0
         self.count += 1
         if self.count == 1:
-            self.next_vertex = self.prm.next_in_path(PRM.pos_to_car_center(np.array(self.pos), self.rotation), self.rotation)
+            self.next_vertex = self.prm.next_in_path(self.car_center, self.rotation)
             print(self.next_vertex.pos, self.next_vertex.theta, self.prm.distances[self.next_vertex])
             if not self.next_vertex:
                 self.next_vertex = self.current_vertex
             else:
-                self.current_vertex = self.prm.get_closest_vertex(self.pos, self.rotation)
+                self.current_vertex = self.prm.get_closest_vertex(self.car_center, self.rotation)
 
         transformed = self.prm.transform_by_values(np.array(self.pos[:2]), self.rotation, self.next_vertex)
         x_tag, y_tag = transformed[0][0], transformed[0][1]
@@ -438,7 +441,7 @@ class CarEnv:
         # checking if collided or finished
         if self.check_collision(self.car_model, self.bodies):
             self.crashed = True
-        if dist(self.pos, self.end_point) < consts.min_dist_to_target:
+        if dist(self.car_center, self.end_point) < consts.min_dist_to_target:
             self.finished = True
         # # getting values for NN
         if self.pos[2] > 0.1:
@@ -548,7 +551,7 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 1
+        self.maze_idx = 3
         maze, start, end = mazes.empty_set[self.maze_idx]
         return maze, end, start
 

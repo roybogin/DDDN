@@ -174,7 +174,7 @@ class PRM:
                 y_temp += consts.vertex_offset
             x_temp += consts.vertex_offset
         self.max_angle_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
-        self.res = 0.9 * np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
+        self.res = np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
         # resolution of the path planner
         self.tol = 0.02  # tolerance of the path planner
         self.distances: Dict[Vertex, Tuple[float, Vertex]] = defaultdict(lambda: (np.inf, None))
