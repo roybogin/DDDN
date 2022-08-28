@@ -398,7 +398,7 @@ class CarEnv:
         x_tag, y_tag = transformed[0][0], transformed[0][1]
         differential_theta = self.prm.theta_curve(x_tag, y_tag)
 
-        action = [np.sign(x_tag) * 0.5, differential_theta]
+        action = [np.sign(x_tag) / (2 + 4 * abs(differential_theta)), differential_theta]
 
         # updating target velocity and steering angle
         wanted_speed = action[0] * consts.max_velocity
