@@ -206,10 +206,9 @@ class PRM:
     def possible_offsets_angle(self, pos: np.ndarray, angle: int):
         ret = []
         block = map_index_from_pos(pos)
-        angle_offset = 2 * np.pi / consts.directions_per_vertex
         v = self.vertices[block[0]][block[1]][angle]
         for neighbor_block in block_options(block, np.ceil(self.res / consts.vertex_offset), self.shape):
-            for u in self.vertices[neighbor_block[0]][neighbor_block[1]]:
+            for theta, u in enumerate(self.vertices[neighbor_block[0]][neighbor_block[1]]):
                 weight = dist(v.pos, u.pos)
                 if weight == 0:
                     continue
@@ -219,7 +218,7 @@ class PRM:
                     differential_theta = self.theta_curve(x_tag, y_tag)
                     if abs(differential_theta - transformed[1]) < self.tol:
                         if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
-                            ret.append((int((u.pos[0] - v.pos[0])/consts.vertex_offset), int((u.pos[1] - v.pos[1])/consts.vertex_offset), int((u.theta - v.theta)/angle_offset)))
+                            ret.append(neighbor_block[0] - block[0], neighbor_block[1] - block[1], theta - angle)
         return ret
 
     def possible_offsets(self, pos: np.ndarray):
