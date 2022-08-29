@@ -1,4 +1,5 @@
 # pybullet simulation
+import numpy as np
 from gym.utils import seeding
 import math
 
@@ -14,8 +15,8 @@ cameraTargetPosition = [0, 0, 0]
 # interpreting NN outputs
 speed_scalar = 1
 steer_scalar = 0.1
-max_steer = 0.5
-max_velocity = 30
+max_steer = np.pi / 4
+max_velocity = 20
 max_force = 100
 epsilon = 0.1
 

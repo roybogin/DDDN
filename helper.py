@@ -166,14 +166,15 @@ def block_options(index, radius, map_shape, only_positives=False):
     """
     radius = int(radius)
     r, c = index
-    if r < 3 or r >= map_shape[0] - 3 or c < 3 or c >= map_shape[1] - 3:
+    padding = consts.amount_vertices_from_edge
+    if r < padding or r >= map_shape[0] - padding or c < padding or c >= map_shape[1] - padding:
         return []
     neighbors = []
     for x in range(-radius, radius + 1):
         for y in range(-radius, radius + 1):
-            if 3 <= c + x < map_shape[0] - 3 and 3 <= r + y < map_shape[1] - 3:
+            if padding <= c + x < map_shape[0] - padding and padding <= r + y < map_shape[1] - padding:
                 if x*x + y*y <= radius*radius + radius:
-                    neighbors.append((r+y, c+x))
+                    neighbors.append((c+x, r+y))
     if only_positives:
         neighbors = [n for n in neighbors if n >= (r, c)]
     return neighbors

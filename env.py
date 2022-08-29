@@ -50,6 +50,7 @@ def add_discovered_matrix(discovered_matrix, start, end):
 class CarEnv:
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
+        self.trace = []
         self.current_vertex = None
         self.next_vertex = None
         self.count = None
@@ -130,15 +131,20 @@ class CarEnv:
         self.seed(seed)
         self.maze, self.end_point, self.start_point = self.get_new_maze()
 
-        self.prm.set_end(np.array(self.end_point[:2]))
+        print(self.end_point)
+        self.end_point = self.prm.set_end(np.array(self.end_point[:2]))
+        print(f'new end is {self.end_point}')
         print("dijkstra")
         t1 = time.time()
         self.prm.dijkstra(self.prm.end)
         print(time.time() - t1)
         print("finished dijkstra")
 
-        print(len([v for v in self.prm.graph.vertices if self.prm.distances[v] == np.inf]))
+        print(len([v for v in self.prm.graph.vertices if self.prm.distances[v][0] == np.inf]))
         self.current_vertex = self.prm.get_closest_vertex(np.array(self.start_point[:2]), 0)
+
+        self.prm.draw_path(self.current_vertex)
+
         self.next_vertex = None
 
         self.start_env()
@@ -381,24 +387,30 @@ class CarEnv:
         self.car_center = PRM.pos_to_car_center(np.array(self.pos[:2]), self.rotation)
 
         if self.next_vertex and dist(self.car_center, self.next_vertex.pos) <= 0.05:
-            print("got to", self.next_vertex.pos, self.next_vertex.theta)
+            print("got to", self.car_center, self.rotation)
             self.count = 0
         if self.count == 100:
             self.count = 0
-        self.count += 1
-        if self.count == 1:
+
+        if self.count == 0:
+            self.trace.append(self.car_center)
             self.next_vertex = self.prm.next_in_path(self.car_center, self.rotation)
-            print(self.next_vertex.pos, self.next_vertex.theta, self.prm.distances[self.next_vertex])
             if not self.next_vertex:
                 self.next_vertex = self.current_vertex
             else:
                 self.current_vertex = self.prm.get_closest_vertex(self.car_center, self.rotation)
+        self.count += 1
 
-        transformed = self.prm.transform_by_values(np.array(self.pos[:2]), self.rotation, self.next_vertex)
+        transformed = self.prm.transform_by_values(self.car_center, self.rotation, self.next_vertex)
         x_tag, y_tag = transformed[0][0], transformed[0][1]
         differential_theta = self.prm.theta_curve(x_tag, y_tag)
 
-        action = [np.sign(x_tag) / (2 + 4 * abs(differential_theta)), differential_theta]
+        radius = np.sqrt(self.prm.radius_x_y_squared(x_tag, y_tag))
+        delta = np.sign(y_tag) * np.arctan(consts.length / radius)
+
+        # print(self.car_center, self.next_vertex.pos, self.end_point)
+
+        action = [np.sign(x_tag) / (2 + 4 * abs(delta)), delta]
 
         # updating target velocity and steering angle
         wanted_speed = action[0] * consts.max_velocity
@@ -472,16 +484,21 @@ class CarEnv:
         if not (self.crashed or self.finished):
             return self.get_observation(), score, False, {}
 
+        plt.plot([a for a, _ in self.trace], [a for _, a in self.trace])
+        plt.show()
+
         if self.crashed:
             print(
                 f"crashed maze {self.maze_idx}"
                 f" - distance is {dist(self.pos, self.end_point)}"
                 f" - time {self.run_time}")
+            p.disconnect()
             exit(666)
         if self.finished:
             print(
                 f"finished maze {self.maze_idx}"
                 f" - time {self.run_time}")
+            p.disconnect()
             exit(0)
         return self.get_observation(), score, True, {}
 
@@ -538,7 +555,7 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 0
+        self.maze_idx = 5
         maze, start, end = mazes.empty_set[self.maze_idx]
         return maze, end, start
 

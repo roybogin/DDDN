@@ -3,6 +3,7 @@ from collections import defaultdict
 from typing import Set, Tuple, List, Dict
 
 import numpy as np
+from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 import consts
@@ -52,10 +53,11 @@ class Edge:
     Class to represent a graph edge for the PRM
     """
 
-    def __init__(self, vertex_1: Vertex, vertex_2: Vertex, weight: float):
+    def __init__(self, vertex_1: Vertex, vertex_2: Vertex, weight: float, two_way: bool = True):
         self.v1: Vertex = vertex_1  # first vertex in the edge
         self.v2: Vertex = vertex_2  # second vertex in the edge
         self.weight: float = weight  # weight of the edge
+        self.two_way = two_way
 
 
 class WeightedGraph:
@@ -115,8 +117,8 @@ class WeightedGraph:
         self.n += 1
         return new_vertex
 
-    def add_edge(self, vertex_1: Vertex, vertex_2: Vertex, weight: float):
-        edge = Edge(vertex_1, vertex_2, weight)
+    def add_edge(self, vertex_1: Vertex, vertex_2: Vertex, weight: float, two_way: bool = True):
+        edge = Edge(vertex_1, vertex_2, weight, two_way)
         vertex_1.edges.add(edge)
         vertex_2.edges.add(edge)
         self.e += 1
@@ -176,7 +178,7 @@ class PRM:
         self.max_angle_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
         self.res = np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
         # resolution of the path planner
-        self.tol = 0.02  # tolerance of the path planner
+        self.tol = 0.03  # tolerance of the path planner
         self.distances: Dict[Vertex, Tuple[float, Vertex]] = defaultdict(lambda: (np.inf, None))
 
     def radius_delta(self, delta: float):
@@ -209,7 +211,7 @@ class PRM:
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         v = self.vertices[block[0]][block[1]][angle]
         for neighbor_block in block_options(block, np.ceil(self.res / consts.vertex_offset), self.shape):
-            for u in self.vertices[neighbor_block[0]][neighbor_block[1]]:
+            for theta, u in enumerate(self.vertices[neighbor_block[0]][neighbor_block[1]]):
                 weight = dist(v.pos, u.pos)
                 if weight == 0:
                     continue
@@ -217,9 +219,9 @@ class PRM:
                     transformed = self.transform_pov(v, u)
                     x_tag, y_tag = transformed[0][0], transformed[0][1]
                     differential_theta = self.theta_curve(x_tag, y_tag)
-                    if abs(differential_theta - transformed[1]) < self.tol:
+                    if x_tag >= 0 and abs(differential_theta - transformed[1]) < self.tol:
                         if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
-                            ret.append((int((u.pos[0] - v.pos[0])/consts.vertex_offset), int((u.pos[1] - v.pos[1])/consts.vertex_offset), int((u.theta - v.theta)/angle_offset)))
+                            ret.append((neighbor_block[0] - block[0], neighbor_block[1] - block[1], theta - angle))
         return ret
 
     def possible_offsets(self, pos: np.ndarray):
@@ -238,7 +240,7 @@ class PRM:
                             v1 = self.vertices[x][y][theta]
                             v2 = self.vertices[x+diff[0]][y+diff[1]][(theta+diff[2]) % consts.directions_per_vertex]
                             weight = dist(v1.pos, v2.pos)
-                            self.graph.add_edge(v1, v2, weight)
+                            self.graph.add_edge(v1, v2, weight, False)
 
     # TODO: possibly remove, not needed
     def try_add_edge(self, v_1: Vertex, v_2: Vertex, angle_matters: bool = True):
@@ -272,6 +274,7 @@ class PRM:
         self.end = self.graph.add_vertex(self.vertices[index[0]][index[1]][0].pos, 0)
         for v in self.vertices[index[0]][index[1]]:
             self.graph.add_edge(self.end, v, 0)
+        return self.end.pos
 
     def dijkstra(self, root: Vertex):
         self.distances[root] = (0, root)
@@ -287,6 +290,8 @@ class PRM:
                 weight = edge.weight
                 v = edge.v1
                 if v == u:
+                    if not edge.two_way:
+                        continue
                     v = edge.v2
                 dist_v = self.distances[v][0]
                 if dist_u + weight < dist_v:
@@ -327,3 +332,17 @@ class PRM:
 
     def transform_by_values(self, pos: np.ndarray, theta: float, vertex_2: Vertex):
         return self.rotate_angle(vertex_2.pos - pos, -theta), vertex_2.theta - theta
+
+    def draw_path(self, current_vertex):
+        x_list = [current_vertex.pos[0]]
+        y_list = [current_vertex.pos[1]]
+        plt.scatter(x_list, y_list, c='black')
+        vertex = current_vertex
+        parent = self.distances[vertex][1]
+        while (parent != vertex) and (parent is not None):
+            vertex = parent
+            parent = self.distances[vertex][1]
+            x_list.append(vertex.pos[0])
+            y_list.append(vertex.pos[1])
+        plt.plot(x_list, y_list, c='blue')
+        plt.scatter(x_list[-1], y_list[-1], c='green')
