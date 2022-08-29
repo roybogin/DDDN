@@ -208,7 +208,6 @@ class PRM:
     def possible_offsets_angle(self, pos: np.ndarray, angle: int):
         ret = []
         block = map_index_from_pos(pos)
-        angle_offset = 2 * np.pi / consts.directions_per_vertex
         v = self.vertices[block[0]][block[1]][angle]
         for neighbor_block in block_options(block, np.ceil(self.res / consts.vertex_offset), self.shape):
             for theta, u in enumerate(self.vertices[neighbor_block[0]][neighbor_block[1]]):
