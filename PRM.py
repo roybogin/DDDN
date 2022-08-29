@@ -218,7 +218,7 @@ class PRM:
                     differential_theta = self.theta_curve(x_tag, y_tag)
                     if abs(differential_theta - transformed[1]) < self.tol:
                         if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
-                            ret.append(neighbor_block[0] - block[0], neighbor_block[1] - block[1], theta - angle)
+                            ret.append((neighbor_block[0] - block[0], neighbor_block[1] - block[1], theta - angle))
         return ret
 
     def possible_offsets(self, pos: np.ndarray):
