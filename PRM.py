@@ -2,6 +2,7 @@ import heapq
 from collections import defaultdict
 from typing import Set, Tuple, List, Dict
 
+import math
 import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
@@ -178,7 +179,7 @@ class PRM:
         self.max_angle_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
         self.res = np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
         # resolution of the path planner
-        self.tol = 0.03  # tolerance of the path planner
+        self.tol = 0.02  # tolerance of the path planner
         self.distances: Dict[Vertex, Tuple[float, Vertex]] = defaultdict(lambda: (np.inf, None))
 
     def radius_delta(self, delta: float):
@@ -205,7 +206,7 @@ class PRM:
         val = consts.a_2 / np.sqrt(to_root)
         return np.sign(y_tag) * np.arctan(val)
 
-    def possible_offsets_angle(self, pos: np.ndarray, angle: int):
+    def possible_offsets_angle(self, pos: np.ndarray, angle: int, only_forward=False):
         ret = []
         block = map_index_from_pos(pos)
         v = self.vertices[block[0]][block[1]][angle]
@@ -217,20 +218,24 @@ class PRM:
                 if weight <= self.res:
                     transformed = self.transform_pov(v, u)
                     x_tag, y_tag = transformed[0][0], transformed[0][1]
+                    diff = math.atan2(y_tag, x_tag)
                     differential_theta = self.theta_curve(x_tag, y_tag)
-                    if x_tag >= 0 and abs(differential_theta - transformed[1]) < self.tol:
+                    if abs(differential_theta - transformed[1]) < self.tol or abs(2 * np.pi + differential_theta - transformed[1]) < self.tol or abs(-2 * np.pi + differential_theta - transformed[1]) < self.tol:
                         if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
-                            ret.append((neighbor_block[0] - block[0], neighbor_block[1] - block[1], theta - angle))
+                            if not only_forward or abs(diff - v.theta) < np.pi/2 or abs(2 * np.pi + diff - v.theta) < np.pi/2 or abs(-2 * np.pi + diff - v.theta) < np.pi/2:
+                                ret.append((neighbor_block[0] - block[0], neighbor_block[1] - block[1], theta - angle))
         return ret
 
-    def possible_offsets(self, pos: np.ndarray):
+    def possible_offsets(self, pos: np.ndarray, only_forward=False):
         ret = []
         for theta in range(consts.directions_per_vertex):
-            ret.append(self.possible_offsets_angle(pos, theta))
+            ret.append(self.possible_offsets_angle(pos, theta, only_forward))
         return ret
 
     def generate_graph(self):
         to_add = self.possible_offsets(np.array([0, 0]))
+        for angle in to_add:
+            print(len(angle))
         for theta, angle in tqdm(enumerate(to_add), total=consts.directions_per_vertex):
             for diff in angle:
                 for x in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
