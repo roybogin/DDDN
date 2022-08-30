@@ -504,7 +504,7 @@ class CarEnv:
         plt.title(f'maze {self.maze_idx} - time {self.run_time}')
         plt.legend()
         plt.show()
-        # self.segments_partial_map.show()
+        self.segments_partial_map.show()
 
         if self.crashed:
             print(
@@ -574,8 +574,8 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 5
-        maze, start, end = mazes.empty_set[self.maze_idx]
+        self.maze_idx = 'with block' # 5
+        maze, start, end = mazes.default_data_set[1]  # mazes.empty_set[self.maze_idx]
         return maze, end, start
 
 
