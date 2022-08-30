@@ -346,6 +346,6 @@ class PRM:
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(v.theta / angle_offset)
         self.vertices[index[0]][index[1]][angle] = None
-        self.graph.remove_vertex(v)
+        return self.graph.remove_vertex(v)
 
 
