@@ -409,15 +409,27 @@ class CarEnv:
         radius = np.sqrt(self.prm.radius_x_y_squared(x_tag, y_tag))
         delta = np.sign(y_tag) * np.arctan(consts.length / radius)
 
+        rad_1 = np.sqrt(radius ** 2 - consts.a_2 ** 2)
+        delta_inner = np.arctan(consts.length/(rad_1 - consts.width/2))
+        delta_outer = np.arctan(consts.length/(rad_1 + consts.width/2))
+
+        if y_tag >= 0:
+            rotation = [delta_inner, delta_outer]
+        else:
+            rotation = [-delta_outer, -delta_inner]
+        # rotation = [delta, delta]
+
+        rotation = np.array(rotation)
+
         # print(self.car_center, self.next_vertex.pos, self.end_point)
 
-        action = [consts.max_velocity, delta] #[np.sign(x_tag) / (2 + 4 * abs(delta)), delta]
+        action = [np.sign(x_tag) / (2 + 4 * abs(delta)), rotation]
 
         # updating target velocity and steering angle
         wanted_speed = action[0] * consts.max_velocity
         wanted_steering_angle = action[1]
-        if abs(wanted_steering_angle) > consts.max_steer:
-            wanted_steering_angle = consts.max_steer * np.sign(wanted_steering_angle)
+        wanted_steering_angle = np.sign(wanted_steering_angle) * np.minimum(np.abs(wanted_steering_angle),
+                                                                         consts.max_steer)
         if abs(wanted_speed) > consts.max_velocity:
             wanted_speed = consts.max_velocity * np.sign(wanted_speed)
 
@@ -431,12 +443,12 @@ class CarEnv:
                 force=consts.max_force,
             )
 
-        for steer in self.steering:
+        for steer, angle in zip(self.steering, wanted_steering_angle):
             p.setJointMotorControl2(
                 self.car_model,
                 steer,
                 p.POSITION_CONTROL,
-                targetPosition=wanted_steering_angle,
+                targetPosition=angle,
             )
         p.stepSimulation()
 
@@ -492,7 +504,7 @@ class CarEnv:
         plt.title(f'maze {self.maze_idx} - time {self.run_time}')
         plt.legend()
         plt.show()
-        self.segments_partial_map.show()
+        # self.segments_partial_map.show()
 
         if self.crashed:
             print(
@@ -562,8 +574,8 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 'maze with barrier'
-        maze, start, end = mazes.default_data_set[1]
+        self.maze_idx = 0
+        maze, start, end = mazes.empty_set[self.maze_idx]
         return maze, end, start
 
 
