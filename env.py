@@ -230,8 +230,8 @@ class CarEnv:
                             for block in block_options(map_index_from_pos(point), vertex_removal_radius,
                                                        np.shape(self.discovered)):
                                 for vertex in self.prm.vertices[block[0]][block[1]]:
-                                    if not self.segments_partial_map.check_state(vertex):
-                                        if self.prm.graph.remove_vertex(vertex):
+                                    if vertex and not self.segments_partial_map.check_state(vertex):
+                                        if self.prm.remove_vertex(vertex):
                                             print('remove vertex')
                                             need_recalculate = True
             self.new_discovered = add_discovered_matrix(new_map_discovered, start, end)
