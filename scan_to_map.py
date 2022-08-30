@@ -90,10 +90,7 @@ class Map:
         segment_representation = self.segment_representation()
         for point in points:
             for segment in segment_representation:
-                if (
-                    perpendicularDistance(point, segment[0], segment[1])
-                    < consts.epsilon
-                ):
+                if perpendicularDistance(point, segment[0], segment[1]) < consts.epsilon:   # TODO: enter on false?
                     return False
         return True
 

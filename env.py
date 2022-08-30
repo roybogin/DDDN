@@ -242,6 +242,8 @@ class CarEnv:
                     problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
 
         for vertex in problematic_vertices:
+            if vertex is None:
+                continue
             for edge in vertex.edges:
                 if edge.v1 in problematic_vertices and edge.v2 in problematic_vertices:
                     problematic_edges.add(edge)
