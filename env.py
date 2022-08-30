@@ -2,6 +2,7 @@ import json
 import os
 import pickle
 import random
+from typing import Set
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -214,8 +215,8 @@ class CarEnv:
         new_map_discovered = self.discovered
         vertex_removal_radius = math.ceil(0.4 / consts.vertex_offset)
         edge_removal_radius = np.ceil(self.prm.res / consts.vertex_offset)
-        problematic_vertices = set()
-        problematic_edges = set()
+        problematic_vertices: Set[PRM.Vertex] = set()
+        problematic_edges: Set[PRM.Edge] = set()
         new_segments = []
         for direction in directions:
 
@@ -232,7 +233,8 @@ class CarEnv:
                     new_segments += new
                     for segment in new:
                         for point in segment:
-                            for block in block_options(map_index_from_pos(point),vertex_removal_radius, np.shape(self.discovered)):
+                            for block in block_options(map_index_from_pos(point), vertex_removal_radius,
+                                                       np.shape(self.discovered)):
                                 for vertex in self.prm.vertices[block[0]][block[1]]:
                                     if not self.segments_partial_map.check_state(vertex):
                                         self.prm.graph.remove_vertex(vertex)
@@ -256,16 +258,9 @@ class CarEnv:
                 for edge in problematic_edges:
                     if distance_between_lines(segment[i], segment[i+1], edge.v1.pos, edge.v2.pos) < consts.width + 2 * consts.epsilon:
                         print('remove edge')
-                        try:
-                            edge.v1.edges.remove(edge.v2)
-                            need_recalculate = True
-                        except:
-                            pass
-                        try:
-                            edge.v2.edges.remove(edge.v1)
-                            need_recalculate = True
-                        except:
-                            pass
+                        edge.v1.edges.discard(edge)
+                        edge.v2.edges.discard(edge)
+                        need_recalculate = True
                         self.prm.graph.e -= 1
         if need_recalculate:
             print('recalc')
