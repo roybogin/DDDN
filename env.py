@@ -212,17 +212,17 @@ class CarEnv:
         problematic_vertices: Set[PRM.Vertex] = set()
         problematic_edges: Set[PRM.Edge] = set()
         new_segments = []
-        for direction in directions:
+        for i, direction in enumerate(directions):
 
             did_hit, start, end = self.ray_cast(
                 self.car_model, [0, 0, 0.5],
                 [-consts.ray_length * np.cos(direction), -consts.ray_length * np.sin(direction), 0]
             )
             if did_hit:
-                self.hits.append((end[0], end[1]))
-                if len(self.hits) == consts.max_hits_before_calculation:
-                    self.segments_partial_map.add_points_to_map(self.hits)
-                    self.hits = []
+                self.hits[i].append((end[0], end[1]))
+                if len(self.hits[i]) == consts.max_hits_before_calculation:
+                    self.segments_partial_map.add_points_to_map(self.hits[i])
+                    self.hits[i] = []
                     new = self.segments_partial_map.new_segments
                     new_segments += new
                     for segment in new:
@@ -272,7 +272,7 @@ class CarEnv:
         """
         self.trace = []
         self.count = 0
-        self.hits = []
+        self.hits = [[] for _ in consts.ray_amount]
         self.remove_all_bodies()
         self.add_borders()
 
@@ -339,7 +339,7 @@ class CarEnv:
         start = add_lists([pos, offset])
         end = add_lists([pos, offset, direction])
         ray_test = p.rayTest(start, end)
-        if ray_test[0][3] == (0, 0, 0):
+        if ray_test[0][3] == (0, 0, 0) and ray_test[0][0] not in self.borders:
             return False, start[:2], end[:2]
         else:
             return True, start[:2], ray_test[0][3]
