@@ -231,9 +231,9 @@ class CarEnv:
                                                        np.shape(self.discovered)):
                                 for vertex in self.prm.vertices[block[0]][block[1]]:
                                     if not self.segments_partial_map.check_state(vertex):
-                                        self.prm.graph.remove_vertex(vertex)
-                                        print('remove vertex')
-                                        need_recalculate = True
+                                        if self.prm.graph.remove_vertex(vertex):
+                                            print('remove vertex')
+                                            need_recalculate = True
             self.new_discovered = add_discovered_matrix(new_map_discovered, start, end)
         self.discovered = new_map_discovered
         for segment in new_segments:
@@ -251,11 +251,9 @@ class CarEnv:
             for i in range(len(segment) - 1):
                 for edge in problematic_edges:
                     if distance_between_lines(segment[i], segment[i+1], edge.v1.pos, edge.v2.pos) < consts.width + 2 * consts.epsilon:
-                        print('remove edge')
-                        edge.v1.edges.discard(edge)
-                        edge.v2.edges.discard(edge)
-                        need_recalculate = True
-                        self.prm.graph.e -= 1
+                        if self.prm.graph.remove_edge(edge):
+                            print('remove edge')
+                            need_recalculate = True
         if need_recalculate:
             print('recalc')
             self.prm.dijkstra(self.prm.end)
@@ -569,7 +567,7 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 3
+        self.maze_idx = 5
         maze, start, end = mazes.empty_set[self.maze_idx]
         return maze, end, start
 

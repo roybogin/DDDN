@@ -73,38 +73,6 @@ class WeightedGraph:
         self.e: int = 0  # amount of edges in the grapp
         self.e_counter = 0
 
-
-    def DFSUtil(self, temp, v, visited):
- 
-        # Mark the current vertex as visited
-        visited[v] = True
- 
-        # Store the vertex to list
-        temp.append(v)
- 
-        # Repeat for all vertices adjacent
-        # to this vertex v
-        for e in v.edges:
-            u = e.v1
-            if u == v:
-                u = e.v2
-            if not visited[u]:
-                temp = self.DFSUtil(temp, u, visited)
-        return temp
- 
-    # Method to retrieve connected components
-    # in an undirected graph
-    def connectedComponents(self):
-        visited = {}
-        cc = []
-        for v in self.vertices:
-            visited[v]=False
-        for v in self.vertices:
-            if not visited[v]:
-                temp = []
-                cc.append(self.DFSUtil(temp, v, visited))
-        return cc
-
     def add_vertex(self, pos: np.ndarray, theta: float, index: int = None) -> Vertex:
         """
         add a vertex to the graph
@@ -125,20 +93,34 @@ class WeightedGraph:
         vertex_2.edges.add(edge)
         self.e += 1
 
-    def remove_vertex(self, v: Vertex):
+    def remove_edge(self, edge: Edge) -> bool:
+        return_val = True
+        v1, v2 = edge.v1, edge.v2
+        if edge in v1.edges:
+            v1.edges.remove(edge)
+        else:
+            return_val = False
+        if edge in v2.edges:
+            v2.edges.remove(edge)
+        else:
+            return_val = False
+        if return_val:
+            self.e -= 1
+        return return_val
+
+    def remove_vertex(self, v: Vertex) -> bool:
+        if v not in self.vertices:
+            return False
         for edge in v.edges:
             other_vertex = edge.v1
             if v == other_vertex:
                 other_vertex = edge.v2
-            try:
+            if edge in other_vertex.edges:
                 other_vertex.edges.remove(edge)
-            except:
-                pass
-        try:
-            self.vertices.remove(v)
-        except:
-                pass
+                self.e -= 1
+        self.vertices.remove(v)
         self.n -= 1
+        return True
 
     def __getstate__(self):
         return [v.__getstate__() for v in self.vertices]
@@ -222,7 +204,9 @@ class PRM:
                     x_tag, y_tag = transformed[0][0], transformed[0][1]
                     differential_theta = self.theta_curve(x_tag, y_tag)
                     if not only_forward or x_tag >= 0:
-                        if abs(differential_theta - transformed[1]) < self.tol or abs(2 * np.pi + differential_theta - transformed[1]) < self.tol or abs(-2 * np.pi + differential_theta - transformed[1]) < self.tol:
+                        if abs(differential_theta - transformed[1]) < self.tol or abs(
+                                2 * np.pi + differential_theta - transformed[1]) < self.tol or abs(
+                                -2 * np.pi + differential_theta - transformed[1]) < self.tol:
                             if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
                                 ret.append((neighbor_block[0] - block[0], neighbor_block[1] - block[1], theta - angle))
         return ret
@@ -239,9 +223,12 @@ class PRM:
             for diff in angle:
                 for x in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
                     for y in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
-                        if consts.amount_vertices_from_edge <= x+diff[0] < self.shape[0] - consts.amount_vertices_from_edge and consts.amount_vertices_from_edge <= y + diff[1] < self.shape[1] - consts.amount_vertices_from_edge:
+                        if consts.amount_vertices_from_edge <= x + diff[0] < self.shape[
+                            0] - consts.amount_vertices_from_edge and consts.amount_vertices_from_edge <= y + diff[1] < \
+                                self.shape[1] - consts.amount_vertices_from_edge:
                             v1 = self.vertices[x][y][theta]
-                            v2 = self.vertices[x+diff[0]][y+diff[1]][(theta+diff[2]) % consts.directions_per_vertex]
+                            v2 = self.vertices[x + diff[0]][y + diff[1]][
+                                (theta + diff[2]) % consts.directions_per_vertex]
                             weight = dist(v1.pos, v2.pos)
                             self.graph.add_edge(v1, v2, weight, False)
 
@@ -306,7 +293,6 @@ class PRM:
                     heapq.heappush(pq, (dist_v, v))
         print(f"finished dijkstra in {time.time() - t1}")
 
-
     def get_closest_vertex(self, pos: np.ndarray, theta: float):
         block = map_index_from_pos(pos)
         angle_offset = 2 * np.pi / consts.directions_per_vertex
@@ -354,3 +340,12 @@ class PRM:
             y_list.append(vertex.pos[1])
         plt.plot(x_list, y_list, c='blue', label='projected path')
         plt.scatter(x_list[-1], y_list[-1], c='green')
+
+    def remove_vertex(self, v: Vertex):
+        index = map_index_from_pos(v.pos)
+        angle_offset = 2 * np.pi / consts.directions_per_vertex
+        angle = round(v.theta / angle_offset)
+        self.vertices[index[0]][index[1]][angle] = None
+        self.graph.remove_vertex(v)
+
+
