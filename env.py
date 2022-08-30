@@ -3,6 +3,7 @@ import os
 import pickle
 import random
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pybullet as p
 import pybullet_data as pd
@@ -87,7 +88,7 @@ class CarEnv:
         self.distances_to_end = None  # minimum distance in blocks (in the maze) to the end for each block
         self.map_changed = None  # did the perceived map change (we need to recalculate the distances)
         self.prev_pos = None
-        self.segments_partial_map = None
+        self.segments_partial_map: Map | None = None
         self.scanned_indices = None  # new indices since scan
         self.hits = None
 
@@ -134,14 +135,12 @@ class CarEnv:
         print(self.end_point)
         self.end_point = self.prm.set_end(np.array(self.end_point[:2]))
         print(f'new end is {self.end_point}')
-        print("dijkstra")
-        t1 = time.time()
         self.prm.dijkstra(self.prm.end)
-        print(time.time() - t1)
-        print("finished dijkstra")
 
         print(len([v for v in self.prm.graph.vertices if self.prm.distances[v][0] == np.inf]))
         self.current_vertex = self.prm.get_closest_vertex(np.array(self.start_point[:2]), 0)
+        current_car_pos = PRM.car_center_to_pos(self.current_vertex.pos, 0)
+        self.start_point = [current_car_pos[0], current_car_pos[1], 0]
 
         self.prm.draw_path(self.current_vertex)
 
@@ -210,6 +209,7 @@ class CarEnv:
         scans the environment and updates the discovery values
         :return:
         """
+        need_recalculate = False
         directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
         new_map_discovered = self.discovered
         vertex_removal_radius = math.ceil(0.4 / consts.vertex_offset)
@@ -236,7 +236,10 @@ class CarEnv:
                                 for vertex in self.prm.vertices[block[0]][block[1]]:
                                     if not self.segments_partial_map.check_state(vertex):
                                         self.prm.graph.remove_vertex(vertex)
+                                        print('remove vertex')
+                                        need_recalculate = True
             self.new_discovered = add_discovered_matrix(new_map_discovered, start, end)
+        self.discovered = new_map_discovered
         for segment in new_segments:
             for point in segment:
                 for block in block_options(map_index_from_pos(point), edge_removal_radius, np.shape(self.discovered)):
@@ -246,22 +249,27 @@ class CarEnv:
             for edge in vertex.edges:
                 if edge.v1 in problematic_vertices and edge.v2 in problematic_vertices:
                     problematic_edges.add(edge)
-
+        if len(problematic_edges) != 0:
+            print('problematic')
         for segment in new_segments:
             for i in range(len(segment) - 1):
                 for edge in problematic_edges:
                     if distance_between_lines(segment[i], segment[i+1], edge.v1.pos, edge.v2.pos) < consts.width + 2 * consts.epsilon:
+                        print('remove edge')
                         try:
                             edge.v1.edges.remove(edge.v2)
+                            need_recalculate = True
                         except:
                             pass
                         try:
                             edge.v2.edges.remove(edge.v1)
+                            need_recalculate = True
                         except:
                             pass
                         self.prm.graph.e -= 1
-
-        self.discovered = new_map_discovered
+        if need_recalculate:
+            print('recalc')
+            self.prm.dijkstra(self.prm.end)
 
 
     def reset(self):
@@ -397,20 +405,18 @@ class CarEnv:
             self.next_vertex = self.prm.next_in_path(self.car_center, self.rotation)
             if not self.next_vertex:
                 self.next_vertex = self.current_vertex
-            else:
-                self.current_vertex = self.prm.get_closest_vertex(self.car_center, self.rotation)
+
         self.count += 1
 
         transformed = self.prm.transform_by_values(self.car_center, self.rotation, self.next_vertex)
         x_tag, y_tag = transformed[0][0], transformed[0][1]
-        differential_theta = self.prm.theta_curve(x_tag, y_tag)
 
         radius = np.sqrt(self.prm.radius_x_y_squared(x_tag, y_tag))
         delta = np.sign(y_tag) * np.arctan(consts.length / radius)
 
         # print(self.car_center, self.next_vertex.pos, self.end_point)
 
-        action = [np.sign(x_tag) / (2 + 4 * abs(delta)), delta]
+        action = [consts.max_velocity, delta] #[np.sign(x_tag) / (2 + 4 * abs(delta)), delta]
 
         # updating target velocity and steering angle
         wanted_speed = action[0] * consts.max_velocity
@@ -483,9 +489,15 @@ class CarEnv:
 
         if not (self.crashed or self.finished):
             return self.get_observation(), score, False, {}
+        self.trace.append(self.car_center)
+        if self.finished:
+            self.trace.append(self.end_point)
 
-        plt.plot([a for a, _ in self.trace], [a for _, a in self.trace])
+        plt.plot([a for a, _ in self.trace], [a for _, a in self.trace], c='orange', label='actual path')
+        plt.title(f'maze {self.maze_idx} - time {self.run_time}')
+        plt.legend()
         plt.show()
+        self.segments_partial_map.show()
 
         if self.crashed:
             print(
@@ -555,8 +567,8 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 4
-        maze, start, end = mazes.empty_set[self.maze_idx]
+        self.maze_idx = 'maze with barrier'
+        maze, start, end = mazes.default_data_set[1]
         return maze, end, start
 
 

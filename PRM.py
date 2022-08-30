@@ -1,6 +1,7 @@
 import heapq
+import time
 from collections import defaultdict
-from typing import Set, Tuple, List, Dict
+from typing import Set, Tuple, List, Dict, DefaultDict
 
 import math
 import numpy as np
@@ -180,7 +181,7 @@ class PRM:
         self.res = np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
         # resolution of the path planner
         self.tol = 0.02  # tolerance of the path planner
-        self.distances: Dict[Vertex, Tuple[float, Vertex]] = defaultdict(lambda: (np.inf, None))
+        self.distances: DefaultDict[Vertex, Tuple[float, Vertex | None]] = defaultdict(lambda: (np.inf, None))
 
     def radius_delta(self, delta: float):
         if np.tan(delta) == 0:
@@ -218,11 +219,10 @@ class PRM:
                 if weight <= self.res:
                     transformed = self.transform_pov(v, u)
                     x_tag, y_tag = transformed[0][0], transformed[0][1]
-                    diff = math.atan2(y_tag, x_tag)
                     differential_theta = self.theta_curve(x_tag, y_tag)
-                    if abs(differential_theta - transformed[1]) < self.tol or abs(2 * np.pi + differential_theta - transformed[1]) < self.tol or abs(-2 * np.pi + differential_theta - transformed[1]) < self.tol:
-                        if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
-                            if not only_forward or abs(diff - v.theta) < np.pi/2 or abs(2 * np.pi + diff - v.theta) < np.pi/2 or abs(-2 * np.pi + diff - v.theta) < np.pi/2:
+                    if not only_forward or x_tag >= 0:
+                        if abs(differential_theta - transformed[1]) < self.tol or abs(2 * np.pi + differential_theta - transformed[1]) < self.tol or abs(-2 * np.pi + differential_theta - transformed[1]) < self.tol:
+                            if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
                                 ret.append((neighbor_block[0] - block[0], neighbor_block[1] - block[1], theta - angle))
         return ret
 
@@ -233,9 +233,7 @@ class PRM:
         return ret
 
     def generate_graph(self):
-        to_add = self.possible_offsets(np.array([0, 0]))
-        for angle in to_add:
-            print(len(angle))
+        to_add = self.possible_offsets(np.array([0, 0]), True)
         for theta, angle in tqdm(enumerate(to_add), total=consts.directions_per_vertex):
             for diff in angle:
                 for x in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
@@ -277,10 +275,13 @@ class PRM:
         index = map_index_from_pos(pos)
         self.end = self.graph.add_vertex(self.vertices[index[0]][index[1]][0].pos, 0)
         for v in self.vertices[index[0]][index[1]]:
-            self.graph.add_edge(self.end, v, 0)
+            self.graph.add_edge(v, self.end, 0)
         return self.end.pos
 
     def dijkstra(self, root: Vertex):
+        print("dijkstra")
+        t1 = time.time()
+        self.distances = defaultdict(lambda: (np.inf, None))
         self.distances[root] = (0, root)
         visited = {v: False for v in self.graph.vertices}
         pq = [(0.0, root)]
@@ -302,6 +303,8 @@ class PRM:
                     self.distances[v] = (dist_u + weight, u)
                     dist_v = dist_u + weight
                     heapq.heappush(pq, (dist_v, v))
+        print(f"finished dijkstra in {time.time() - t1}")
+
 
     def get_closest_vertex(self, pos: np.ndarray, theta: float):
         block = map_index_from_pos(pos)
@@ -348,5 +351,5 @@ class PRM:
             parent = self.distances[vertex][1]
             x_list.append(vertex.pos[0])
             y_list.append(vertex.pos[1])
-        plt.plot(x_list, y_list, c='blue')
+        plt.plot(x_list, y_list, c='blue', label='projected path')
         plt.scatter(x_list[-1], y_list[-1], c='green')
