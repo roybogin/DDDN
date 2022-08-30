@@ -1,23 +1,16 @@
-import json
 import os
-import pickle
-import random
 from typing import Set
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pybullet as p
 import pybullet_data as pd
 from gym import spaces
 from gym.utils import seeding
-import time
-import PRM
-from scan_to_map import Map
 
-import consts
+import PRM
 import map_create
 import mazes
 from helper import *
+from scan_to_map import Map
 
 
 def make_env(index, seed=None):
@@ -52,7 +45,8 @@ def add_discovered_matrix(discovered_matrix, start, end):
 class CarEnv:
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
-        self.trace = []
+        self.car_center = None
+        self.trace = None
         self.current_vertex = None
         self.next_vertex = None
         self.count = None
@@ -271,6 +265,7 @@ class CarEnv:
         """
         resets the environment
         """
+        self.trace = []
         self.count = 0
         self.hits = []
         self.remove_all_bodies()
@@ -409,21 +404,21 @@ class CarEnv:
         radius = np.sqrt(self.prm.radius_x_y_squared(x_tag, y_tag))
         delta = np.sign(y_tag) * np.arctan(consts.length / radius)
 
-        rad_1 = np.sqrt(radius ** 2 - consts.a_2 ** 2)
+        '''rad_1 = np.sqrt(radius ** 2 - consts.a_2 ** 2)
         delta_inner = np.arctan(consts.length/(rad_1 - consts.width/2))
         delta_outer = np.arctan(consts.length/(rad_1 + consts.width/2))
 
         if y_tag >= 0:
             rotation = [delta_inner, delta_outer]
         else:
-            rotation = [-delta_outer, -delta_inner]
-        # rotation = [delta, delta]
+            rotation = [-delta_outer, -delta_inner]'''
+        rotation = [delta, delta]
 
         rotation = np.array(rotation)
 
         # print(self.car_center, self.next_vertex.pos, self.end_point)
 
-        action = [np.sign(x_tag) / (2 + 4 * abs(delta)), rotation]
+        action = [np.sign(x_tag) / (1 + 4 * abs(delta)), rotation]
 
         # updating target velocity and steering angle
         wanted_speed = action[0] * consts.max_velocity
@@ -574,7 +569,7 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 0
+        self.maze_idx = 3
         maze, start, end = mazes.empty_set[self.maze_idx]
         return maze, end, start
 

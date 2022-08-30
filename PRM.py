@@ -216,6 +216,7 @@ class PRM:
                 weight = dist(v.pos, u.pos)
                 if weight == 0:
                     continue
+                # TODO: move code to new function - edges to add
                 if weight <= self.res:
                     transformed = self.transform_pov(v, u)
                     x_tag, y_tag = transformed[0][0], transformed[0][1]
