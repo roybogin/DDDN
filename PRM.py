@@ -1,9 +1,8 @@
 import heapq
 import time
 from collections import defaultdict
-from typing import Set, Tuple, List, Dict, DefaultDict
+from typing import Set, Tuple, List, DefaultDict
 
-import math
 import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
@@ -149,13 +148,13 @@ class PRM:
             for _ in range(shape[1]):
                 self.vertices[-1].append([])
         x_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset - consts.size_map_quarter
-        for row_idx in tqdm(range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge)):
+        for col_idx in tqdm(range(consts.amount_vertices_from_edge, self.shape[1] - consts.amount_vertices_from_edge)):
             y_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset - consts.size_map_quarter
-            for col_idx in range(consts.amount_vertices_from_edge, self.shape[1] - consts.amount_vertices_from_edge):
+            for row_idx in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
                 theta_temp = 0
                 for angle_idx in range(consts.directions_per_vertex):
                     new_vertex = self.graph.add_vertex(np.array([x_temp, y_temp]), theta_temp)
-                    self.vertices[row_idx][col_idx].append(new_vertex)
+                    self.vertices[col_idx][row_idx].append(new_vertex)
                     theta_temp += angle_offset
                 y_temp += consts.vertex_offset
             x_temp += consts.vertex_offset
@@ -327,7 +326,7 @@ class PRM:
     def transform_by_values(self, pos: np.ndarray, theta: float, vertex_2: Vertex):
         return self.rotate_angle(vertex_2.pos - pos, -theta), vertex_2.theta - theta
 
-    def draw_path(self, current_vertex):
+    def draw_path(self, current_vertex, idx=''):
         x_list = [current_vertex.pos[0]]
         y_list = [current_vertex.pos[1]]
         plt.scatter(x_list, y_list, c='black')
@@ -338,7 +337,7 @@ class PRM:
             parent = self.distances[vertex][1]
             x_list.append(vertex.pos[0])
             y_list.append(vertex.pos[1])
-        plt.plot(x_list, y_list, c='blue', label='projected path')
+        plt.plot(x_list, y_list, label=f'projected path {idx}')
         plt.scatter(x_list[-1], y_list[-1], c='green')
 
     def remove_vertex(self, v: Vertex):

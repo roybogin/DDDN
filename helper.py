@@ -1,13 +1,11 @@
-import heapq
-import itertools
 import math
-from typing import List, Sequence
 
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
 
 import consts
+
 
 def dist(point1, point2):
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
@@ -122,7 +120,7 @@ def plot_line(x0, y0, x1, y1, matrix):
     for x, y in get_line(x0, y0, x1, y1, len(matrix)):
         if matrix[x][y] == 0:
             matrix[x][y] = 1
-            new_ones.append((x,y))
+            new_ones.append((x, y))
     return new_ones
 
 
@@ -165,18 +163,18 @@ def block_options(index, radius, map_shape, only_positives=False):
     :return: list of the neighbors in the map
     """
     radius = int(radius)
-    r, c = index
+    c, r = index
     padding = consts.amount_vertices_from_edge
-    if r < padding or r >= map_shape[0] - padding or c < padding or c >= map_shape[1] - padding:
+    if c < padding or c >= map_shape[1] - padding or r < padding or r >= map_shape[0] - padding:
         return []
     neighbors = []
     for x in range(-radius, radius + 1):
         for y in range(-radius, radius + 1):
-            if padding <= c + x < map_shape[0] - padding and padding <= r + y < map_shape[1] - padding:
-                if x*x + y*y <= radius*radius + radius:
-                    neighbors.append((c+x, r+y))
+            if padding <= r + y < map_shape[0] - padding and padding <= c + x < map_shape[1] - padding:
+                if x * x + y * y <= radius * radius + radius:
+                    neighbors.append((c + x, r + y))
     if only_positives:
-        neighbors = [n for n in neighbors if n >= (r, c)]
+        neighbors = [n for n in neighbors if n >= (c, r)]
     return neighbors
 
 
@@ -186,69 +184,71 @@ def get_by_direction(index, map_shape, direction, distance):
     line.sort(key=lambda a: (a[0] - index[0]) ** 2 + (a[1] - index[1]) ** 2)
     return line[1:]
 
+
 def onSegment(p, q, r):
-    if ( (q[0] <= max(p[0], r[0])) and (q[0] >= min(p[0], r[0])) and 
-           (q[1] <= max(p[1], r[1])) and (q[1] >= min(p[1], r[1]))):
+    if ((q[0] <= max(p[0], r[0])) and (q[0] >= min(p[0], r[0])) and
+            (q[1] <= max(p[1], r[1])) and (q[1] >= min(p[1], r[1]))):
         return True
     return False
-  
+
+
 def orientation(p, q, r):
     # to find the orientation of an ordered triplet (p,q,r)
     # function returns the following values:
     # 0 : Collinear points
     # 1 : Clockwise points
     # 2 : Counterclockwise
-      
+
     # See https://www.geeksforgeeks.org/orientation-3-ordered-points/amp/ 
     # for details of below formula. 
-      
+
     val = (float(q[1] - p[1]) * (r[0] - q[0])) - (float(q[0] - p[0]) * (r[1] - q[1]))
-    if (val > 0):
-          
+    if val > 0:
+
         # Clockwise orientation
         return 1
-    elif (val < 0):
-          
+    elif val < 0:
+
         # Counterclockwise orientation
         return 2
     else:
-          
+
         # Collinear orientation
         return 0
-  
+
+
 # The main function that returns true if 
 # the line segment 'p1q1' and 'p2q2' intersect.
-def doIntersect(p1,q1,p2,q2):
-      
-    # Find the 4 orientations required for 
+def doIntersect(p1, q1, p2, q2):
+    # Find the 4 orientations required for
     # the general and special cases
     o1 = orientation(p1, q1, p2)
     o2 = orientation(p1, q1, q2)
     o3 = orientation(p2, q2, p1)
     o4 = orientation(p2, q2, q1)
-  
+
     # General case
-    if ((o1 != o2) and (o3 != o4)):
+    if (o1 != o2) and (o3 != o4):
         return True
-  
+
     # Special Cases
-  
+
     # p1 , q1 and p2 are collinear and p2 lies on segment p1q1
-    if ((o1 == 0) and onSegment(p1, p2, q1)):
+    if (o1 == 0) and onSegment(p1, p2, q1):
         return True
-  
+
     # p1 , q1 and q2 are collinear and q2 lies on segment p1q1
-    if ((o2 == 0) and onSegment(p1, q2, q1)):
+    if (o2 == 0) and onSegment(p1, q2, q1):
         return True
-  
+
     # p2 , q2 and p1 are collinear and p1 lies on segment p2q2
-    if ((o3 == 0) and onSegment(p2, p1, q2)):
+    if (o3 == 0) and onSegment(p2, p1, q2):
         return True
-  
+
     # p2 , q2 and q1 are collinear and q1 lies on segment p2q2
-    if ((o4 == 0) and onSegment(p2, q1, q2)):
+    if (o4 == 0) and onSegment(p2, q1, q2):
         return True
-  
+
     # If none of the cases
     return False
 
@@ -256,7 +256,10 @@ def doIntersect(p1,q1,p2,q2):
 def distance_between_lines(start_point1, end_point1, start_point2, end_point2):
     if doIntersect(start_point1, end_point1, start_point2, end_point2):
         return 0
-    return min([perpendicularDistance(start_point1, start_point2, end_point2), perpendicularDistance(end_point1, start_point2, end_point2), perpendicularDistance(start_point2, start_point1, end_point1), perpendicularDistance(end_point2, start_point1, end_point1)])
+    return min([perpendicularDistance(start_point1, start_point2, end_point2),
+                perpendicularDistance(end_point1, start_point2, end_point2),
+                perpendicularDistance(start_point2, start_point1, end_point1),
+                perpendicularDistance(end_point2, start_point1, end_point1)])
 
 
 def perpendicularDistance(point, start_point, end_point):

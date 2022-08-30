@@ -7,6 +7,7 @@ from gym import spaces
 from gym.utils import seeding
 
 import PRM
+import consts
 import map_create
 import mazes
 from helper import *
@@ -232,7 +233,6 @@ class CarEnv:
                                 for vertex in self.prm.vertices[block[0]][block[1]]:
                                     if vertex and not self.segments_partial_map.check_state(vertex):
                                         if self.prm.remove_vertex(vertex):
-                                            print('remove vertex')
                                             need_recalculate = True
             self.new_discovered = add_discovered_matrix(new_map_discovered, start, end)
         self.discovered = new_map_discovered
@@ -247,25 +247,17 @@ class CarEnv:
             for edge in vertex.edges:
                 if edge.v1 in problematic_vertices and edge.v2 in problematic_vertices:
                     problematic_edges.add(edge)
-        if len(problematic_edges) != 0:
-            print('problematic')
         for segment in new_segments:
-            if len(segment) == 1:
+            for i in range(len(segment) - 1):
                 for edge in problematic_edges:
-                    if perpendicularDistance(segment[0], edge.v1.pos, edge.v2.pos) < consts.width + 2 * consts.epsilon:
+                    if distance_between_lines(segment[i], segment[i+1], edge.v1.pos, edge.v2.pos) < consts.width + 2 * consts.epsilon:
                         if self.prm.graph.remove_edge(edge):
-                            print('remove edge')
                             need_recalculate = True
-            else:
-                for i in range(len(segment) - 1):
-                    for edge in problematic_edges:
-                        if distance_between_lines(segment[i], segment[i+1], edge.v1.pos, edge.v2.pos) < consts.width + 2 * consts.epsilon:
-                            if self.prm.graph.remove_edge(edge):
-                                print('remove edge')
-                                need_recalculate = True
         if need_recalculate:
             print('recalc')
             self.prm.dijkstra(self.prm.end)
+            self.prm.draw_path(self.current_vertex, idx=2)
+            self.count = 0
 
 
     def reset(self):
@@ -274,7 +266,7 @@ class CarEnv:
         """
         self.trace = []
         self.count = 0
-        self.hits = [[] for _ in consts.ray_amount]
+        self.hits = [[] for _ in range(consts.ray_amount)]
         self.remove_all_bodies()
         self.add_borders()
 
@@ -502,7 +494,7 @@ class CarEnv:
         if self.finished:
             self.trace.append(self.end_point)
 
-        plt.plot([a for a, _ in self.trace], [a for _, a in self.trace], c='orange', label='actual path')
+        plt.plot([a for a, _ in self.trace], [a for _, a in self.trace], label='actual path')
         plt.title(f'maze {self.maze_idx} - time {self.run_time}')
         plt.legend()
         plt.show()

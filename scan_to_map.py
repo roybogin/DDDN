@@ -110,14 +110,8 @@ class Map:
                 x_temp = consts.length * (-1 / 2 + i / (num_sample_car - 1))
                 y_temp = consts.width * (-1 / 2 + j / (num_sample_car - 1))
                 to_check.append(
-                    (
-                        vertex.pos[0]
-                        + x_temp * np.cos(vertex.theta)
-                        - y_temp * np.sin(vertex.theta),
-                        vertex.pos[1]
-                        + x_temp * np.sin(vertex.theta)
-                        + y_temp * np.cos(vertex.theta),
-                    )
+                    (vertex.pos[0] + x_temp * np.cos(vertex.theta) - y_temp * np.sin(vertex.theta),
+                        vertex.pos[1] + x_temp * np.sin(vertex.theta) + y_temp * np.cos(vertex.theta))
                 )
         return self.check_batch(to_check)
 
@@ -138,10 +132,7 @@ class Map:
         for point in points:
             should_add = True
             for segment in segment_representation:
-                if (
-                    perpendicularDistance(point, segment[0], segment[1])
-                    < consts.epsilon
-                ):
+                if perpendicularDistance(point, segment[0], segment[1]) < consts.epsilon:
                     should_add = False
             if should_add:
                 new_points.append(point)
