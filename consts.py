@@ -24,7 +24,7 @@ min_dist_to_target = 0.5  # distance from target that is treated as success
 ray_length = 5  # length of ray
 ray_amount = 6
 size_map_quarter = 10
-vertex_offset = 0.12
+vertex_offset = 0.11
 map_borders = [
     (size_map_quarter, size_map_quarter),
     (size_map_quarter, -size_map_quarter),

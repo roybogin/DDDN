@@ -28,7 +28,6 @@ def add_discovered_matrix(discovered_matrix, start, end):
 class CarEnv:
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
-        self.car_center = None
         self.trace = None
         self.current_vertex = None
         self.next_vertex = None
@@ -42,7 +41,8 @@ class CarEnv:
         self.velocity = None  # velocity of the car (speed in both axes)
         self.angular_velocity = None  # angular velocity of the car
         self.rotation = None  # rotation of the car (in radians)
-        self.pos = None  # position of the car on the map
+        self.base_pos = None
+        self.center_pos = None
         self.start_point = None  # starting point of the map
         self.discovered = None  # binary matrix which shows what regions of the map were seen by the car
         self.discrete_partial_map = None  # the map as perceived by the car - 0 means unexplored or empty and 1 means that the map has
@@ -80,9 +80,9 @@ class CarEnv:
         self.prm.dijkstra(self.prm.end)
 
         print(len([v for v in self.prm.graph.vertices if self.prm.distances[v][0] == np.inf]))
-        self.current_vertex = self.prm.get_closest_vertex(np.array(self.start_point[:2]), 0)
-        current_car_pos = PRM.car_center_to_pos(self.current_vertex.pos, 0)
-        self.start_point = [current_car_pos[0], current_car_pos[1], 0]
+        self.current_vertex = self.prm.get_closest_vertex(self.start_point, 0)
+        self.start_point = [self.current_vertex.pos[0], self.current_vertex.pos[1], 0]
+        self.center_pos = self.current_vertex.pos
 
         self.prm.draw_path(self.current_vertex)
 
@@ -199,7 +199,7 @@ class CarEnv:
                             edge.active = False
                             need_recalculate = True
         if need_recalculate:
-            print('recalc', self.car_center, self.prm.graph.n, self.prm.graph.e)
+            print('recalc', self.center_pos, self.prm.graph.n, self.prm.graph.e)
             self.prm.dijkstra(self.prm.end)
             # self.prm.draw_path(self.current_vertex, idx=2)
             self.count = 0
@@ -227,7 +227,6 @@ class CarEnv:
 
         self.finished = False
         self.crashed = False
-        self.pos = self.start_point
         self.last_speed = 0
 
         self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=consts.epsilon, client=p)
@@ -320,25 +319,26 @@ class CarEnv:
         self.scan_environment()
 
         if consts.print_runtime and self.run_time % 500 == 0:
-            print('time:', self.run_time, 'pos:', self.car_center)
+            print('time:', self.run_time, 'pos:', self.center_pos)
 
-        self.car_center = PRM.pos_to_car_center(np.array(self.pos[:2]), self.rotation)
+        self.current_vertex = self.prm.get_closest_vertex(self.center_pos, self.rotation)
 
-        if self.next_vertex and dist(self.car_center, self.next_vertex.pos) <= 0.05:
-            print("got to", self.car_center, self.rotation)
+        if self.next_vertex and dist(self.center_pos, self.next_vertex.pos) <= 0.05:
+            print("got to", self.center_pos, self.rotation)
             self.count = 0
         if self.count == 100:
             self.count = 0
 
         if self.count == 0:
-            self.trace.append(self.car_center)
-            self.next_vertex = self.prm.next_in_path(self.car_center, self.rotation)
+            self.trace.append(self.center_pos)
+            self.next_vertex = self.prm.next_in_path(self.current_vertex)
             if not self.next_vertex:
                 self.next_vertex = self.current_vertex
+                print('aa')
 
         self.count += 1
 
-        transformed = self.prm.transform_by_values(self.car_center, self.rotation, self.next_vertex)
+        transformed = self.prm.transform_by_values(self.center_pos, self.rotation, self.next_vertex)
         x_tag, y_tag = transformed[0][0], transformed[0][1]
 
         radius = np.sqrt(self.prm.radius_x_y_squared(x_tag, y_tag))
@@ -392,7 +392,9 @@ class CarEnv:
         self.scan_environment()
 
         # updating map;
-        self.pos, quaternions = p.getBasePositionAndOrientation(self.car_model)
+        self.base_pos, quaternions = p.getBasePositionAndOrientation(self.car_model)
+        self.rotation = p.getEulerFromQuaternion(quaternions)[2]
+        self.center_pos = PRM.pos_to_car_center(np.array(self.base_pos[:2]), self.rotation)
 
         self.velocity, self.angular_velocity = p.getBaseVelocity(self.car_model)
         self.velocity = self.velocity[:2]
@@ -401,14 +403,13 @@ class CarEnv:
         # checking if collided or finished
         if self.check_collision(self.car_model, self.bodies):
             self.crashed = True
-        if dist(self.car_center, self.end_point) < consts.min_dist_to_target:
+        if dist(self.center_pos, self.end_point) < consts.min_dist_to_target:
             self.finished = True
         # # getting values for NN
-        if self.pos[2] > 0.1:
+        if self.base_pos[2] > 0.1:
             self.crashed = True
 
-        self.pos = self.pos[:2]
-        self.rotation = p.getEulerFromQuaternion(quaternions)[2]
+        self.base_pos = self.base_pos[:2]
 
         self.last_speed = self.speed
         self.speed = norm(self.velocity)
@@ -425,11 +426,11 @@ class CarEnv:
         if self.run_time >= consts.max_time:
             print(
                 f"out of time in maze {self.maze_idx}"
-                f" - distance is {dist(self.pos, self.end_point)}")
+                f" - distance is {dist(self.center_pos, self.end_point)}")
             p.disconnect()
-            self.trace.append(self.car_center)
+            self.trace.append(self.center_pos)
             plt.plot([a for a, _ in self.trace], [a for _, a in self.trace], label='actual path')
-            plt.scatter(self.car_center[0], self.car_center[1], c='red')
+            plt.scatter(self.center_pos[0], self.center_pos[1], c='red')
             plt.title(f'maze {self.maze_idx} - time {self.run_time}')
             self.prm.draw_path(self.current_vertex, ' end')
             plt.legend()
@@ -440,7 +441,7 @@ class CarEnv:
 
         if not (self.crashed or self.finished):
             return self.get_observation(), 0, False, {}
-        self.trace.append(self.car_center)
+        self.trace.append(self.center_pos)
         if self.finished:
             self.trace.append(self.end_point)
 
@@ -453,7 +454,7 @@ class CarEnv:
         if self.crashed:
             print(
                 f"crashed maze {self.maze_idx}"
-                f" - distance is {dist(self.pos, self.end_point)}"
+                f" - distance is {dist(self.center_pos, self.end_point)}"
                 f" - time {self.run_time}")
             p.disconnect()
             exit(666)
@@ -470,16 +471,7 @@ class CarEnv:
         get the current observation
         :return: dictionary matching the observation
         """
-        observation = {
-            "position": np.array(self.pos[:2], dtype=np.float32),
-            "goal": np.array(self.curr_goal, dtype=np.float32),
-            "velocity": np.array(self.velocity, dtype=np.float32),
-            "angular_velocity": np.array(self.angular_velocity, dtype=np.float32),
-            "swivel": np.array([self.swivel], dtype=np.float32),
-            "rotation_trigonometry": np.array(self.rotation_trig, dtype=np.float32),
-            "acceleration": np.array([self.acceleration], dtype=np.float32),
-        }
-        return observation
+        return None
 
     def set_car_position(self, position):
         """
@@ -487,7 +479,8 @@ class CarEnv:
         :param position: position to place the car at
         :return:
         """
-        p.resetBasePositionAndOrientation(self.car_model, position, [0.0, 0.0, 0.0, 1.0])
+        base_position = list(PRM.car_center_to_pos(np.array(position), 0)) + [0]
+        p.resetBasePositionAndOrientation(self.car_model, base_position, [0.0, 0.0, 0.0, 1.0])
         p.resetBaseVelocity(self.car_model, [0, 0, 0], [0, 0, 0])
 
     def create_car_model(self):
@@ -518,8 +511,8 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 2
-        maze, start, end = mazes.empty_set[self.maze_idx]
+        self.maze_idx = 'with block'
+        maze, start, end = mazes.default_data_set[1] # mazes.empty_set[self.maze_idx]
         return maze, end, start
 
 

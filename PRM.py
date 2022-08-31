@@ -33,21 +33,6 @@ class Vertex:
     def __lt__(self, other):
         return self.index < other.index
 
-    def __getstate__(self):
-        neighbors = []
-        for edge in self.edges:
-            neighbor = edge.v1
-            if neighbor == self:
-                neighbor = edge.v2
-            neighbors.append((neighbor.index, edge.weight))
-        pos_in_normal = car_center_to_pos(self.pos, self.theta)
-        return {
-            'pos': list(pos_in_normal),
-            'theta': self.theta,
-            'index': self.index,
-            'edges': neighbors
-        }
-
 
 class Edge:
     """
@@ -81,6 +66,7 @@ class WeightedGraph:
         """
         if index is None:
             index = self.n
+        # new_vertex = Vertex(pos_to_car_center(pos, theta), theta, index)    # TODO: need to fix
         new_vertex = Vertex(pos, theta, index)
         self.vertices.add(new_vertex)
         self.n += 1
@@ -123,19 +109,6 @@ class WeightedGraph:
         self.vertices.remove(v)
         self.n -= 1
         return True
-
-    def __getstate__(self):
-        return [v.__getstate__() for v in self.vertices]
-
-    def __setstate__(self, state):
-        vertex_list = [None for _ in state]
-        for s in tqdm(state):
-            v = self.add_vertex(np.array(s['pos']), s['theta'], s['index'])
-            vertex_list[s['index']] = v
-            for index, weight in s['edges']:
-                if vertex_list[index] is not None:
-                    self.add_edge(v, vertex_list[index], weight)
-        self.vertices = set(vertex_list)
 
 
 class PRM:
@@ -301,11 +274,7 @@ class PRM:
         angle = round(theta / angle_offset)
         return self.vertices[block[0]][block[1]][angle]
 
-    def next_in_path(self, pos: np.ndarray, theta: float):
-        block = map_index_from_pos(pos)
-        angle_offset = 2 * np.pi / consts.directions_per_vertex
-        angle = round(theta / angle_offset)
-        vertex = self.vertices[block[0]][block[1]][angle]
+    def next_in_path(self, vertex: Vertex):
         return self.distances[vertex][1]
 
     def __getstate__(self):
