@@ -59,6 +59,7 @@ class Edge:
         self.v2: Vertex = vertex_2  # second vertex in the edge
         self.weight: float = weight  # weight of the edge
         self.two_way = two_way
+        self.active = True
 
 
 class WeightedGraph:
@@ -70,7 +71,6 @@ class WeightedGraph:
         self.vertices: Set[Vertex] = set()  # A set of the graph vertices
         self.n: int = 0  # size of the graph
         self.e: int = 0  # amount of edges in the grapp
-        self.e_counter = 0
 
     def add_vertex(self, pos: np.ndarray, theta: float, index: int = None) -> Vertex:
         """
@@ -81,7 +81,7 @@ class WeightedGraph:
         """
         if index is None:
             index = self.n
-        new_vertex = Vertex(pos_to_car_center(pos, theta), theta, index)
+        new_vertex = Vertex(pos, theta, index)
         self.vertices.add(new_vertex)
         self.n += 1
         return new_vertex
@@ -105,10 +105,13 @@ class WeightedGraph:
             return_val = False
         if return_val:
             self.e -= 1
+        else:
+            print('false edge')
         return return_val
 
     def remove_vertex(self, v: Vertex) -> bool:
         if v not in self.vertices:
+            print('false vertex')
             return False
         for edge in v.edges:
             other_vertex = edge.v1
@@ -152,7 +155,7 @@ class PRM:
             y_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset - consts.size_map_quarter
             for row_idx in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
                 theta_temp = 0
-                for angle_idx in range(consts.directions_per_vertex):
+                for _ in range(consts.directions_per_vertex):
                     new_vertex = self.graph.add_vertex(np.array([x_temp, y_temp]), theta_temp)
                     self.vertices[col_idx][row_idx].append(new_vertex)
                     theta_temp += angle_offset
@@ -268,7 +271,7 @@ class PRM:
     def dijkstra(self, root: Vertex):
         print("dijkstra")
         t1 = time.time()
-        self.distances = defaultdict(lambda: (np.inf, None))
+        self.distances.clear()
         self.distances[root] = (0, root)
         visited = {v: False for v in self.graph.vertices}
         pq = [(0.0, root)]
@@ -326,7 +329,7 @@ class PRM:
     def transform_by_values(self, pos: np.ndarray, theta: float, vertex_2: Vertex):
         return self.rotate_angle(vertex_2.pos - pos, -theta), vertex_2.theta - theta
 
-    def draw_path(self, current_vertex, idx=''):
+    def draw_path(self, current_vertex: Vertex, idx=''):
         x_list = [current_vertex.pos[0]]
         y_list = [current_vertex.pos[1]]
         plt.scatter(x_list, y_list, c='black')

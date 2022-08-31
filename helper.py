@@ -143,16 +143,6 @@ def map_index_from_pos(pos):
     # keep the return value within the wanted limits for edge cases
     return tuple([max(0, min(idx, int((2 * consts.size_map_quarter) // consts.vertex_offset) - 1)) for idx in indices])
 
-
-def pos_from_map_index(block_index):
-    """
-    transforms indices in the binary matrices to a position on the map (the position is the middle of the block)
-    :param block_index: index of block in the matrix (2 dimensional)
-    :return: (x, y) pair to mark the position in the map
-    """
-    return [consts.vertex_offset * (value + 0.5) - consts.size_map_quarter for value in block_index]
-
-
 def block_options(index, radius, map_shape, only_positives=False):
     """
     returns the neighbors of a block in the map (including diagonal)
@@ -176,13 +166,6 @@ def block_options(index, radius, map_shape, only_positives=False):
     if only_positives:
         neighbors = [n for n in neighbors if n >= (c, r)]
     return neighbors
-
-
-def get_by_direction(index, map_shape, direction, distance):
-    ray_end = [int(index[0] + distance * np.sin(direction)), int(index[1] + distance * np.cos(direction))]
-    line = get_line(index[0], index[1], ray_end[0], ray_end[1], map_shape[0])
-    line.sort(key=lambda a: (a[0] - index[0]) ** 2 + (a[1] - index[1]) ** 2)
-    return line[1:]
 
 
 def onSegment(p, q, r):

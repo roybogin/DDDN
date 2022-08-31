@@ -3,31 +3,13 @@ from typing import Set
 
 import pybullet as p
 import pybullet_data as pd
-from gym import spaces
 from gym.utils import seeding
 
 import PRM
-import consts
 import map_create
 import mazes
 from helper import *
 from scan_to_map import Map
-
-
-def make_env(index, seed=None):
-    """
-    Utility function for multiprocessing env.
-    :param index: (int) index of the subprocess
-    :param seed: (int) the initial seed for RNG
-    :return: function that creates the environment
-    """
-
-    return lambda: CarEnv(index, seed)
-    # def _init():
-    #     env = CarEnv(index, seed)
-    #     return env
-    #
-    # return _init
 
 
 def add_discovered_matrix(discovered_matrix, start, end):
@@ -51,14 +33,10 @@ class CarEnv:
         self.current_vertex = None
         self.next_vertex = None
         self.count = None
-        self.end_vertex = None
         self.direction = None
-        self.distances_from_pos = None
         self.index = index  # index of environment in multiprocessing
         self.maze_idx = None  # index of the maze we chosen TODO: delete after generalizing
         self.np_random = None  # object for randomizing values according to a seed
-        self.initial_distance_to_target = None  # the initial distance between the car and target
-        self.total_score = None  # total score for the run
         self.rotation_trig = None  # trigonometry values on the car orientation
         self.speed = None  # speed of the car
         self.velocity = None  # velocity of the car (speed in both axes)
@@ -73,7 +51,6 @@ class CarEnv:
         self.last_speed = None  # speed of the car in the previous frame
         self.run_time = None  # time of the run
         self.finished = None  # did the car get to the goal
-        self.new_discovered = None  # new indices that were discovered by the car
         self.crashed = None  # did the car crash
         self.swivel = None  # swivel of the car - angle of steering wheel
         self.acceleration = None  # acceleration of the car (difference in speed)
@@ -81,44 +58,13 @@ class CarEnv:
         self.maze = None  # walls of the maze - list of points
         self.borders = None  # the maze borders - object IDs
         self.curr_goal = None  # goal for now (close to current position)
-        self.distances_to_end = None  # minimum distance in blocks (in the maze) to the end for each block
-        self.map_changed = None  # did the perceived map change (we need to recalculate the distances)
-        self.prev_pos = None
         self.segments_partial_map: Map | None = None
-        self.scanned_indices = None  # new indices since scan
         self.hits = None
 
-        self.prm = PRM.PRM((int((2 * consts.size_map_quarter) // consts.vertex_offset), int((2 * consts.size_map_quarter) // consts.vertex_offset)))
+        self.prm = PRM.PRM((int((2 * consts.size_map_quarter) // consts.vertex_offset),
+                            int((2 * consts.size_map_quarter) // consts.vertex_offset)))
 
         self.generate_graph()
-
-        '''structure of an observation
-                "position": 2,
-                "goal": 2,
-                "velocity": 2,
-                "angular_velocity": 2,
-                "swivel": 1,
-                "rotation_trigonometry": 2,
-                "acceleration": 1
-                '''
-        self.observation_space = spaces.Dict(
-            {
-                "position": spaces.Box(-size, size, shape=(2,), dtype=np.float32),
-                "goal": spaces.Box(-size, size, shape=(2,), dtype=np.float32),
-                "velocity": spaces.Box(
-                    -consts.max_velocity, consts.max_velocity, shape=(2,), dtype=np.float32
-                ),
-                "angular_velocity": spaces.Box(
-                    -consts.max_velocity, consts.max_velocity, shape=(2,), dtype=np.float32
-                ),
-                "swivel": spaces.Box(
-                    -consts.max_steer, consts.max_steer, shape=(1,), dtype=np.float32
-                ),
-                "rotation_trigonometry": spaces.Box(-1, 1, shape=(2,), dtype=np.float32),
-                "acceleration": spaces.Box(-1000, 1000, shape=(1,), dtype=np.float32),
-            }
-        )
-        self.action_space = spaces.Box(-1, 1, shape=(2,), dtype=np.float32)
 
         self.car_model = None  # pybullet ID of the car
         self.wheels = None  # pybullet ID of the wheels for setting speed
@@ -182,9 +128,6 @@ class CarEnv:
 
         self.car_model, self.wheels, self.steering = self.create_car_model()
 
-    def calculate_next_goal(self):
-        pass
-
     def add_borders(self):
         """
         adds the boarders to the maze
@@ -234,7 +177,7 @@ class CarEnv:
                                     if vertex and not self.segments_partial_map.check_state(vertex):
                                         if self.prm.remove_vertex(vertex):
                                             need_recalculate = True
-            self.new_discovered = add_discovered_matrix(new_map_discovered, start, end)
+            add_discovered_matrix(new_map_discovered, start, end)
         self.discovered = new_map_discovered
         for segment in new_segments:
             for point in segment:
@@ -250,15 +193,17 @@ class CarEnv:
         for segment in new_segments:
             for i in range(len(segment) - 1):
                 for edge in problematic_edges:
-                    if distance_between_lines(segment[i], segment[i+1], edge.v1.pos, edge.v2.pos) < consts.width + 2 * consts.epsilon:
+                    if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.v1.pos, edge.v2.pos) < \
+                            consts.width + 2 * consts.epsilon:
                         if self.prm.graph.remove_edge(edge):
+                            edge.active = False
                             need_recalculate = True
         if need_recalculate:
-            print('recalc')
+            print('recalc', self.car_center, self.prm.graph.n, self.prm.graph.e)
             self.prm.dijkstra(self.prm.end)
-            self.prm.draw_path(self.current_vertex, idx=2)
+            # self.prm.draw_path(self.current_vertex, idx=2)
             self.count = 0
-
+            print('distance to end is', self.prm.distances[self.current_vertex])
 
     def reset(self):
         """
@@ -280,17 +225,15 @@ class CarEnv:
         self.rotation = 0
         self.run_time = 0
 
-        self.initial_distance_to_target = dist(self.start_point[:2], self.end_point[:2])
         self.finished = False
         self.crashed = False
         self.pos = self.start_point
-        self.prev_pos = self.start_point[:2]
         self.last_speed = 0
-        self.total_score = 0
 
         self.obstacles = map_create.create_map(self.maze, self.end_point, epsilon=consts.epsilon, client=p)
         self.bodies = self.borders + self.obstacles
-        self.discrete_partial_map = [[0 for _ in range(int((2 * consts.size_map_quarter) // consts.vertex_offset))] for _ in
+        self.discrete_partial_map = [[0 for _ in range(int((2 * consts.size_map_quarter) // consts.vertex_offset))] for
+                                     _ in
                                      range(int((2 * consts.size_map_quarter) // consts.vertex_offset))]
         for i in range(int((2 * consts.size_map_quarter) // consts.vertex_offset)):
             self.discrete_partial_map[i][0] = 1
@@ -304,8 +247,6 @@ class CarEnv:
         ]
         self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
 
-        self.map_changed = True
-        self.calculate_next_goal()
         return self.get_observation()
 
     def ray_cast(self, car, offset, direction):
@@ -378,8 +319,8 @@ class CarEnv:
 
         self.scan_environment()
 
-        if consts.print_runtime:
-            print(self.run_time)
+        if consts.print_runtime and self.run_time % 500 == 0:
+            print('time:', self.run_time, 'pos:', self.car_center)
 
         self.car_center = PRM.pos_to_car_center(np.array(self.pos[:2]), self.rotation)
 
@@ -423,7 +364,7 @@ class CarEnv:
         wanted_speed = action[0] * consts.max_velocity
         wanted_steering_angle = action[1]
         wanted_steering_angle = np.sign(wanted_steering_angle) * np.minimum(np.abs(wanted_steering_angle),
-                                                                         consts.max_steer)
+                                                                            consts.max_steer)
         if abs(wanted_speed) > consts.max_velocity:
             wanted_speed = consts.max_velocity * np.sign(wanted_speed)
 
@@ -478,18 +419,27 @@ class CarEnv:
         # saving for later
         swivel_states = p.getJointStates(self.car_model, self.steering)
         angles = [state[0] for state in swivel_states]
-        cot_delta = (1/np.tan(angles[0]) + 1/np.tan(angles[1])) / 2
-        self.swivel = np.arctan(1/cot_delta)
+        cot_delta = (1 / np.tan(angles[0]) + 1 / np.tan(angles[1])) / 2
+        self.swivel = np.arctan(1 / cot_delta)
 
-        score = 0
-        self.total_score += score
+        if self.run_time >= consts.max_time:
+            print(
+                f"out of time in maze {self.maze_idx}"
+                f" - distance is {dist(self.pos, self.end_point)}")
+            p.disconnect()
+            self.trace.append(self.car_center)
+            plt.plot([a for a, _ in self.trace], [a for _, a in self.trace], label='actual path')
+            plt.scatter(self.car_center[0], self.car_center[1], c='red')
+            plt.title(f'maze {self.maze_idx} - time {self.run_time}')
+            self.prm.draw_path(self.current_vertex, ' end')
+            plt.legend()
+            plt.show()
+            self.segments_partial_map.show()
 
-        self.prev_pos = self.pos
-
-        self.calculate_next_goal()
+            exit(1337)
 
         if not (self.crashed or self.finished):
-            return self.get_observation(), score, False, {}
+            return self.get_observation(), 0, False, {}
         self.trace.append(self.car_center)
         if self.finished:
             self.trace.append(self.end_point)
@@ -513,7 +463,7 @@ class CarEnv:
                 f" - time {self.run_time}")
             p.disconnect()
             exit(0)
-        return self.get_observation(), score, True, {}
+        return self.get_observation(), 0, True, {}
 
     def get_observation(self):
         """
@@ -568,8 +518,8 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 'with block' # 5
-        maze, start, end = mazes.default_data_set[1]  # mazes.empty_set[self.maze_idx]
+        self.maze_idx = 2
+        maze, start, end = mazes.empty_set[self.maze_idx]
         return maze, end, start
 
 
