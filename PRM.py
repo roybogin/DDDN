@@ -27,7 +27,8 @@ class Vertex:
     def __init__(self, pos: np.ndarray, theta: float, index: int):
         self.pos: np.ndarray = pos  # position of the car
         self.theta: float = theta  # angle if the car
-        self.edges: Set[Edge] = set()  # the corresponding edges in the graph
+        self.in_edges: Set[Edge] = set()  # the corresponding edges in the graph
+        self.out_edges: Set[Edge] = set()  # the corresponding edges in the graph
         self.index = index
 
     def __lt__(self, other):
@@ -39,11 +40,10 @@ class Edge:
     Class to represent a graph edge for the PRM
     """
 
-    def __init__(self, vertex_1: Vertex, vertex_2: Vertex, weight: float, two_way: bool = True):
-        self.v1: Vertex = vertex_1  # first vertex in the edge
-        self.v2: Vertex = vertex_2  # second vertex in the edge
+    def __init__(self, vertex_1: Vertex, vertex_2: Vertex, weight: float):
+        self.src: Vertex = vertex_1  # vertex that edge exits from
+        self.dst: Vertex = vertex_2  # vertex that edge enters
         self.weight: float = weight  # weight of the edge
-        self.two_way = two_way
         self.active = True
 
 
@@ -72,21 +72,21 @@ class WeightedGraph:
         self.n += 1
         return new_vertex
 
-    def add_edge(self, vertex_1: Vertex, vertex_2: Vertex, weight: float, two_way: bool = True):
-        edge = Edge(vertex_1, vertex_2, weight, two_way)
-        vertex_1.edges.add(edge)
-        vertex_2.edges.add(edge)
+    def add_edge(self, vertex_1: Vertex, vertex_2: Vertex, weight: float):
+        edge = Edge(vertex_1, vertex_2, weight)
+        vertex_1.out_edges.add(edge)
+        vertex_2.in_edges.add(edge)
         self.e += 1
 
     def remove_edge(self, edge: Edge) -> bool:
         return_val = True
-        v1, v2 = edge.v1, edge.v2
-        if edge in v1.edges:
-            v1.edges.remove(edge)
+        v1, v2 = edge.src, edge.dst
+        if edge in v1.out_edges:
+            v1.out_edges.remove(edge)
         else:
             return_val = False
-        if edge in v2.edges:
-            v2.edges.remove(edge)
+        if edge in v2.in_edges:
+            v2.in_edges.remove(edge)
         else:
             return_val = False
         if return_val:
@@ -99,12 +99,15 @@ class WeightedGraph:
         if v not in self.vertices:
             print('false vertex')
             return False
-        for edge in v.edges:
-            other_vertex = edge.v1
-            if v == other_vertex:
-                other_vertex = edge.v2
-            if edge in other_vertex.edges:
-                other_vertex.edges.remove(edge)
+        for edge in v.in_edges:
+            other_vertex = edge.src
+            if edge in other_vertex.out_edges:
+                other_vertex.out_edges.remove(edge)
+                self.e -= 1
+        for edge in v.out_edges:
+            other_vertex = edge.dst
+            if edge in other_vertex.in_edges:
+                other_vertex.in_edges.remove(edge)
                 self.e -= 1
         self.vertices.remove(v)
         self.n -= 1
@@ -205,34 +208,7 @@ class PRM:
                             v2 = self.vertices[x + diff[0]][y + diff[1]][
                                 (theta + diff[2]) % consts.directions_per_vertex]
                             weight = dist(v1.pos, v2.pos)
-                            self.graph.add_edge(v1, v2, weight, False)
-
-    # TODO: possibly remove, not needed
-    def try_add_edge(self, v_1: Vertex, v_2: Vertex, angle_matters: bool = True):
-        weight = dist(v_1.pos, v_2.pos)
-        if weight == 0 and angle_matters:
-            return
-        if weight <= self.res:
-            transformed = self.transform_pov(v_1, v_2)  # show v_2 from POV of v_1
-            x_tag, y_tag = transformed[0][0], transformed[0][1]
-            differential_theta = self.theta_curve(x_tag, y_tag)
-            if (not angle_matters) or abs(differential_theta - transformed[1]) < self.tol:
-                if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
-                    self.graph.add_edge(v_1, v_2, weight)
-
-    # TODO: possibly remove, not needed
-    def add_vertex(self, pos: np.ndarray, theta: float, angle_matters: bool = True, block: Tuple[int, int] = None) -> \
-            Vertex:
-        """
-        add vertex for the prm
-        """
-        new_vertex = self.graph.add_vertex(pos, theta)
-        if block is None:
-            block = map_index_from_pos(pos)
-        for neighbor_block in block_options(block, np.ceil(self.res / consts.vertex_offset), self.shape):
-            for vertex in self.vertices[neighbor_block[0]][neighbor_block[1]]:
-                self.try_add_edge(new_vertex, vertex, angle_matters)
-        return new_vertex
+                            self.graph.add_edge(v1, v2, weight)
 
     def set_end(self, pos):
         index = map_index_from_pos(pos)
@@ -254,13 +230,9 @@ class PRM:
             if visited[u]:
                 continue
             visited[u] = True
-            for edge in u.edges:
+            for edge in u.in_edges:
+                v = edge.dst
                 weight = edge.weight
-                v = edge.v1
-                if v == u:
-                    if not edge.two_way:
-                        continue
-                    v = edge.v2
                 dist_v = self.distances[v][0]
                 if dist_u + weight < dist_v:
                     self.distances[v] = (dist_u + weight, u)
@@ -276,15 +248,6 @@ class PRM:
 
     def next_in_path(self, vertex: Vertex):
         return self.distances[vertex][1]
-
-    def __getstate__(self):
-        return self.shape, self.graph.__getstate__()
-
-    def __setstate__(self, state):
-        self.__init__(state[0])
-        self.graph.__setstate__(state[1])
-        for vertex in self.graph.vertices:
-            self.vertices_by_blocks[map_index_from_pos(vertex.pos)].append(vertex)
 
     def transform_pov(self, vertex_1: Vertex, vertex_2: Vertex):
         """

@@ -187,13 +187,13 @@ class CarEnv:
         for vertex in problematic_vertices:
             if vertex is None:
                 continue
-            for edge in vertex.edges:
-                if edge.v1 in problematic_vertices and edge.v2 in problematic_vertices:
+            for edge in vertex.in_edges | vertex.out_edges:
+                if edge.src in problematic_vertices and edge.dst in problematic_vertices:
                     problematic_edges.add(edge)
         for segment in new_segments:
             for i in range(len(segment) - 1):
                 for edge in problematic_edges:
-                    if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.v1.pos, edge.v2.pos) < \
+                    if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
                             consts.width + 2 * consts.epsilon:
                         if self.prm.graph.remove_edge(edge):
                             edge.active = False
