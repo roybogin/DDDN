@@ -29,6 +29,7 @@ class CarEnv:
     def __init__(self, index, seed, size=10):
         super(CarEnv, self).__init__()
         self.trace = None
+        self.need_recalculate = False
         self.current_vertex = None
         self.next_vertex = None
         self.count = None
@@ -148,7 +149,6 @@ class CarEnv:
         scans the environment and updates the discovery values
         :return:
         """
-        need_recalculate = False
         directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
         new_map_discovered = self.discovered
         vertex_removal_radius = math.ceil(0.4 / consts.vertex_offset)
@@ -176,7 +176,7 @@ class CarEnv:
                                 for vertex in self.prm.vertices[block[0]][block[1]]:
                                     if vertex and not self.segments_partial_map.check_state(vertex):
                                         if self.prm.remove_vertex(vertex):
-                                            need_recalculate = True
+                                            self.need_recalculate = True
             add_discovered_matrix(new_map_discovered, start, end)
         self.discovered = new_map_discovered
         for segment in new_segments:
@@ -197,13 +197,13 @@ class CarEnv:
                             consts.width + 2 * consts.epsilon:
                         if self.prm.graph.remove_edge(edge):
                             edge.active = False
-                            need_recalculate = True
-        if need_recalculate:
+                            self.need_recalculate = True
+        if self.run_time % 20 == 0 and self.need_recalculate:
             print('recalc', self.center_pos, self.prm.graph.n, self.prm.graph.e)
             self.prm.dijkstra(self.prm.end)
-            # self.prm.draw_path(self.current_vertex, idx=2)
             self.count = 0
             print('distance to end is', self.prm.distances[self.current_vertex])
+            self.need_recalculate = False
 
     def reset(self):
         """
@@ -512,7 +512,7 @@ class CarEnv:
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
         self.maze_idx = 'with block'
-        maze, start, end = mazes.default_data_set[1] # mazes.empty_set[self.maze_idx]
+        maze, start, end = mazes.default_data_set[2] # mazes.empty_set[self.maze_idx]
         return maze, end, start
 
 
