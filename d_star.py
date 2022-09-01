@@ -1,10 +1,12 @@
 import heapq
+import itertools
+import time
 from collections import defaultdict
 from typing import Tuple, DefaultDict
 
 import numpy as np
 
-from PRM import WeightedGraph, Vertex
+from WeightedGraph import Vertex, WeightedGraph
 from helper import dist
 
 
@@ -12,14 +14,15 @@ class PriorityQueue:
     def __init__(self):
         self.queue = []
         self.entry_dict = {}
+        self.count = itertools.count()
 
     def insert(self, obj, priority):
-        entry = [priority, obj]
+        entry = [priority, next(self.count), obj]
         self.entry_dict[obj] = entry
         heapq.heappush(self.queue, entry)
 
     def remove(self, obj):
-        self.entry_dict.pop(obj)[1] = None
+        self.entry_dict.pop(obj)[-1] = None
 
     def update(self, obj, new_priority):
         self.remove(obj)
@@ -27,7 +30,7 @@ class PriorityQueue:
 
     def pop(self):
         while len(self.queue) != 0:
-            priority, obj = heapq.heappop(self.queue)
+            priority, _, obj = heapq.heappop(self.queue)
             if obj is not None:
                 del self.entry_dict[obj]
                 return obj
@@ -40,7 +43,7 @@ class PriorityQueue:
         :return: top of heap
         """
         while len(self.queue) != 0:
-            priority, obj = self.queue[0]
+            priority, _, obj = self.queue[0]
             if obj is not None:
                 return obj
             else:
@@ -54,7 +57,7 @@ class PriorityQueue:
         :return: key for top of heap
         """
         while len(self.queue) != 0:
-            priority, obj = self.queue[0]
+            priority, _,  obj = self.queue[0]
             if obj is not None:
                 return priority
             else:
@@ -121,11 +124,14 @@ class DStar:
             if in_queue:
                 self.q.remove(v)
 
-    def compute_shortest_path(self):
+    def compute_shortest_path(self, vertex: Vertex):
         """
         computes the shortest path
         :return:
         """
+        print('computing path')
+        t = time.time()
+        self.start_vertex = vertex
         while self.q.top_key() < self.calc_key(self.start_vertex) or \
                 self.rhs[self.start_vertex] > self.g[self.start_vertex]:
             u: Vertex = self.q.top()
@@ -154,3 +160,4 @@ class DStar:
                     if u != self.goal_vertex:
                         self.rhs[u] = min((e.weight + self.g[e.dst] for e in u.out_edges))
                 self.update_vertex(u)
+        print('path computed in ', time.time() - t)

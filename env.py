@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Set
 
 import pybullet as p
@@ -6,6 +7,7 @@ import pybullet_data as pd
 from gym.utils import seeding
 
 import PRM
+import d_star
 import map_create
 import mazes
 from helper import *
@@ -26,7 +28,7 @@ def add_discovered_matrix(discovered_matrix, start, end):
 
 
 class CarEnv:
-    def __init__(self, index, seed, size=10):
+    def __init__(self, index, seed):
         super(CarEnv, self).__init__()
         self.trace = None
         self.need_recalculate = False
@@ -75,22 +77,24 @@ class CarEnv:
         self.seed(seed)
         self.maze, self.end_point, self.start_point = self.get_new_maze()
 
+        # real initialization
         print(self.end_point)
         self.end_point = self.prm.set_end(np.array(self.end_point[:2]))
-        print(f'new end is {self.end_point}')
-        self.prm.dijkstra(self.prm.end)
-
-        print(len([v for v in self.prm.graph.vertices if self.prm.distances[v][0] == np.inf]))
         self.current_vertex = self.prm.get_closest_vertex(self.start_point, 0)
+        print(f'new end is {self.end_point}')
         self.start_point = [self.current_vertex.pos[0], self.current_vertex.pos[1], 0]
         self.center_pos = self.current_vertex.pos
-
-        self.prm.draw_path(self.current_vertex)
 
         self.next_vertex = None
 
         self.start_env()
         self.reset()
+
+        self.scan_environment()
+
+        self.prm.init_d_star(self.current_vertex)
+        self.prm.d_star.compute_shortest_path(self.current_vertex)
+        self.prm.draw_path(self.current_vertex)
 
     def generate_graph(self):
         print("generating graph")
@@ -195,15 +199,16 @@ class CarEnv:
                 for edge in problematic_edges:
                     if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
                             consts.width + 2 * consts.epsilon:
-                        if self.prm.graph.remove_edge(edge):
+                        if self.prm.remove_edge(edge):
                             edge.active = False
                             self.need_recalculate = True
-        if self.run_time % 20 == 0 and self.need_recalculate:
-            print('recalc', self.center_pos, self.prm.graph.n, self.prm.graph.e)
-            self.prm.dijkstra(self.prm.end)
-            self.count = 0
-            print('distance to end is', self.prm.distances[self.current_vertex])
-            self.need_recalculate = False
+        # if self.run_time % 20 == 0 and self.need_recalculate:
+        #     print('recalc', self.center_pos, self.prm.graph.n, self.prm.graph.e)
+        #     self.prm.dijkstra(self.prm.end)
+        #     self.count = 0
+        #     print('distance to end is', self.prm.distances[self.current_vertex])
+        #     self.need_recalculate = False
+
 
     def reset(self):
         """
@@ -245,6 +250,8 @@ class CarEnv:
             for _ in range(int((2 * consts.size_map_quarter) // consts.vertex_offset))
         ]
         self.rotation_trig = [np.cos(self.rotation), np.sin(self.rotation)]
+
+
 
         return self.get_observation()
 
@@ -316,12 +323,8 @@ class CarEnv:
         :return: (next observation, reward, did the simulation finish, info)
         """
 
-        self.scan_environment()
-
         if consts.print_runtime and self.run_time % 500 == 0:
             print('time:', self.run_time, 'pos:', self.center_pos)
-
-        self.current_vertex = self.prm.get_closest_vertex(self.center_pos, self.rotation)
 
         if self.next_vertex and dist(self.center_pos, self.next_vertex.pos) <= 0.05:
             print("got to", self.center_pos, self.rotation)
@@ -332,9 +335,6 @@ class CarEnv:
         if self.count == 0:
             self.trace.append(self.center_pos)
             self.next_vertex = self.prm.next_in_path(self.current_vertex)
-            if not self.next_vertex:
-                self.next_vertex = self.current_vertex
-                print('aa')
 
         self.count += 1
 
@@ -389,8 +389,6 @@ class CarEnv:
 
         self.run_time += 1
 
-        self.scan_environment()
-
         # updating map;
         self.base_pos, quaternions = p.getBasePositionAndOrientation(self.car_model)
         self.rotation = p.getEulerFromQuaternion(quaternions)[2]
@@ -423,6 +421,22 @@ class CarEnv:
         cot_delta = (1 / np.tan(angles[0]) + 1 / np.tan(angles[1])) / 2
         self.swivel = np.arctan(1 / cot_delta)
 
+        prev_vertex = self.current_vertex
+        self.current_vertex = self.prm.get_closest_vertex(self.center_pos, self.rotation)
+
+        self.scan_environment()
+
+        if self.need_recalculate:
+            self.prm.d_star.k_m += d_star.h(prev_vertex, self.current_vertex)
+            for edge in self.prm.deleted_edges:
+                u = edge.src
+                rhs = self.prm.d_star.rhs
+                rhs[u] = min(rhs[u], self.prm.d_star.g[u])
+                self.prm.d_star.update_vertex(u)
+
+            print('recalc path, pos:', self.center_pos)
+            self.prm.d_star.compute_shortest_path(self.current_vertex)
+
         if self.run_time >= consts.max_time:
             print(
                 f"out of time in maze {self.maze_idx}"
@@ -432,15 +446,15 @@ class CarEnv:
             plt.plot([a for a, _ in self.trace], [a for _, a in self.trace], label='actual path')
             plt.scatter(self.center_pos[0], self.center_pos[1], c='red')
             plt.title(f'maze {self.maze_idx} - time {self.run_time}')
-            self.prm.draw_path(self.current_vertex, ' end')
+            # self.prm.draw_path(self.current_vertex, ' end')
             plt.legend()
             plt.show()
             self.segments_partial_map.show()
 
-            exit(1337)
+            return True
 
         if not (self.crashed or self.finished):
-            return self.get_observation(), 0, False, {}
+            return False
         self.trace.append(self.center_pos)
         if self.finished:
             self.trace.append(self.end_point)
@@ -457,14 +471,14 @@ class CarEnv:
                 f" - distance is {dist(self.center_pos, self.end_point)}"
                 f" - time {self.run_time}")
             p.disconnect()
-            exit(666)
+            return True
         if self.finished:
             print(
                 f"finished maze {self.maze_idx}"
                 f" - time {self.run_time}")
             p.disconnect()
-            exit(0)
-        return self.get_observation(), 0, True, {}
+            return True
+        return False
 
     def get_observation(self):
         """
@@ -511,15 +525,18 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 'with block'
-        maze, start, end = mazes.default_data_set[2] # mazes.empty_set[self.maze_idx]
+        self.maze_idx = 'with small block'
+        maze, start, end = mazes.default_data_set[1] # mazes.empty_set[self.maze_idx] #
         return maze, end, start
 
 
 def main():
+    t0 = time.time()
+    stop = False
     env = CarEnv(0, consts.seed)
-    while True:
-        env.step()
+    while not stop:
+        stop = env.step()
+    print(f'total time: {time.time() - t0}')
 
 
 if __name__ == "__main__":

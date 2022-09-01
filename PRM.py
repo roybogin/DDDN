@@ -1,13 +1,14 @@
 import heapq
 import time
-from collections import defaultdict
-from typing import Set, Tuple, List, DefaultDict
+from typing import Set, List
 
 import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 import consts
+from WeightedGraph import Edge, WeightedGraph, Vertex
+from d_star import DStar
 from helper import dist, map_index_from_pos, block_options
 
 
@@ -19,104 +20,11 @@ def car_center_to_pos(pos: np.ndarray, theta) -> np.ndarray:
     return pos[:2] - consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
 
 
-class Vertex:
-    """
-    Class to represent a graph vertex for the PRM
-    """
-
-    def __init__(self, pos: np.ndarray, theta: float, index: int):
-        self.pos: np.ndarray = pos  # position of the car
-        self.theta: float = theta  # angle if the car
-        self.in_edges: Set[Edge] = set()  # the corresponding edges in the graph
-        self.out_edges: Set[Edge] = set()  # the corresponding edges in the graph
-        self.index = index
-
-    def __lt__(self, other):
-        return self.index < other.index
-
-
-class Edge:
-    """
-    Class to represent a graph edge for the PRM
-    """
-
-    def __init__(self, vertex_1: Vertex, vertex_2: Vertex, weight: float):
-        self.src: Vertex = vertex_1  # vertex that edge exits from
-        self.dst: Vertex = vertex_2  # vertex that edge enters
-        self.weight: float = weight  # weight of the edge
-        self.active = True
-
-
-class WeightedGraph:
-    """
-    Class to represent a weighted graph for the PRM
-    """
-
-    def __init__(self):
-        self.vertices: Set[Vertex] = set()  # A set of the graph vertices
-        self.n: int = 0  # size of the graph
-        self.e: int = 0  # amount of edges in the grapp
-
-    def add_vertex(self, pos: np.ndarray, theta: float, index: int = None) -> Vertex:
-        """
-        add a vertex to the graph
-        :param pos: the corresponding position of the car - middle of rear wheels
-        :param theta: the corresponding ange of the car
-        :return:
-        """
-        if index is None:
-            index = self.n
-        # new_vertex = Vertex(pos_to_car_center(pos, theta), theta, index)    # TODO: need to fix
-        new_vertex = Vertex(pos, theta, index)
-        self.vertices.add(new_vertex)
-        self.n += 1
-        return new_vertex
-
-    def add_edge(self, vertex_1: Vertex, vertex_2: Vertex, weight: float):
-        edge = Edge(vertex_1, vertex_2, weight)
-        vertex_1.out_edges.add(edge)
-        vertex_2.in_edges.add(edge)
-        self.e += 1
-
-    def remove_edge(self, edge: Edge) -> bool:
-        return_val = True
-        v1, v2 = edge.src, edge.dst
-        if edge in v1.out_edges:
-            v1.out_edges.remove(edge)
-        else:
-            return_val = False
-        if edge in v2.in_edges:
-            v2.in_edges.remove(edge)
-        else:
-            return_val = False
-        if return_val:
-            self.e -= 1
-        else:
-            print('false edge')
-        return return_val
-
-    def remove_vertex(self, v: Vertex) -> bool:
-        if v not in self.vertices:
-            print('false vertex')
-            return False
-        for edge in v.in_edges:
-            other_vertex = edge.src
-            if edge in other_vertex.out_edges:
-                other_vertex.out_edges.remove(edge)
-                self.e -= 1
-        for edge in v.out_edges:
-            other_vertex = edge.dst
-            if edge in other_vertex.in_edges:
-                other_vertex.in_edges.remove(edge)
-                self.e -= 1
-        self.vertices.remove(v)
-        self.n -= 1
-        return True
-
 
 class PRM:
     def __init__(self, shape):
 
+        self.deleted_edges: Set[Edge] = set()
         self.graph = WeightedGraph()
         self.shape = shape
         self.vertices: List[List[List[Vertex]]] = []
@@ -141,8 +49,7 @@ class PRM:
         self.res = np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
         # resolution of the path planner
         self.tol = 0.02  # tolerance of the path planner
-        self.distances: DefaultDict[Vertex, Tuple[float, Vertex | None]] = defaultdict(lambda: (np.inf, None))
-
+        self.d_star: DStar | None = None
     def radius_delta(self, delta: float):
         if np.tan(delta) == 0:
             return np.inf
@@ -217,7 +124,7 @@ class PRM:
             self.graph.add_edge(v, self.end, 0)
         return self.end.pos
 
-    def dijkstra(self, root: Vertex):
+    '''def dijkstra(self, root: Vertex):
         print("dijkstra")
         t1 = time.time()
         self.distances.clear()
@@ -238,7 +145,7 @@ class PRM:
                     self.distances[v] = (dist_u + weight, u)
                     dist_v = dist_u + weight
                     heapq.heappush(pq, (dist_v, v))
-        print(f"finished dijkstra in {time.time() - t1}")
+        print(f"finished dijkstra in {time.time() - t1}")'''
 
     def get_closest_vertex(self, pos: np.ndarray, theta: float):
         block = map_index_from_pos(pos)
@@ -247,7 +154,14 @@ class PRM:
         return self.vertices[block[0]][block[1]][angle]
 
     def next_in_path(self, vertex: Vertex):
-        return self.distances[vertex][1]
+        successors = ((e.dst, e.weight) for e in vertex.out_edges)
+        next_vertex_key = lambda dest, weight: self.d_star.g[dest] + weight
+        try:
+            next_vertex = min(successors, key=lambda tup: next_vertex_key(*tup))[0]
+        except ValueError:
+            print('a')
+            next_vertex = vertex
+        return next_vertex
 
     def transform_pov(self, vertex_1: Vertex, vertex_2: Vertex):
         """
@@ -266,10 +180,10 @@ class PRM:
         y_list = [current_vertex.pos[1]]
         plt.scatter(x_list, y_list, c='black')
         vertex = current_vertex
-        parent = self.distances[vertex][1]
+        parent = self.next_in_path(vertex)
         while (parent != vertex) and (parent is not None):
             vertex = parent
-            parent = self.distances[vertex][1]
+            parent = self.next_in_path(vertex)
             x_list.append(vertex.pos[0])
             y_list.append(vertex.pos[1])
         plt.plot(x_list, y_list, label=f'projected path {idx}')
@@ -280,6 +194,14 @@ class PRM:
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(v.theta / angle_offset)
         self.vertices[index[0]][index[1]][angle] = None
-        return self.graph.remove_vertex(v)
+        return self.graph.remove_vertex(v, self.deleted_edges)
+
+    def remove_edge(self, e: Edge):
+        return self.graph.remove_edge(e, self.deleted_edges)
+
+    def init_d_star(self, start_vertex: Vertex):
+        self.d_star = DStar(self.graph, start_vertex, self.end)
+
+
 
 
