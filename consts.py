@@ -1,4 +1,5 @@
 # pybullet simulation
+import enum
 from typing import DefaultDict, Tuple
 
 import numpy as np
@@ -7,7 +8,7 @@ import math
 
 is_visual = False  # do we want to see visual footage
 use_real_time = 0  # is the simulation running in real time - probably should always be 0
-time_step = 0.01    # what is a time step in the pybullet simulation
+time_step = 0.01  # what is a time step in the pybullet simulation
 
 cameraDistance = 11
 cameraYaw = 0
@@ -35,7 +36,6 @@ map_borders = [
 
 seed = None  # randomness seed
 
-
 directions_per_vertex = 36
 amount_vertices_from_edge = math.ceil(0.3 / vertex_offset)
 
@@ -46,3 +46,10 @@ print_runtime = True  # do we want to print the total time of the run
 length = 0.325
 width = 0.2
 a_2 = 0.1477  # a_2 of the car
+
+direction_change_weight = 200
+
+
+class Direction(enum.IntEnum):
+    FORWARD = 0
+    BACKWARD = 1

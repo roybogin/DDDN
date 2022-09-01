@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 import consts
+from consts import Direction
 from WeightedGraph import Edge, WeightedGraph, Vertex
 from d_star import DStar
 from helper import dist, map_index_from_pos, block_options
@@ -20,14 +21,13 @@ def car_center_to_pos(pos: np.ndarray, theta) -> np.ndarray:
     return pos[:2] - consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
 
 
-
 class PRM:
     def __init__(self, shape):
-
+        # TODO: maybe save space by combining vertices and edges in opposite directions
         self.deleted_edges: Set[Edge] = set()
         self.graph = WeightedGraph()
         self.shape = shape
-        self.vertices: List[List[List[Vertex]]] = []
+        self.vertices: List[List[List[List[Vertex]]]] = []
         self.end = None
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         for _ in range(shape[0]):
@@ -40,8 +40,13 @@ class PRM:
             for row_idx in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
                 theta_temp = 0
                 for _ in range(consts.directions_per_vertex):
-                    new_vertex = self.graph.add_vertex(np.array([x_temp, y_temp]), theta_temp)
-                    self.vertices[col_idx][row_idx].append(new_vertex)
+                    new_vertex_forward = self.graph.add_vertex(np.array([x_temp, y_temp]), theta_temp, Direction.FORWARD)
+                    new_vertex_backward = self.graph.add_vertex(np.array([x_temp, y_temp]), theta_temp, Direction.BACKWARD)
+                    self.vertices[col_idx][row_idx].append([])
+                    self.vertices[col_idx][row_idx][-1].append(new_vertex_forward)
+                    self.vertices[col_idx][row_idx][-1].append(new_vertex_backward)
+                    self.graph.add_edge(new_vertex_forward, new_vertex_backward, consts.direction_change_weight)
+                    self.graph.add_edge(new_vertex_backward, new_vertex_forward, consts.direction_change_weight)
                     theta_temp += angle_offset
                 y_temp += consts.vertex_offset
             x_temp += consts.vertex_offset
@@ -77,9 +82,10 @@ class PRM:
     def possible_offsets_angle(self, pos: np.ndarray, angle: int, only_forward=False):
         ret = []
         block = map_index_from_pos(pos)
-        v = self.vertices[block[0]][block[1]][angle]
+        v = self.vertices[block[0]][block[1]][angle][Direction.FORWARD]
         for neighbor_block in block_options(block, np.ceil(self.res / consts.vertex_offset), self.shape):
-            for theta, u in enumerate(self.vertices[neighbor_block[0]][neighbor_block[1]]):
+            for theta, u_nodir in enumerate(self.vertices[neighbor_block[0]][neighbor_block[1]]):
+                u = u_nodir[Direction.FORWARD]
                 weight = dist(v.pos, u.pos)
                 if weight == 0:
                     continue
@@ -114,14 +120,16 @@ class PRM:
                             v1 = self.vertices[x][y][theta]
                             v2 = self.vertices[x + diff[0]][y + diff[1]][
                                 (theta + diff[2]) % consts.directions_per_vertex]
-                            weight = dist(v1.pos, v2.pos)
-                            self.graph.add_edge(v1, v2, weight)
+                            weight = dist(v1[0].pos, v2[0].pos)
+                            self.graph.add_edge(v1[Direction.FORWARD], v2[Direction.FORWARD], weight)
+                            self.graph.add_edge(v2[Direction.BACKWARD], v1[Direction.BACKWARD], weight)
 
     def set_end(self, pos):
         index = map_index_from_pos(pos)
-        self.end = self.graph.add_vertex(self.vertices[index[0]][index[1]][0].pos, 0)
-        for v in self.vertices[index[0]][index[1]]:
-            self.graph.add_edge(v, self.end, 0)
+        self.end = self.vertices[index[0]][index[1]][0][Direction.FORWARD]
+        for v_list in self.vertices[index[0]][index[1]]:
+            for v in v_list:
+                self.graph.add_edge(v, self.end, 0)
         return self.end.pos
 
     '''def dijkstra(self, root: Vertex):
@@ -147,11 +155,11 @@ class PRM:
                     heapq.heappush(pq, (dist_v, v))
         print(f"finished dijkstra in {time.time() - t1}")'''
 
-    def get_closest_vertex(self, pos: np.ndarray, theta: float):
+    def get_closest_vertex(self, pos: np.ndarray, theta: float, direction: consts.Direction):
         block = map_index_from_pos(pos)
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(theta / angle_offset)
-        return self.vertices[block[0]][block[1]][angle]
+        return self.vertices[block[0]][block[1]][angle][direction]
 
     def next_in_path(self, vertex: Vertex):
         successors = ((e.dst, e.weight) for e in vertex.out_edges)
@@ -193,7 +201,7 @@ class PRM:
         index = map_index_from_pos(v.pos)
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(v.theta / angle_offset)
-        self.vertices[index[0]][index[1]][angle] = None
+        self.vertices[index[0]][index[1]][angle][v.direction] = None
         return self.graph.remove_vertex(v, self.deleted_edges)
 
     def remove_edge(self, e: Edge):

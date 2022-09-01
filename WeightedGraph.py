@@ -2,18 +2,21 @@ from typing import Set
 
 import numpy as np
 
+import consts
+
 
 class Vertex:
     """
     Class to represent a graph vertex for the PRM
     """
 
-    def __init__(self, pos: np.ndarray, theta: float, index: int):
+    def __init__(self, pos: np.ndarray, theta: float, index: int, direction: consts.Direction):
         self.pos: np.ndarray = pos  # position of the car
         self.theta: float = theta  # angle if the car
         self.in_edges: Set[Edge] = set()  # the corresponding edges in the graph
         self.out_edges: Set[Edge] = set()  # the corresponding edges in the graph
         self.index = index
+        self.direction = direction
 
     def __lt__(self, other):
         return self.index < other.index
@@ -41,7 +44,7 @@ class WeightedGraph:
         self.n: int = 0  # size of the graph
         self.e: int = 0  # amount of edges in the graph
 
-    def add_vertex(self, pos: np.ndarray, theta: float, index: int = None) -> Vertex:
+    def add_vertex(self, pos: np.ndarray, theta: float, direction: consts.Direction, index: int = None) -> Vertex:
         """
         add a vertex to the graph
         :param pos: the corresponding position of the car - middle of rear wheels
@@ -51,7 +54,7 @@ class WeightedGraph:
         if index is None:
             index = self.n
         # new_vertex = Vertex(pos_to_car_center(pos, theta), theta, index)    # TODO: need to fix
-        new_vertex = Vertex(pos, theta, index)
+        new_vertex = Vertex(pos, theta, index, direction)
         self.vertices.add(new_vertex)
         self.n += 1
         return new_vertex
