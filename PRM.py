@@ -160,7 +160,7 @@ class PRM:
             next_vertex = min(successors, key=lambda tup: next_vertex_key(*tup))[0]
         except ValueError:
             print('a')
-            next_vertex = vertex
+            next_vertex = None
         return next_vertex
 
     def transform_pov(self, vertex_1: Vertex, vertex_2: Vertex):

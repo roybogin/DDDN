@@ -30,10 +30,13 @@ def add_discovered_matrix(discovered_matrix, start, end):
 class CarEnv:
     def __init__(self, index, seed):
         super(CarEnv, self).__init__()
+        self.back = False
+        self.action = None
         self.trace = None
         self.need_recalculate = False
         self.current_vertex = None
         self.next_vertex = None
+        self.prev_vertex = []
         self.count = None
         self.direction = None
         self.index = index  # index of environment in multiprocessing
@@ -81,6 +84,7 @@ class CarEnv:
         print(self.end_point)
         self.end_point = self.prm.set_end(np.array(self.end_point[:2]))
         self.current_vertex = self.prm.get_closest_vertex(self.start_point, 0)
+        self.prev_vertex.append(self.current_vertex)
         print(f'new end is {self.end_point}')
         self.start_point = [self.current_vertex.pos[0], self.current_vertex.pos[1], 0]
         self.center_pos = self.current_vertex.pos
@@ -334,35 +338,44 @@ class CarEnv:
 
         if self.count == 0:
             self.trace.append(self.center_pos)
-            self.next_vertex = self.prm.next_in_path(self.current_vertex)
+            next_vertex = self.prm.next_in_path(self.current_vertex)
+            if next_vertex is None:
+                if not self.back or dist(self.center_pos, self.next_vertex.pos) <= 0.05:
+                    self.next_vertex = self.prev_vertex.pop()
+                    self.back = True
+                    print('popped')
+            else:
+                self.next_vertex = next_vertex
+                self.back = False
+
+        if self.count % 20 == 0:
+            transformed = self.prm.transform_by_values(self.center_pos, self.rotation, self.next_vertex)
+            x_tag, y_tag = transformed[0][0], transformed[0][1]
+
+            radius = np.sqrt(self.prm.radius_x_y_squared(x_tag, y_tag))
+            delta = np.sign(y_tag) * np.arctan(consts.length / radius)
+
+            '''rad_1 = np.sqrt(radius ** 2 - consts.a_2 ** 2)
+            delta_inner = np.arctan(consts.length/(rad_1 - consts.width/2))
+            delta_outer = np.arctan(consts.length/(rad_1 + consts.width/2))
+    
+            if y_tag >= 0:
+                rotation = [delta_inner, delta_outer]
+            else:
+                rotation = [-delta_outer, -delta_inner]'''
+            rotation = [delta, delta]
+
+            rotation = np.array(rotation)
+
+            # print(self.car_center, self.next_vertex.pos, self.end_point)
+
+            self.action = [np.sign(x_tag) / (1 + 4 * abs(delta)), rotation]
 
         self.count += 1
 
-        transformed = self.prm.transform_by_values(self.center_pos, self.rotation, self.next_vertex)
-        x_tag, y_tag = transformed[0][0], transformed[0][1]
-
-        radius = np.sqrt(self.prm.radius_x_y_squared(x_tag, y_tag))
-        delta = np.sign(y_tag) * np.arctan(consts.length / radius)
-
-        '''rad_1 = np.sqrt(radius ** 2 - consts.a_2 ** 2)
-        delta_inner = np.arctan(consts.length/(rad_1 - consts.width/2))
-        delta_outer = np.arctan(consts.length/(rad_1 + consts.width/2))
-
-        if y_tag >= 0:
-            rotation = [delta_inner, delta_outer]
-        else:
-            rotation = [-delta_outer, -delta_inner]'''
-        rotation = [delta, delta]
-
-        rotation = np.array(rotation)
-
-        # print(self.car_center, self.next_vertex.pos, self.end_point)
-
-        action = [np.sign(x_tag) / (1 + 4 * abs(delta)), rotation]
-
         # updating target velocity and steering angle
-        wanted_speed = action[0] * consts.max_velocity
-        wanted_steering_angle = action[1]
+        wanted_speed = self.action[0] * consts.max_velocity
+        wanted_steering_angle = self.action[1]
         wanted_steering_angle = np.sign(wanted_steering_angle) * np.minimum(np.abs(wanted_steering_angle),
                                                                             consts.max_steer)
         if abs(wanted_speed) > consts.max_velocity:
@@ -423,10 +436,12 @@ class CarEnv:
 
         prev_vertex = self.current_vertex
         self.current_vertex = self.prm.get_closest_vertex(self.center_pos, self.rotation)
+        if self.current_vertex != prev_vertex and not self.back:
+            self.prev_vertex.append(prev_vertex)
 
         self.scan_environment()
 
-        if self.need_recalculate:
+        if self.need_recalculate and self.run_time % 30 == 0:
             self.prm.d_star.k_m += d_star.h(prev_vertex, self.current_vertex)
             for edge in self.prm.deleted_edges:
                 u = edge.src
@@ -526,7 +541,7 @@ class CarEnv:
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
         self.maze_idx = 'with small block'
-        maze, start, end = mazes.default_data_set[1] # mazes.empty_set[self.maze_idx] #
+        maze, start, end = mazes.default_data_set[2] # mazes.empty_set[self.maze_idx] #
         return maze, end, start
 
 

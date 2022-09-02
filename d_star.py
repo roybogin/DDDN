@@ -63,7 +63,7 @@ class PriorityQueue:
             else:
                 heapq.heappop(self.queue)
         print('empty queue')
-        return None
+        return np.inf, np.inf
 
     def __contains__(self, item):
         return item in self.entry_dict
