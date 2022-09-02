@@ -30,6 +30,10 @@ def add_discovered_matrix(discovered_matrix, start, end):
 class CarEnv:
     def __init__(self, index, seed):
         super(CarEnv, self).__init__()
+        # define Matplotlib figure and axis
+        self.ax = plt.gca()
+        graph_size = consts.size_map_quarter + 1
+        plt.axis([-graph_size, graph_size, -graph_size, graph_size])
         self.back = False
         self.action = None
         self.trace = None
@@ -454,17 +458,15 @@ class CarEnv:
 
         if self.run_time >= consts.max_time:
             print(
-                f"out of time in maze {self.maze_idx}"
+                f"out of time in {self.maze_idx}"
                 f" - distance is {dist(self.center_pos, self.end_point)}")
-            p.disconnect()
             self.trace.append(self.center_pos)
             plt.plot([a for a, _ in self.trace], [a for _, a in self.trace], label='actual path')
             plt.scatter(self.center_pos[0], self.center_pos[1], c='red')
-            plt.title(f'maze {self.maze_idx} - time {self.run_time}')
+            plt.title(f'{self.maze_idx} - time {self.run_time}')
             # self.prm.draw_path(self.current_vertex, ' end')
-            plt.legend()
-            plt.show()
-            self.segments_partial_map.show()
+            # plt.show()
+            self.segments_partial_map.plot(self.ax)
 
             return True
 
@@ -475,23 +477,20 @@ class CarEnv:
             self.trace.append(self.end_point)
 
         plt.plot([a for a, _ in self.trace], [a for _, a in self.trace], label='actual path')
-        plt.title(f'maze {self.maze_idx} - time {self.run_time}')
-        plt.legend()
-        plt.show()
-        self.segments_partial_map.show()
+        plt.title(f'{self.maze_idx} - time {self.run_time}')
+        # plt.show(ax)
+        self.segments_partial_map.plot(self.ax)
 
         if self.crashed:
             print(
-                f"crashed maze {self.maze_idx}"
+                f"crashed {self.maze_idx}"
                 f" - distance is {dist(self.center_pos, self.end_point)}"
                 f" - time {self.run_time}")
-            p.disconnect()
             return True
         if self.finished:
             print(
-                f"finished maze {self.maze_idx}"
+                f"finished {self.maze_idx}"
                 f" - time {self.run_time}")
-            p.disconnect()
             return True
         return False
 
@@ -540,8 +539,8 @@ class CarEnv:
         :return: maze (a set of polygonal lines), a start_point and end_point(3D vectors)
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
-        self.maze_idx = 'with small block'
-        maze, start, end = mazes.default_data_set[2] # mazes.empty_set[self.maze_idx] #
+        self.maze_idx = 'Testing Dataset[0]'
+        maze, start, end = mazes.default_training_set[0] # mazes.empty_set[self.maze_idx]
         return maze, end, start
 
 
@@ -552,6 +551,10 @@ def main():
     while not stop:
         stop = env.step()
     print(f'total time: {time.time() - t0}')
+    p.disconnect()
+    plt.legend(loc='upper right')
+
+    plt.show()
 
 
 if __name__ == "__main__":

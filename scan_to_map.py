@@ -24,7 +24,7 @@ class Map:
             self.new_segments = []
             self.number_of_segment = []
 
-    def show(self):
+    def plot(self, ax):
         """
         a function to draw the current map,
         used for debuging and demos
@@ -34,9 +34,6 @@ class Map:
         # one going from x1y1 in on the line, and one perpendicular to it.
         # should be a bit more accurate
 
-        # define Matplotlib figure and axis
-        fig, ax = plt.subplots()
-        plt.axis([-self.size, self.size, -self.size, self.size])
 
         # add a rectangle for each segment:
         for segment in segments:
@@ -53,6 +50,7 @@ class Map:
                         (x1 - consts.epsilon, min(y1, y2) - consts.epsilon),
                         2 * consts.epsilon,
                         2 * consts.epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
+                        color='red'
                     )
                 )
 
@@ -67,6 +65,7 @@ class Map:
                         2 * consts.epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
                         2 * consts.epsilon,
                         theta * 180 / np.pi,
+                        color='red'
                     )
                 )
         # drawing the end_points of each segment:
@@ -75,9 +74,6 @@ class Map:
                 ax.add_patch(Circle(point, 0.05, color="r"))
 
         self.number_of_segment.append(len(self.segment_representation()))
-        plt.show()
-        ax.cla()
-
         return
 
     def check_batch(self, points):
@@ -285,4 +281,4 @@ if __name__ == "__main__":
     new_map.add_points_to_map(
         [(0, 0), (0, 0.1), (0, 0.3), (0.1, 0.4), (1, 1), (0.9, 1.1), (0.95, 1)]
     )
-    new_map.show()
+    new_map.plot()

@@ -178,7 +178,7 @@ class PRM:
     def draw_path(self, current_vertex: Vertex, idx=''):
         x_list = [current_vertex.pos[0]]
         y_list = [current_vertex.pos[1]]
-        plt.scatter(x_list, y_list, c='black')
+        plt.scatter(x_list, y_list, c='black', label='start')
         vertex = current_vertex
         parent = self.next_in_path(vertex)
         while (parent != vertex) and (parent is not None):
@@ -186,8 +186,8 @@ class PRM:
             parent = self.next_in_path(vertex)
             x_list.append(vertex.pos[0])
             y_list.append(vertex.pos[1])
+        plt.scatter(x_list[-1], y_list[-1], c='green', label='end goal')
         plt.plot(x_list, y_list, label=f'projected path {idx}')
-        plt.scatter(x_list[-1], y_list[-1], c='green')
 
     def remove_vertex(self, v: Vertex):
         index = map_index_from_pos(v.pos)
