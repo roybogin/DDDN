@@ -156,11 +156,9 @@ class PRM:
     def next_in_path(self, vertex: Vertex):
         successors = ((e.dst, e.weight) for e in vertex.out_edges)
         next_vertex_key = lambda dest, weight: self.d_star.g[dest] + weight
-        try:
-            next_vertex = min(successors, key=lambda tup: next_vertex_key(*tup))[0]
-        except ValueError:
-            print('a')
-            next_vertex = None
+        next_vertex = min(successors, key=lambda tup: next_vertex_key(*tup), default=(None,))[0]
+        if next_vertex is None:
+            print('no successors')
         return next_vertex
 
     def transform_pov(self, vertex_1: Vertex, vertex_2: Vertex):

@@ -90,12 +90,12 @@ class WeightedGraph:
             if edge in other_vertex.out_edges:
                 other_vertex.out_edges.remove(edge)
                 self.e -= 1
-                deleted_edges.add(edge)  # need to only add this side because deleted edges only care about outgoing
-                # edges (and v is deleted)
+                deleted_edges.add(edge)
         for edge in v.out_edges:
             other_vertex = edge.dst
             if edge in other_vertex.in_edges:
                 other_vertex.in_edges.remove(edge)
+                deleted_edges.add(edge)
                 self.e -= 1
 
         self.vertices.remove(v)

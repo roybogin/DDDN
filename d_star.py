@@ -154,10 +154,10 @@ class DStar:
                     s = edge.src
                     if self.rhs[s] == edge.weight + g_old:
                         if s != self.goal_vertex:
-                            self.rhs[s] = min((e.weight + self.g[e.dst] for e in s.out_edges))
+                            self.rhs[s] = min((e.weight + self.g[e.dst] for e in s.out_edges), default=np.inf)
                     self.update_vertex(s)
                 if self.rhs[u] == g_old:
                     if u != self.goal_vertex:
-                        self.rhs[u] = min((e.weight + self.g[e.dst] for e in u.out_edges))
+                        self.rhs[u] = min((e.weight + self.g[e.dst] for e in u.out_edges), default=np.inf)
                 self.update_vertex(u)
         print('path computed in ', time.time() - t)

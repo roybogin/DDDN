@@ -48,6 +48,6 @@ width = 0.2
 a_2 = 0.1477  # a_2 of the car
 
 
-calculate_action_time = 20
-calculate_d_star_time = 30
+calculate_action_time = 10
+calculate_d_star_time = 20
 reset_count_time = 60

@@ -345,11 +345,10 @@ class CarEnv:
             self.trace.append(self.center_pos)
             next_vertex = self.prm.next_in_path(self.current_vertex)
             if next_vertex is None:
-                if (not self.back) or dist(self.center_pos, self.next_vertex.pos) <= 0.05:
+                if (not self.back) or dist(self.center_pos, self.next_vertex.pos) <= 0.1:
                     self.next_vertex = self.prev_vertex.pop()
                     self.back = True
                     print('popped')
-
             else:
                 print('forward')
                 self.next_vertex = next_vertex
@@ -451,12 +450,17 @@ class CarEnv:
         if self.need_recalculate and self.run_time % consts.calculate_d_star_time == 0:
             self.prm.d_star.k_m += d_star.h(prev_vertex, self.current_vertex)
             for edge in self.prm.deleted_edges:
-                u = edge.src
+                u, v, c = edge.src, edge.dst, edge.weight
                 rhs = self.prm.d_star.rhs
-                rhs[u] = min(rhs[u], self.prm.d_star.g[u])
+                g = self.prm.d_star.g
+                if rhs[u] == c + g[v]:
+                    if u != self.prm.end:
+                        possible_rhs = (edge.weight + g[edge.dst] for edge in u.out_edges)
+                        rhs[u] = min(possible_rhs, default=np.inf)
                 self.prm.d_star.update_vertex(u)
+            self.prm.deleted_edges.clear()
 
-            print('recalc path, pos:', self.center_pos)
+            print('recalc path, pos:', self.center_pos, 'target', self.next_vertex.pos)
             self.prm.d_star.compute_shortest_path(self.current_vertex)
 
         if self.run_time >= consts.max_time:
