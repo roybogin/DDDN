@@ -6,8 +6,10 @@ from typing import Tuple, DefaultDict
 
 import numpy as np
 
-from WeightedGraph import Vertex, WeightedGraph
+from WeightedGraph import Vertex
 from helper import dist
+from PRM import PRM
+from matplotlib import pyplot as plt
 
 
 class PriorityQueue:
@@ -82,8 +84,7 @@ def h(v_1: Vertex, v_2: Vertex) -> float:
 
 class DStar:
     # D* lite algorithm that we implement
-    def __init__(self, graph: WeightedGraph, start_vertex: Vertex, goal_vertex: Vertex):
-        self.graph = graph
+    def __init__(self, start_vertex: Vertex, goal_vertex: Vertex, prm):
         self.start_vertex = start_vertex
         self.goal_vertex = goal_vertex
 
@@ -96,6 +97,8 @@ class DStar:
 
         self.rhs[self.goal_vertex] = 0
         self.q.insert(self.goal_vertex, (h(self.start_vertex, self.goal_vertex), 0))
+
+        self.prm = prm
 
     def calc_key(self, v: Vertex) -> Tuple[float, float]:
         """
@@ -124,6 +127,31 @@ class DStar:
             if in_queue:
                 self.q.remove(v)
 
+    def next_in_path(self, vertex: Vertex):
+
+        successors = (e for e in self.prm.outgoing_edges(vertex))
+        next_vertex_key = lambda dest, weight: self.g[dest] + weight
+        try:
+            next_vertex = min(successors, key=lambda tup: next_vertex_key(*tup))[0]
+        except ValueError:
+            print('a')
+            next_vertex = None
+        return next_vertex
+
+    def draw_path(self, current_vertex: Vertex, idx=''):
+        x_list = [current_vertex.pos[0]]
+        y_list = [current_vertex.pos[1]]
+        plt.scatter(x_list, y_list, c='black', label='start')
+        vertex = current_vertex
+        parent = self.next_in_path(vertex)
+        while (parent != vertex) and (parent is not None):
+            vertex = parent
+            parent = self.next_in_path(vertex)
+            x_list.append(vertex.pos[0])
+            y_list.append(vertex.pos[1])
+        plt.scatter(x_list[-1], y_list[-1], c='green', label='end goal')
+        plt.plot(x_list, y_list, label=f'projected path {idx}')
+
     def compute_shortest_path(self, vertex: Vertex):
         """
         computes the shortest path
@@ -143,21 +171,19 @@ class DStar:
             elif self.g[u] > self.rhs[u]:
                 self.g[u] = self.rhs[u]
                 self.q.remove(u)
-                for edge in u.in_edges:
-                    s = edge.src
-                    self.rhs[s] = min(self.rhs[s], edge.weight + self.g[u])
+                for s, weight in self.prm.incoming_edges(u):
+                    self.rhs[s] = min(self.rhs[s], weight + self.g[u])
                     self.update_vertex(s)
             else:
                 g_old = self.g[u]
                 self.g[u] = np.inf
-                for edge in u.in_edges:
-                    s = edge.src
-                    if self.rhs[s] == edge.weight + g_old:
+                for s, weight in self.prm.incoming_edges(u):
+                    if self.rhs[s] == weight + g_old:
                         if s != self.goal_vertex:
-                            self.rhs[s] = min((e.weight + self.g[e.dst] for e in s.out_edges))
+                            self.rhs[s] = min((weight + self.g[dst] for dst, weight in self.prm.outgoing_edges(s)))
                     self.update_vertex(s)
                 if self.rhs[u] == g_old:
                     if u != self.goal_vertex:
-                        self.rhs[u] = min((e.weight + self.g[e.dst] for e in u.out_edges))
+                        self.rhs[u] = min((weight + self.g[dst] for dst, weight in self.prm.outgoing_edges(s)))
                 self.update_vertex(u)
         print('path computed in ', time.time() - t)

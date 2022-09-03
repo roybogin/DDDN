@@ -3,12 +3,10 @@ import time
 from typing import Set, List
 
 import numpy as np
-from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 import consts
-from WeightedGraph import Edge, WeightedGraph, Vertex
-from d_star import DStar
+from WeightedGraph import Vertex
 from helper import dist, map_index_from_pos, block_options
 
 
@@ -24,13 +22,12 @@ def car_center_to_pos(pos: np.ndarray, theta) -> np.ndarray:
 class PRM:
     def __init__(self, shape):
 
-        self.deleted_edges: Set[Edge] = set()
-        self.graph = WeightedGraph()
         self.shape = shape
         self.vertices: List[List[List[Vertex]]] = []
         self.end = None
+        index = 0
         angle_offset = 2 * np.pi / consts.directions_per_vertex
-        for _ in range(shape[0]):
+        for i in range(shape[0]):
             self.vertices.append([])
             for _ in range(shape[1]):
                 self.vertices[-1].append([])
@@ -40,16 +37,21 @@ class PRM:
             for row_idx in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
                 theta_temp = 0
                 for _ in range(consts.directions_per_vertex):
-                    new_vertex = self.graph.add_vertex(np.array([x_temp, y_temp]), theta_temp)
+                    new_vertex = Vertex(np.array([x_temp, y_temp]), theta_temp, index)
                     self.vertices[col_idx][row_idx].append(new_vertex)
                     theta_temp += angle_offset
+                    index += 1
                 y_temp += consts.vertex_offset
             x_temp += consts.vertex_offset
         self.max_angle_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
-        self.res = np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
+        #self.res = np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)
+        self.res = 0.5
         # resolution of the path planner
         self.tol = 0.02  # tolerance of the path planner
-        self.d_star: DStar | None = None
+
+        self.offsets = self.possible_offsets(np.array([0, 0]), True)
+        self.end = None
+
     def radius_delta(self, delta: float):
         if np.tan(delta) == 0:
             return np.inf
@@ -115,13 +117,50 @@ class PRM:
                             v2 = self.vertices[x + diff[0]][y + diff[1]][
                                 (theta + diff[2]) % consts.directions_per_vertex]
                             weight = dist(v1.pos, v2.pos)
-                            self.graph.add_edge(v1, v2, weight)
+
+    def incoming_edges(self, v: Vertex):
+        if v == self.end:
+            index = map_index_from_pos(v.pos)
+            return [(v, 0) for v in self.vertices[index[0]][index[1]]]
+        ret = []
+        for theta, angle in enumerate(self.offsets):
+            for diff in angle:
+                for x in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
+                    for y in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
+                        if consts.amount_vertices_from_edge <= x - diff[0] < self.shape[
+                            0] - consts.amount_vertices_from_edge and consts.amount_vertices_from_edge <= y - diff[1] < \
+                                self.shape[1] - consts.amount_vertices_from_edge:
+                            v2 = self.vertices[x - diff[0]][y - diff[1]][
+                                (theta - diff[2]) % consts.directions_per_vertex]
+                            if not v2:
+                                continue
+                            weight = dist(v.pos, v2.pos)
+                            ret.append((v2, weight))
+        return ret
+
+    def outgoing_edges(self, v: Vertex):
+        ret = []
+        for theta, angle in enumerate(self.offsets):
+            for diff in angle:
+                for x in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
+                    for y in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
+                        if consts.amount_vertices_from_edge <= x + diff[0] < self.shape[
+                            0] - consts.amount_vertices_from_edge and consts.amount_vertices_from_edge <= y + diff[1] < \
+                                self.shape[1] - consts.amount_vertices_from_edge:
+                            v2 = self.vertices[x + diff[0]][y + diff[1]][
+                                (theta + diff[2]) % consts.directions_per_vertex]
+                            if not v2:
+                                continue
+                            weight = dist(v.pos, v2.pos)
+                            ret.append((v2, weight))
+
+        if all(v.pos == self.end.pos):
+            ret.append((self.end, 0))
+        return ret
 
     def set_end(self, pos):
         index = map_index_from_pos(pos)
-        self.end = self.graph.add_vertex(self.vertices[index[0]][index[1]][0].pos, 0)
-        for v in self.vertices[index[0]][index[1]]:
-            self.graph.add_edge(v, self.end, 0)
+        self.end = Vertex(self.vertices[index[0]][index[1]][0].pos, 0, -1)
         return self.end.pos
 
     '''def dijkstra(self, root: Vertex):
@@ -153,16 +192,6 @@ class PRM:
         angle = round(theta / angle_offset)
         return self.vertices[block[0]][block[1]][angle]
 
-    def next_in_path(self, vertex: Vertex):
-        successors = ((e.dst, e.weight) for e in vertex.out_edges)
-        next_vertex_key = lambda dest, weight: self.d_star.g[dest] + weight
-        try:
-            next_vertex = min(successors, key=lambda tup: next_vertex_key(*tup))[0]
-        except ValueError:
-            print('a')
-            next_vertex = None
-        return next_vertex
-
     def transform_pov(self, vertex_1: Vertex, vertex_2: Vertex):
         """
         show vertex_2 from the POV of vertex_1
@@ -175,33 +204,11 @@ class PRM:
     def transform_by_values(self, pos: np.ndarray, theta: float, vertex_2: Vertex):
         return self.rotate_angle(vertex_2.pos - pos, -theta), vertex_2.theta - theta
 
-    def draw_path(self, current_vertex: Vertex, idx=''):
-        x_list = [current_vertex.pos[0]]
-        y_list = [current_vertex.pos[1]]
-        plt.scatter(x_list, y_list, c='black', label='start')
-        vertex = current_vertex
-        parent = self.next_in_path(vertex)
-        while (parent != vertex) and (parent is not None):
-            vertex = parent
-            parent = self.next_in_path(vertex)
-            x_list.append(vertex.pos[0])
-            y_list.append(vertex.pos[1])
-        plt.scatter(x_list[-1], y_list[-1], c='green', label='end goal')
-        plt.plot(x_list, y_list, label=f'projected path {idx}')
-
     def remove_vertex(self, v: Vertex):
         index = map_index_from_pos(v.pos)
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(v.theta / angle_offset)
+        if not self.vertices[index[0]][index[1]][angle]:
+            return False
         self.vertices[index[0]][index[1]][angle] = None
-        return self.graph.remove_vertex(v, self.deleted_edges)
-
-    def remove_edge(self, e: Edge):
-        return self.graph.remove_edge(e, self.deleted_edges)
-
-    def init_d_star(self, start_vertex: Vertex):
-        self.d_star = DStar(self.graph, start_vertex, self.end)
-
-
-
-
+        return True

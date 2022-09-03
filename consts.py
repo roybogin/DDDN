@@ -24,7 +24,7 @@ min_dist_to_target = 0.5  # distance from target that is treated as success
 ray_length = 5  # length of ray
 ray_amount = 6
 size_map_quarter = 10
-vertex_offset = 0.11
+vertex_offset = 0.1
 map_borders = [
     (size_map_quarter, size_map_quarter),
     (size_map_quarter, -size_map_quarter),
@@ -36,7 +36,7 @@ map_borders = [
 seed = None  # randomness seed
 
 
-directions_per_vertex = 36
+directions_per_vertex = 72
 amount_vertices_from_edge = math.ceil(0.3 / vertex_offset)
 
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
