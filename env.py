@@ -7,6 +7,7 @@ import pybullet_data as pd
 from gym.utils import seeding
 
 import PRM
+import consts
 import d_star
 import map_create
 import mazes
@@ -337,22 +338,24 @@ class CarEnv:
         if self.next_vertex and dist(self.center_pos, self.next_vertex.pos) <= 0.05:
             print("got to", self.center_pos, self.rotation)
             self.count = 0
-        if self.count == 100:
+        if self.count == consts.reset_count_time:
             self.count = 0
 
         if self.count == 0:
             self.trace.append(self.center_pos)
             next_vertex = self.prm.next_in_path(self.current_vertex)
             if next_vertex is None:
-                if not self.back or dist(self.center_pos, self.next_vertex.pos) <= 0.05:
+                if (not self.back) or dist(self.center_pos, self.next_vertex.pos) <= 0.05:
                     self.next_vertex = self.prev_vertex.pop()
                     self.back = True
                     print('popped')
+
             else:
+                print('forward')
                 self.next_vertex = next_vertex
                 self.back = False
 
-        if self.count % 20 == 0:
+        if self.count % consts.calculate_action_time == 0:
             transformed = self.prm.transform_by_values(self.center_pos, self.rotation, self.next_vertex)
             x_tag, y_tag = transformed[0][0], transformed[0][1]
 
@@ -445,7 +448,7 @@ class CarEnv:
 
         self.scan_environment()
 
-        if self.need_recalculate and self.run_time % 30 == 0:
+        if self.need_recalculate and self.run_time % consts.calculate_d_star_time == 0:
             self.prm.d_star.k_m += d_star.h(prev_vertex, self.current_vertex)
             for edge in self.prm.deleted_edges:
                 u = edge.src
@@ -540,7 +543,7 @@ class CarEnv:
         """
         self.maze_idx = self.np_random.randint(0, len(mazes.empty_set))
         self.maze_idx = 'Testing Dataset[0]'
-        maze, start, end = mazes.default_training_set[0] # mazes.empty_set[self.maze_idx]
+        maze, start, end = mazes.default_training_set[0]  # mazes.empty_set[self.maze_idx]
         return maze, end, start
 
 

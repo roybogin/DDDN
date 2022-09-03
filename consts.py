@@ -40,9 +40,14 @@ directions_per_vertex = 36
 amount_vertices_from_edge = math.ceil(0.3 / vertex_offset)
 
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
-max_time = int(3e6)  # time before forcing a new maze
+max_time = int(1e5)  # time before forcing a new maze
 print_runtime = True  # do we want to print the total time of the run
 
 length = 0.325
 width = 0.2
 a_2 = 0.1477  # a_2 of the car
+
+
+calculate_action_time = 20
+calculate_d_star_time = 30
+reset_count_time = 60
