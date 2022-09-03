@@ -83,11 +83,11 @@ class Map:
         :param points: the list of points which is the car.
         :return: True if none of the points are too close to an obstacle.
         """
-        segment_representation = self.segment_representation()
         for point in points:
-            for segment in segment_representation:
-                if perpendicularDistance(point, segment[0], segment[1]) < consts.epsilon:   # TODO: enter on false?
-                    return False
+            for segment in self.new_segments:
+                for i in range(len(segment) - 1):
+                    if perpendicularDistance(point, segment[i], segment[i+1]) < consts.epsilon:   # TODO: enter on false?
+                        return False
         return True
 
     def check_state(self, vertex: Vertex, num_sample_car=2):
