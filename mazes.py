@@ -47,6 +47,14 @@ default_data_set = [
         'title': 'empty test maze'
     },
     {
+        'walls': [[(-3,0), (0,3), (3, 0)]],
+        'positions': [
+                        {'start': [-4, 2, 0], 'end': [4, 2, 0], 'rotation': 0},
+                        {'start': [4, 2, 0], 'end': [-4, 2, 0], 'rotation': 18},
+                      ],
+        'title': 'v shaped wall two cars'
+    },
+    {
         'walls': [[(2.5, 1), (2.5, -1)]],
         'positions': [{'start': [-2, 0, 0], 'end': [7, 2, 0], 'rotation': 0}],
         'title': 'maze with small wall'
