@@ -451,6 +451,7 @@ class CarEnv:
             self.prm.d_star.k_m += d_star.h(prev_vertex, self.current_vertex)
             for edge in self.prm.deleted_edges:
                 u, v, c = edge.src, edge.dst, edge.weight
+                edge.weight = np.inf    # not needed but just to be safe
                 rhs = self.prm.d_star.rhs
                 g = self.prm.d_star.g
                 if rhs[u] == c + g[v]:
@@ -462,6 +463,7 @@ class CarEnv:
 
             print('recalc path, pos:', self.center_pos, 'target', self.next_vertex.pos)
             self.prm.d_star.compute_shortest_path(self.current_vertex)
+            self.count = 0
 
         if self.run_time >= consts.max_time:
             print(

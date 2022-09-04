@@ -76,9 +76,9 @@ class WeightedGraph:
             return_val = False
         if return_val:
             self.e -= 1
-            deleted_edges.add(edge)
         else:
             print('false edge')
+        deleted_edges.add(edge)
         return return_val
 
     def remove_vertex(self, v: Vertex, deleted_edges: Set[Edge]) -> bool:
@@ -91,12 +91,14 @@ class WeightedGraph:
                 other_vertex.out_edges.remove(edge)
                 self.e -= 1
                 deleted_edges.add(edge)
+        v.in_edges.clear()  # not needed but just in case
         for edge in v.out_edges:
             other_vertex = edge.dst
             if edge in other_vertex.in_edges:
                 other_vertex.in_edges.remove(edge)
                 deleted_edges.add(edge)
                 self.e -= 1
+        v.out_edges.clear()  # not needed but just in case
 
         self.vertices.remove(v)
         self.n -= 1
