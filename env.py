@@ -215,13 +215,6 @@ class CarEnv:
                     new_segments += self.remove_vertices(i)
 
         self.remove_edges(new_segments)
-        # if self.run_time % 20 == 0 and self.need_recalculate:
-        #     print('recalc', self.center_pos, self.prm.graph.n, self.prm.graph.e)
-        #     self.prm.dijkstra(self.prm.end)
-        #     self.count = 0
-        #     print('distance to end is', self.prm.distances[self.current_vertex])
-        #     self.need_recalculate = False
-
 
     def reset(self):
         """

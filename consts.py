@@ -16,7 +16,7 @@ cameraTargetPosition = [0, 0, 0]
 
 # interpreting NN outputs
 max_steer = np.pi / 4
-max_velocity = 10
+max_velocity = 20
 max_force = 100
 epsilon = 0.1
 
