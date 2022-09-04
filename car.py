@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Set
+from typing import Set, Dict, List
 
 import pybullet as p
 import pybullet_data as pd
@@ -10,58 +10,42 @@ import PRM
 import d_star
 import map_create
 import mazes
-from consts import Direction
 from helper import *
 from scan_to_map import Map
 
 
-def add_discovered_matrix(discovered_matrix, start, end):
-    """
-    updates the discovered matrix by drawing a line on it matching the endpoints of the raycast
-    :param discovered_matrix: matrix that represents the discovered areas by the car
-    :param start: start of the raycast
-    :param end: end of the raycast
-    :return: the indices of discovered area
-    """
-    x0, y0 = map_index_from_pos(start)
-    x1, y1 = map_index_from_pos(end)
-    return plot_line(x0, y0, x1, y1, discovered_matrix)
-
-
 class Car:
-    def __init__(self, number):
+    def __init__(self, index: int, positions: Dict):
         super(Car, self).__init__()
         self.ax = plt.gca()  # pyplot to draw and debug
-        self.car_number = number
+        self.car_number = index
+        self.borders = None
+        self.bodies = None
 
         self.is_backwards_driving = False
         self.need_recalculate_path = False
 
-        self.current_vertex = None
-        self.next_vertex = None
-        self.prev_vertex = []
-
-        self.calculations_clock = None
-
         self.action = None
-        self.trace = None  # the trace of the car's paths, for plotting
+        self.trace = []  # the trace of the car's paths, for plotting
         self.need_recalculate_path = False
 
-        self.calculations_clock = None
+        self.calculations_clock = 0
 
-        self.rotation = None  # rotation of the car (in radians)
-        self.base_pos = None  #  the position of the car according to bullet, not used
-        self.center_pos = None  # the real center of the car
-        self.start_point = None  # starting point of the map
+        self.rotation = 0  # TODO: positions['rotation']  # rotation of the car (in radians)
+        self.base_pos = None  # the position of the car according to bullet, not used
+        self.start_point = positions['start']  # starting point of the map
 
-        self.finished = None  # did the car get to the goal
-        self.crashed = None  # did the car crash
-        self.swivel = None  # swivel of the car - angle of steering wheel
+        self.finished = False  # did the car get to the goal
+        self.crashed = False  # did the car crash
+        self.swivel = 0  # swivel of the car - angle of steering wheel
 
-        self.end_point = None  # end point of the map
+        self.end_point = positions['end']  # end point of the map
 
-        self.segments_partial_map: Map | None = None
-        self.hits = None
+        self.segments_partial_map: Map = Map([consts.map_borders.copy()])
+
+        self.hits = [[] for _ in range(consts.ray_amount)]
+        map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)
+        self.map_shape = (map_length, map_length)
 
         # TODO: copy from env:
 
@@ -74,34 +58,33 @@ class Car:
 
         self.generate_graph()
 
-        self.car_model = None  # pybullet ID of the car
-        self.wheels = None  # pybullet ID of the wheels for setting speed
-        self.steering = None  # pybullet ID of the wheels for steering
+        # initialize in prm
 
-        # TODO: we only want end and start:
-        self.maze, self.end_point, self.start_point = self.get_new_maze()
+        self.current_vertex = None
+        self.next_vertex = None
+        self.prev_vertex = []
+        self.next_vertex = None
 
-        # real initialization
         self.end_point = self.prm.set_end(np.array(self.end_point[:2]))
-        self.current_vertex = self.prm.get_closest_vertex(
-            self.start_point, 0, Direction.FORWARD
-        )
+        self.current_vertex = self.prm.get_closest_vertex(self.start_point, self.rotation)
         print(f"new end is {self.end_point}")
         self.start_point = [self.current_vertex.pos[0], self.current_vertex.pos[1], 0]
         self.center_pos = self.current_vertex.pos
 
-        self.next_vertex = None
+        self.car_model = None  # pybullet ID of the car
+        self.wheels = None  # pybullet ID of the wheels for setting speed
+        self.steering = None  # pybullet ID of the wheels for steering
 
+    def after_py_bullet(self):
         self.car_model, self.wheels, self.steering = self.create_car_model()
-
-        # TODO: should that be here?
-        self.reset()
+        self.set_car_position(self.start_point)
 
         self.scan_environment()
 
         self.prm.init_d_star(self.current_vertex)
         self.prm.d_star.compute_shortest_path(self.current_vertex)
-        self.prm.draw_path(self.current_vertex)
+        self.prm.draw_path(self.current_vertex, idx=f'car {self.car_number}')
+        print(self.prm.end.pos)
 
     def generate_graph(self):
         print("generating graph")
@@ -110,109 +93,64 @@ class Car:
         print(self.prm.graph.n, self.prm.graph.e)
 
     # TODO: make me pretty please, pretty please <3:
-    def scan_environment(self):
-        """
-        scans the environment and updates the discovery values
-        :return:
-        """
-        directions = [
-            2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)
-        ]
-        new_map_discovered = self.discovered
+
+    def remove_vertices(self, index):
         vertex_removal_radius = math.ceil(0.4 / consts.vertex_offset)
+        self.segments_partial_map.add_points_to_map(self.hits[index])
+        self.hits[index] = []
+        new = self.segments_partial_map.new_segments
+        for segment in new:
+            for point in segment:
+                for block in block_options(map_index_from_pos(point), vertex_removal_radius, self.map_shape):
+                    for vertex in self.prm.vertices[block[0]][block[1]]:
+                        if vertex and not self.segments_partial_map.check_state(vertex):
+                            if self.prm.remove_vertex(vertex):
+                                self.need_recalculate_path = True
+        return new
+
+    def remove_edges(self, new_segments):
         edge_removal_radius = np.ceil(self.prm.res / consts.vertex_offset)
         problematic_vertices: Set[PRM.Vertex] = set()
         problematic_edges: Set[PRM.Edge] = set()
-        new_segments = []
-        for i, direction in enumerate(directions):
-
-            did_hit, start, end = self.ray_cast(
-                self.car_model,
-                [0, 0, 0.5],
-                [
-                    -consts.ray_length * np.cos(direction),
-                    -consts.ray_length * np.sin(direction),
-                    0,
-                ],
-            )
-            if did_hit:
-                self.hits[i].append((end[0], end[1]))
-                if len(self.hits[i]) == consts.max_hits_before_calculation:
-                    self.segments_partial_map.add_points_to_map(self.hits[i])
-                    self.hits[i] = []
-                    new = self.segments_partial_map.new_segments
-                    new_segments += new
-                    for segment in new:
-                        for point in segment:
-                            for block in block_options(
-                                map_index_from_pos(point),
-                                vertex_removal_radius,
-                                np.shape(self.discovered),
-                            ):
-                                for angle in self.prm.vertices[block[0]][block[1]]:
-                                    for vertex in angle:
-                                        if (
-                                            vertex
-                                            and not self.segments_partial_map.check_state(
-                                                vertex
-                                            )
-                                        ):
-                                            if self.prm.remove_vertex(vertex):
-                                                self.need_recalculate_path = True
-            add_discovered_matrix(new_map_discovered, start, end)
-        self.discovered = new_map_discovered
         for segment in new_segments:
             for point in segment:
-                for block in block_options(
-                    map_index_from_pos(point),
-                    edge_removal_radius,
-                    np.shape(self.discovered),
-                ):
-                    for angle in self.prm.vertices[block[0]][block[1]]:
-                        problematic_vertices.update(angle)
+                for block in block_options(map_index_from_pos(point), edge_removal_radius, self.map_shape):
+                    problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
 
         for vertex in problematic_vertices:
             if vertex is None:
                 continue
             for edge in vertex.in_edges | vertex.out_edges:
-                if (
-                    edge.src in problematic_vertices
-                    and edge.dst in problematic_vertices
-                ):
+                if edge.src in problematic_vertices and edge.dst in problematic_vertices:
                     problematic_edges.add(edge)
         for segment in new_segments:
             for i in range(len(segment) - 1):
                 for edge in problematic_edges:
-                    if (
-                        edge.active
-                        and distance_between_lines(
-                            segment[i], segment[i + 1], edge.src.pos, edge.dst.pos
-                        )
-                        < consts.width + 2 * consts.epsilon
-                    ):
+                    if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
+                            consts.width + 2 * consts.epsilon:
                         if self.prm.remove_edge(edge):
                             edge.active = False
                             self.need_recalculate_path = True
 
-    def reset(self):
+    def scan_environment(self):
         """
-        resets the environment
+        scans the environment and updates the discovery values
+        :return:
         """
-        self.calculations_clock = 0
-        self.trace = []
-        self.calculations_clock = 0
-        self.hits = [[] for _ in range(consts.ray_amount)]
+        directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
+        new_segments = []
+        for i, direction in enumerate(directions):
 
-        self.segments_partial_map = Map([consts.map_borders.copy()])
+            did_hit, start, end = self.ray_cast(
+                self.car_model, [0, 0, 0.5],
+                [-consts.ray_length * np.cos(direction), -consts.ray_length * np.sin(direction), 0]
+            )
+            if did_hit:
+                self.hits[i].append((end[0], end[1]))
+                if len(self.hits[i]) == consts.max_hits_before_calculation:
+                    new_segments += self.remove_vertices(i)
 
-        self.swivel = 0
-        self.rotation = 0
-
-        self.finished = False
-        self.crashed = False
-        self.last_speed = 0
-
-        self.set_car_position(self.start_point)
+        self.remove_edges(new_segments)
 
     def ray_cast(self, car, offset, direction):
         """
@@ -278,15 +216,9 @@ class Car:
 
         if self.calculations_clock == 0:
             self.trace.append(self.center_pos)
-            self.next_vertex = self.prm.next_in_path(self.current_vertex)
-
-        if self.calculations_clock == 0:
-            self.trace.append(self.center_pos)
-            next_vertex = self.initial_prm.next_in_path(self.current_vertex)
+            next_vertex = self.prm.next_in_path(self.current_vertex)
             if next_vertex is None:
-                if (not self.is_backwards_driving) or dist(
-                    self.center_pos, self.next_vertex.pos
-                ) <= 0.05:
+                if (not self.is_backwards_driving) or dist(self.center_pos, self.next_vertex.pos) <= 0.1:
                     self.next_vertex = self.prev_vertex.pop()
                     self.is_backwards_driving = True
                     print("popped")
@@ -296,12 +228,12 @@ class Car:
                 self.is_backwards_driving = False
 
         if self.calculations_clock % consts.calculate_action_time == 0:
-            transformed = self.initial_prm.transform_by_values(
+            transformed = self.prm.transform_by_values(
                 self.center_pos, self.rotation, self.next_vertex
             )
             x_tag, y_tag = transformed[0][0], transformed[0][1]
 
-            radius = np.sqrt(self.initial_prm.radius_x_y_squared(x_tag, y_tag))
+            radius = np.sqrt(self.prm.radius_x_y_squared(x_tag, y_tag))
             delta = np.sign(y_tag) * np.arctan(consts.length / radius)
 
             rotation = [delta, delta]
@@ -310,30 +242,21 @@ class Car:
 
             self.action = [np.sign(x_tag) / (1 + 4 * abs(delta)), rotation]
 
-        self.calculations_clock += 1
-
-        wanted_speed = self.action[0] * consts.max_velocity
-        wanted_steering_angle = self.action[1]
-        wanted_steering_angle = np.sign(wanted_steering_angle) * np.minimum(
-            np.abs(wanted_steering_angle), consts.max_steer
-        )
-        if abs(wanted_speed) > consts.max_velocity:
-            wanted_speed = consts.max_velocity * np.sign(wanted_speed)
-
-        # moving
-        for wheel in self.wheels:
-            p.setJointMotorControl2(
-                self.car_model,
-                wheel,
-                p.VELOCITY_CONTROL,
-                targetVelocity=wanted_speed,
-                force=consts.max_force,
+            wanted_speed = self.action[0] * consts.max_velocity
+            wanted_steering_angle = self.action[1]
+            wanted_steering_angle = np.sign(wanted_steering_angle) * np.minimum(
+                np.abs(wanted_steering_angle), consts.max_steer
             )
+            if abs(wanted_speed) > consts.max_velocity:
+                wanted_speed = consts.max_velocity * np.sign(wanted_speed)
 
-        for steer, angle in zip(self.steering, wanted_steering_angle):
-            p.setJointMotorControl2(
-                self.car_model, steer, p.POSITION_CONTROL, targetPosition=angle,
-            )
+            # moving
+            for wheel in self.wheels:
+                p.setJointMotorControl2(self.car_model, wheel, p.VELOCITY_CONTROL, targetVelocity=wanted_speed,
+                                        force=consts.max_force)
+
+            for steer, angle in zip(self.steering, wanted_steering_angle):
+                p.setJointMotorControl2(self.car_model, steer, p.POSITION_CONTROL, targetPosition=angle)
 
     # TODO : doc
     # TODO: handle finishing the maze in all various ways
@@ -363,7 +286,7 @@ class Car:
         self.swivel = np.arctan(1 / cot_delta)
 
         prev_vertex = self.current_vertex
-        self.current_vertex = self.initial_prm.get_closest_vertex(
+        self.current_vertex = self.prm.get_closest_vertex(
             self.center_pos, self.rotation
         )
         if self.current_vertex != prev_vertex and not self.is_backwards_driving:
@@ -371,46 +294,29 @@ class Car:
 
         self.scan_environment()
 
-        if (
-            self.need_recalculate_path
-            and self.calculations_clock % consts.calculate_d_star_time == 0
-        ):
+        if self.need_recalculate_path and self.calculations_clock % consts.calculate_d_star_time == 0:
             self.prm.d_star.k_m += d_star.h(prev_vertex, self.current_vertex)
             for edge in self.prm.deleted_edges:
-                u = edge.src
+                u, v, c = edge.src, edge.dst, edge.weight
+                edge.weight = np.inf  # not needed but just to be safe
                 rhs = self.prm.d_star.rhs
-                rhs[u] = min(rhs[u], self.prm.d_star.g[u])
+                g = self.prm.d_star.g
+                if rhs[u] == c + g[v]:
+                    if u != self.prm.end:
+                        possible_rhs = (edge.weight + g[edge.dst] for edge in u.out_edges)
+                        rhs[u] = min(possible_rhs, default=np.inf)
                 self.prm.d_star.update_vertex(u)
-            # TODO: fix the code, bogin knows what to do:
-            print(f"car number {self.number} recalc path, pos:", self.center_pos)
+            self.prm.deleted_edges.clear()
+
+            print('car number', self.car_number, 'recalc path, pos:', self.center_pos, 'target', self.next_vertex.pos)
             self.prm.d_star.compute_shortest_path(self.current_vertex)
+            self.calculations_clock = -1
+
+        self.calculations_clock += 1
 
         # TODO: check for each car, and report to the env
-        if not (self.crashed or self.finished):
-            return False
-        self.trace.append(self.center_pos)
-        if self.finished:
-            self.trace.append(self.end_point)
-
-        plt.plot(
-            [a for a, _ in self.trace], [a for _, a in self.trace], label="actual path"
-        )
-        plt.title(f"maze {self.maze_idx} - time {self.run_time}")
-        plt.legend()
-        plt.show()
-        self.segments_partial_map.show()
-
-        if self.crashed:
-            print(
-                f"crashed maze {self.maze_idx}"
-                f" - distance is {dist(self.center_pos, self.end_point)}"
-                f" - time {self.run_time}"
-            )
-            return True
-        if self.finished:
-            print(f"finished maze {self.maze_idx}" f" - time {self.run_time}")
-            return True
-        return False
+        return self.crashed or self.finished
+        # self.segments_partial_map.show()
 
     def set_car_position(self, position):
         """

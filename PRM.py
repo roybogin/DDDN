@@ -20,7 +20,6 @@ def car_center_to_pos(pos: np.ndarray, theta) -> np.ndarray:
     return pos[:2] - consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
 
 
-
 class PRM:
     def __init__(self, shape):
 
@@ -156,11 +155,9 @@ class PRM:
     def next_in_path(self, vertex: Vertex):
         successors = ((e.dst, e.weight) for e in vertex.out_edges)
         next_vertex_key = lambda dest, weight: self.d_star.g[dest] + weight
-        try:
-            next_vertex = min(successors, key=lambda tup: next_vertex_key(*tup))[0]
-        except ValueError:
-            print('a')
-            next_vertex = None
+        next_vertex = min(successors, key=lambda tup: next_vertex_key(*tup), default=(None,))[0]
+        if next_vertex is None:
+            print('no successors')
         return next_vertex
 
     def transform_pov(self, vertex_1: Vertex, vertex_2: Vertex):
@@ -201,7 +198,3 @@ class PRM:
 
     def init_d_star(self, start_vertex: Vertex):
         self.d_star = DStar(self.graph, start_vertex, self.end)
-
-
-
-
