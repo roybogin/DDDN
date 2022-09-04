@@ -157,41 +157,25 @@ class CarEnv:
             p.removeBody(body)
         self.bodies = []
 
-    def scan_environment(self):
-        """
-        scans the environment and updates the discovery values
-        :return:
-        """
-        directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
-        new_map_discovered = self.discovered
+    def remove_vertices(self, index):
         vertex_removal_radius = math.ceil(0.4 / consts.vertex_offset)
+        self.segments_partial_map.add_points_to_map(self.hits[index])
+        self.hits[index] = []
+        new = self.segments_partial_map.new_segments
+        for segment in new:
+            for point in segment:
+                for block in block_options(map_index_from_pos(point), vertex_removal_radius,
+                                           np.shape(self.discovered)):
+                    for vertex in self.prm.vertices[block[0]][block[1]]:
+                        if vertex and not self.segments_partial_map.check_state(vertex):
+                            if self.prm.remove_vertex(vertex):
+                                self.need_recalculate = True
+        return new
+
+    def remove_edges(self, new_segments):
         edge_removal_radius = np.ceil(self.prm.res / consts.vertex_offset)
         problematic_vertices: Set[PRM.Vertex] = set()
         problematic_edges: Set[PRM.Edge] = set()
-        new_segments = []
-        for i, direction in enumerate(directions):
-
-            did_hit, start, end = self.ray_cast(
-                self.car_model, [0, 0, 0.5],
-                [-consts.ray_length * np.cos(direction), -consts.ray_length * np.sin(direction), 0]
-            )
-            if did_hit:
-                self.hits[i].append((end[0], end[1]))
-                if len(self.hits[i]) == consts.max_hits_before_calculation:
-                    self.segments_partial_map.add_points_to_map(self.hits[i])
-                    self.hits[i] = []
-                    new = self.segments_partial_map.new_segments
-                    new_segments += new
-                    for segment in new:
-                        for point in segment:
-                            for block in block_options(map_index_from_pos(point), vertex_removal_radius,
-                                                       np.shape(self.discovered)):
-                                for vertex in self.prm.vertices[block[0]][block[1]]:
-                                    if vertex and not self.segments_partial_map.check_state(vertex):
-                                        if self.prm.remove_vertex(vertex):
-                                            self.need_recalculate = True
-            add_discovered_matrix(new_map_discovered, start, end)
-        self.discovered = new_map_discovered
         for segment in new_segments:
             for point in segment:
                 for block in block_options(map_index_from_pos(point), edge_removal_radius, np.shape(self.discovered)):
@@ -211,6 +195,26 @@ class CarEnv:
                         if self.prm.remove_edge(edge):
                             edge.active = False
                             self.need_recalculate = True
+
+    def scan_environment(self):
+        """
+        scans the environment and updates the discovery values
+        :return:
+        """
+        directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
+        new_segments = []
+        for i, direction in enumerate(directions):
+
+            did_hit, start, end = self.ray_cast(
+                self.car_model, [0, 0, 0.5],
+                [-consts.ray_length * np.cos(direction), -consts.ray_length * np.sin(direction), 0]
+            )
+            if did_hit:
+                self.hits[i].append((end[0], end[1]))
+                if len(self.hits[i]) == consts.max_hits_before_calculation:
+                    new_segments += self.remove_vertices(i)
+
+        self.remove_edges(new_segments)
         # if self.run_time % 20 == 0 and self.need_recalculate:
         #     print('recalc', self.center_pos, self.prm.graph.n, self.prm.graph.e)
         #     self.prm.dijkstra(self.prm.end)
