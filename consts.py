@@ -5,7 +5,7 @@ import numpy as np
 from gym.utils import seeding
 import math
 
-is_visual = True  # do we want to see visual footage
+is_visual = False  # do we want to see visual footage
 use_real_time = 0  # is the simulation running in real time - probably should always be 0
 time_step = 0.01    # what is a time step in the pybullet simulation
 

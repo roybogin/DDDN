@@ -1,3 +1,5 @@
+import numpy as np
+
 import PRM
 
 '''
@@ -50,7 +52,7 @@ default_data_set = [
         'walls': [[(-3,0), (0,3), (3, 0)]],
         'positions': [
                         {'start': [-4, 2, 0], 'end': [4, 2, 0], 'rotation': 0},
-                        {'start': [4, 2, 0], 'end': [-4, 2, 0], 'rotation': 18},
+                        {'start': [4, 2, 0], 'end': [-4, 2, 0], 'rotation': np.pi},
                       ],
         'title': 'v shaped wall two cars'
     },

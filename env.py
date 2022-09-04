@@ -223,7 +223,7 @@ class Env:
 def main():
     t0 = time.time()
     stop = False
-    maze = mazes.default_data_set[0]
+    maze = mazes.default_data_set[1]
     env = Env(maze)
     while not stop:
         stop = env.step()

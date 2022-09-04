@@ -30,7 +30,7 @@ class Car:
 
         self.calculations_clock = 0
 
-        self.rotation = 0  # TODO: positions['rotation']  # rotation of the car (in radians)
+        self.rotation = positions['rotation']  # rotation of the car (in radians)
         self.base_pos = None  # the position of the car according to bullet, not used
         self.start_point = positions['start']  # starting point of the map
 
@@ -46,11 +46,7 @@ class Car:
         map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)
         self.map_shape = (map_length, map_length)
 
-        # TODO: copy from env:
         self.prm = PRM.PRM(self.map_shape, prm)
-
-
-        # self.generate_graph()
 
         # initialize in prm
 
@@ -71,7 +67,6 @@ class Car:
 
     def after_py_bullet(self):
         self.car_model, self.wheels, self.steering = self.create_car_model()
-        self.set_car_position(self.start_point)
 
         self.scan_environment()
 
@@ -86,7 +81,6 @@ class Car:
 
         print(self.prm.graph.n, self.prm.graph.e)
 
-    # TODO: make me pretty please, pretty please <3:
 
     def remove_vertices(self, index):
         vertex_removal_radius = math.ceil(0.4 / consts.vertex_offset)
@@ -291,18 +285,6 @@ class Car:
         return self.crashed or self.finished
         # self.segments_partial_map.show()
 
-    def set_car_position(self, position):
-        """
-        sets the car in a position
-        :param position: position to place the car at
-        :return:
-        """
-        base_position = list(PRM.car_center_to_pos(np.array(position), 0)) + [0]
-        p.resetBasePositionAndOrientation(
-            self.car_model, base_position, [0.0, 0.0, 0.0, 1.0]
-        )
-        p.resetBaseVelocity(self.car_model, [0, 0, 0], [0, 0, 0])
-
     def create_car_model(self):
         """
         create the car in pybullet
@@ -318,7 +300,8 @@ class Car:
             )
 
         steering = [4, 6]
+        base_position = list(PRM.car_center_to_pos(np.array(self.start_point[:2]), self.rotation)) + [0]
         # TODO: maybe immidatiatly set the right pos and rot
-        p.resetBasePositionAndOrientation(car, [0, 0, 0], [0, 0, 0, 1])
+        p.resetBasePositionAndOrientation(car, base_position, p.getQuaternionFromEuler([0, 0, self.rotation]))
 
         return car, wheels, steering
