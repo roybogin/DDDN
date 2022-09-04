@@ -5,7 +5,7 @@ import numpy as np
 from gym.utils import seeding
 import math
 
-is_visual = False  # do we want to see visual footage
+is_visual = True  # do we want to see visual footage
 use_real_time = 0  # is the simulation running in real time - probably should always be 0
 time_step = 0.01    # what is a time step in the pybullet simulation
 
@@ -23,7 +23,7 @@ epsilon = 0.1
 min_dist_to_target = 0.5  # distance from target that is treated as success
 ray_length = 5  # length of ray
 ray_amount = 6
-size_map_quarter = 10
+size_map_quarter = 5
 vertex_offset = 0.11
 map_borders = [
     (size_map_quarter, size_map_quarter),

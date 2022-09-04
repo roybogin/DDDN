@@ -231,7 +231,7 @@ class Env:
 def main():
     t0 = time.time()
     stop = False
-    env = Env(mazes.default_data_set[0])
+    env = Env(mazes.default_data_set[1])
     while not stop:
         stop = env.step()
     print(f"total time: {time.time() - t0}")
