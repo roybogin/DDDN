@@ -40,6 +40,7 @@ class WeightedGraph:
         self.vertices: Set[Vertex] = set()  # A set of the graph vertices
         self.n: int = 0  # size of the graph
         self.e: int = 0  # amount of edges in the graph
+        self.deleted_edges: Set[Edge] = set()
 
     def add_vertex(self, pos: np.ndarray, theta: float, index: int = None) -> Vertex:
         """
@@ -62,42 +63,42 @@ class WeightedGraph:
         vertex_2.in_edges.add(edge)
         self.e += 1
 
-    def remove_edge(self, edge: Edge, deleted_edges: Set[Edge]) -> bool:
-        return_val = True
+    def remove_edge(self, edge: Edge):
+        removed_edge = True
         edge.active = False
         v1, v2 = edge.src, edge.dst
         if edge in v1.out_edges:
             v1.out_edges.remove(edge)
         else:
-            return_val = False
+            removed_edge = False
         if edge in v2.in_edges:
             v2.in_edges.remove(edge)
         else:
-            return_val = False
-        if return_val:
+            removed_edge = False
+        if removed_edge:
             self.e -= 1
-            deleted_edges.add(edge)
+            self.deleted_edges.add(edge)
         else:
-            print('false edge')
-        return return_val
+            print('false edge')  # just to be sure that there is no error
 
-    def remove_vertex(self, v: Vertex, deleted_edges: Set[Edge]) -> bool:
+    def remove_vertex(self, v: Vertex):
         if v not in self.vertices:
-            print('false vertex')
-            return False
+            print('false vertex')  # just to be sure that there is no error
+            return
         for edge in v.in_edges:
             other_vertex = edge.src
             if edge in other_vertex.out_edges:
                 other_vertex.out_edges.remove(edge)
                 self.e -= 1
-                deleted_edges.add(edge)  # need to only add this side because deleted edges only care about outgoing
-                # edges (and v is deleted)
+                self.deleted_edges.add(edge)
+        v.in_edges.clear()  # not needed but just in case
         for edge in v.out_edges:
             other_vertex = edge.dst
             if edge in other_vertex.in_edges:
                 other_vertex.in_edges.remove(edge)
                 self.e -= 1
+                self.deleted_edges.add(edge)
+        v.out_edges.clear()  # not needed but just in case
 
         self.vertices.remove(v)
         self.n -= 1
-        return True

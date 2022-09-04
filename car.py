@@ -10,12 +10,13 @@ import PRM
 import d_star
 import map_create
 import mazes
+from WeightedGraph import WeightedGraph
 from helper import *
 from scan_to_map import Map
 
 
 class Car:
-    def __init__(self, index: int, positions: Dict):
+    def __init__(self, index: int, positions: Dict, prm: PRM, segments_map: Map):
         super(Car, self).__init__()
         self.ax = plt.gca()  # pyplot to draw and debug
         self.car_number = index
@@ -23,11 +24,9 @@ class Car:
         self.bodies = None
 
         self.is_backwards_driving = False
-        self.need_recalculate_path = False
 
         self.action = None
         self.trace = []  # the trace of the car's paths, for plotting
-        self.need_recalculate_path = False
 
         self.calculations_clock = 0
 
@@ -41,22 +40,17 @@ class Car:
 
         self.end_point = positions['end']  # end point of the map
 
-        self.segments_partial_map: Map = Map([consts.map_borders.copy()])
+        self.segments_partial_map: Map = segments_map
 
         self.hits = [[] for _ in range(consts.ray_amount)]
         map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)
         self.map_shape = (map_length, map_length)
 
         # TODO: copy from env:
+        self.prm = PRM.PRM(self.map_shape, prm)
 
-        self.prm = PRM.PRM(
-            (
-                int((2 * consts.size_map_quarter) // consts.vertex_offset),
-                int((2 * consts.size_map_quarter) // consts.vertex_offset),
-            )
-        )
 
-        self.generate_graph()
+        # self.generate_graph()
 
         # initialize in prm
 
@@ -104,8 +98,7 @@ class Car:
                 for block in block_options(map_index_from_pos(point), vertex_removal_radius, self.map_shape):
                     for vertex in self.prm.vertices[block[0]][block[1]]:
                         if vertex and not self.segments_partial_map.check_state(vertex):
-                            if self.prm.remove_vertex(vertex):
-                                self.need_recalculate_path = True
+                            self.prm.remove_vertex(vertex)
         return new
 
     def remove_edges(self, new_segments):
@@ -128,15 +121,14 @@ class Car:
                 for edge in problematic_edges:
                     if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
                             consts.width + 2 * consts.epsilon:
-                        if self.prm.remove_edge(edge):
-                            edge.active = False
-                            self.need_recalculate_path = True
+                        self.prm.remove_edge(edge)
 
     def scan_environment(self):
         """
         scans the environment and updates the discovery values
         :return:
         """
+        old_graph_sizes = (self.prm.graph.n, self.prm.graph.e)
         directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
         new_segments = []
         for i, direction in enumerate(directions):
@@ -151,6 +143,7 @@ class Car:
                     new_segments += self.remove_vertices(i)
 
         self.remove_edges(new_segments)
+        return old_graph_sizes != (self.prm.graph.n, self.prm.graph.e)  # we removed new edges or vertices
 
     def ray_cast(self, car, offset, direction):
         """
@@ -257,9 +250,9 @@ class Car:
 
             for steer, angle in zip(self.steering, wanted_steering_angle):
                 p.setJointMotorControl2(self.car_model, steer, p.POSITION_CONTROL, targetPosition=angle)
+        self.calculations_clock += 1
 
     # TODO : doc
-    # TODO: handle finishing the maze in all various ways
     def scan(self):
         # updating map;
         self.base_pos, quaternions = p.getBasePositionAndOrientation(self.car_model)
@@ -291,30 +284,10 @@ class Car:
         )
         if self.current_vertex != prev_vertex and not self.is_backwards_driving:
             self.prev_vertex.append(prev_vertex)
+            self.prm.d_star.k_m += d_star.h(prev_vertex, self.current_vertex)
 
         self.scan_environment()
 
-        if self.need_recalculate_path and self.calculations_clock % consts.calculate_d_star_time == 0:
-            self.prm.d_star.k_m += d_star.h(prev_vertex, self.current_vertex)
-            for edge in self.prm.deleted_edges:
-                u, v, c = edge.src, edge.dst, edge.weight
-                edge.weight = np.inf  # not needed but just to be safe
-                rhs = self.prm.d_star.rhs
-                g = self.prm.d_star.g
-                if rhs[u] == c + g[v]:
-                    if u != self.prm.end:
-                        possible_rhs = (edge.weight + g[edge.dst] for edge in u.out_edges)
-                        rhs[u] = min(possible_rhs, default=np.inf)
-                self.prm.d_star.update_vertex(u)
-            self.prm.deleted_edges.clear()
-
-            print('car number', self.car_number, 'recalc path, pos:', self.center_pos, 'target', self.next_vertex.pos)
-            self.prm.d_star.compute_shortest_path(self.current_vertex)
-            self.calculations_clock = -1
-
-        self.calculations_clock += 1
-
-        # TODO: check for each car, and report to the env
         return self.crashed or self.finished
         # self.segments_partial_map.show()
 

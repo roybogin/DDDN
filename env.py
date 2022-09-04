@@ -40,22 +40,20 @@ class Env:
         plt.axis([-plt_size, plt_size, -plt_size, plt_size])
         self.maze_title = maze['title']
 
+        self.segments_partial_map: Map = Map([consts.map_borders.copy()])
+
         self.run_time = None  # time of the run
 
         self.maze = None  # walls of the maze - list of points
         self.borders = None  # the maze borders - object IDs
 
-        # TODO: maybe generate and copy:
-        self.initial_prm = None
+        map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)
 
-        # self.initial_prm = PRM.PRM(
-        #     (
-        #         int((2 * consts.size_map_quarter) // consts.vertex_offset),
-        #         int((2 * consts.size_map_quarter) // consts.vertex_offset),
-        #     )
-        # )
+        self.prm = PRM.PRM((map_length, map_length))
 
-        # self.generate_graph()
+        self.generate_graph()
+
+        self.graph = self.prm.graph
 
         self.obstacles = []  # list of obstacle IDs in pybullet
         self.bodies = []  # list of all collision body IDs in pybullet
@@ -65,17 +63,16 @@ class Env:
         self.start_env()
         positions = maze['positions']
         self.number_of_cars = len(positions)
-        # TODO: split to generating cars and to placing cars for pybullet speed
-        self.cars: List[Car] = [Car(i, positions[i]) for i in range(self.number_of_cars)]
+        self.cars: List[Car] = [Car(i, positions[i], self.prm, self.segments_partial_map) for i in range(self.number_of_cars)]
         self.reset()
         for car in self.cars:
             car.after_py_bullet()
 
     def generate_graph(self):
         print("generating graph")
-        self.initial_prm.generate_graph()
+        self.prm.generate_graph()
 
-        print(self.initial_prm.graph.n, self.initial_prm.graph.e)
+        print(self.prm.graph.n, self.prm.graph.e)
 
     def start_env(self):
         """
@@ -181,23 +178,22 @@ class Env:
         for car in self.cars:
             car.scan()
 
-        # TODO: call for cars and analyze results. till "self.trace.append(self.end_point)"
+        if len(self.graph.deleted_edges) != 0 and self.run_time % consts.calculate_d_star_time == 0:
+            print('computing paths')
+            t = time.time()
+            for car in self.cars:
+                car.prm.update_d_star()
+                car.prm.d_star.compute_shortest_path(car.current_vertex)
+                car.calculations_clock = 0
+            print('all paths computed in ', time.time() - t)
+            self.graph.deleted_edges.clear()
+
         if self.run_time >= consts.max_time:
-            print(
-                f"out of time in {self.maze_title}"
-            )
+            print(f"out of time in {self.maze_title}")
             for idx, car in enumerate(self.cars):
                 car.trace.append(car.center_pos)
-                plt.plot(
-                    [a for a, _ in car.trace],
-                    [a for _, a in car.trace],
-                    label=f"actual path car {idx}",
-                )
-                plt.scatter(car.center_pos[0], car.center_pos[1], c="red")
-            plt.title(f"{self.maze_title} - time {self.run_time}")
-
-            # self.segments_partial_map.plot(self.ax)
-
+                if car.finished:
+                    car.trace.append(car.end_point)
             return True
 
         crashed = any(car.crashed for car in self.cars)
@@ -207,18 +203,14 @@ class Env:
             return False
         for idx, car in enumerate(self.cars):
             car.trace.append(car.center_pos)
-            if finished:
+            if car.finished:
                 car.trace.append(car.end_point)
-
-        # TODO: make a finishing function that prints stats at the end of maze:
-        plt.title(f"{self.maze_title} - time {self.run_time}")
-        # self.segments_partial_map.plot(self.ax)
+            elif car.crashed:
+                plt.scatter(car.trace[-1][0], car.trace[-1][1], label=f'crash car {idx}')
 
         if crashed:
             print(
-                f"crashed {self.maze_title}"
-                # f" - distance is {dist(self.center_pos, self.end_point)}"
-                f" - time {self.run_time}"
+                f"crashed {self.maze_title} - time {self.run_time}"
             )
             return True
         if finished:
@@ -231,20 +223,24 @@ class Env:
 def main():
     t0 = time.time()
     stop = False
-    env = Env(mazes.default_data_set[0])
+    maze = mazes.default_data_set[0]
+    env = Env(maze)
     while not stop:
         stop = env.step()
     print(f"total time: {time.time() - t0}")
     p.disconnect()
+    env.segments_partial_map.plot(env.ax)
     for idx, car in enumerate(env.cars):
         plt.plot(
             [a for a, _ in car.trace],
             [a for _, a in car.trace],
-            label=f"actual path car {idx}",
-        )
-        plt.scatter(car.trace[-1][0], car.trace[-1][1], c="red")
-
-    plt.legend(loc="upper right")
+            label=f"actual car {idx}")
+    plt.title(f'{maze["title"]} - time {env.run_time}')
+    ax = env.ax
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # Put a legend to the right of the current axis
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     plt.show()
 
 
