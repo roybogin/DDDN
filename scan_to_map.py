@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib.patches import Rectangle, Circle
 from helper import perpendicularDistance
 import consts
-from PRM import Vertex
+from road_map import Vertex
 
 SAMPLE_DIST = 0.8
 testing = True

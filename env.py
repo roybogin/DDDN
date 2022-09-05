@@ -6,7 +6,7 @@ import pybullet as p
 import pybullet_data as pd
 from gym.utils import seeding
 
-import PRM
+import road_map
 import consts
 import d_star
 import map_create
@@ -49,11 +49,11 @@ class Env:
 
         map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)
 
-        self.prm = PRM.PRM((map_length, map_length))
+        self.road_map = road_map.road_map((map_length, map_length))
 
         self.generate_graph()
 
-        self.graph = self.prm.graph
+        self.graph = self.road_map.graph
 
         self.obstacles = []  # list of obstacle IDs in pybullet
         self.bodies = []  # list of all collision body IDs in pybullet
@@ -63,16 +63,16 @@ class Env:
         self.start_env()
         positions = maze['positions']
         self.number_of_cars = len(positions)
-        self.cars: List[Car] = [Car(i, positions[i], self.prm, self.segments_partial_map) for i in range(self.number_of_cars)]
+        self.cars: List[Car] = [Car(i, positions[i], self.road_map, self.segments_partial_map) for i in range(self.number_of_cars)]
         self.reset()
         for car in self.cars:
             car.after_py_bullet()
 
     def generate_graph(self):
         print("generating graph")
-        self.prm.generate_graph()
+        self.road_map.generate_graph()
 
-        print(self.prm.graph.n, self.prm.graph.e)
+        print(self.road_map.graph.n, self.road_map.graph.e)
 
     def start_env(self):
         """
@@ -182,8 +182,8 @@ class Env:
             print('computing paths')
             t = time.time()
             for car in self.cars:
-                car.prm.update_d_star()
-                car.prm.d_star.compute_shortest_path(car.current_vertex)
+                car.road_map.update_d_star()
+                car.road_map.d_star.compute_shortest_path(car.current_vertex)
                 car.calculations_clock = 0
             print('all paths computed in ', time.time() - t)
             self.graph.deleted_edges.clear()

@@ -6,7 +6,7 @@ import pybullet as p
 import pybullet_data as pd
 from gym.utils import seeding
 
-import PRM
+import road_map
 import d_star
 import map_create
 import mazes
@@ -16,7 +16,7 @@ from scan_to_map import Map
 
 
 class Car:
-    def __init__(self, index: int, positions: Dict, prm: PRM, segments_map: Map):
+    def __init__(self, index: int, positions: Dict, road_map: Road_Map, segments_map: Map):
         super(Car, self).__init__()
         self.ax = plt.gca()  # pyplot to draw and debug
         self.car_number = index
@@ -46,17 +46,17 @@ class Car:
         map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)
         self.map_shape = (map_length, map_length)
 
-        self.prm = PRM.PRM(self.map_shape, prm)
+        self.road_map = road_map.Road_Map(self.map_shape, road_map)
 
-        # initialize in prm
+        # initialize in road_map
 
         self.current_vertex = None
         self.next_vertex = None
         self.prev_vertex = []
         self.next_vertex = None
 
-        self.end_point = self.prm.set_end(np.array(self.end_point[:2]))
-        self.current_vertex = self.prm.get_closest_vertex(self.start_point, self.rotation)
+        self.end_point = self.road_map.set_end(np.array(self.end_point[:2]))
+        self.current_vertex = self.road_map.get_closest_vertex(self.start_point, self.rotation)
         print(f"new end is {self.end_point}")
         self.start_point = [self.current_vertex.pos[0], self.current_vertex.pos[1], 0]
         self.center_pos = self.current_vertex.pos
@@ -70,16 +70,16 @@ class Car:
 
         self.scan_environment()
 
-        self.prm.init_d_star(self.current_vertex)
-        self.prm.d_star.compute_shortest_path(self.current_vertex)
-        self.prm.draw_path(self.current_vertex, idx=f'car {self.car_number}')
-        print(self.prm.end.pos)
+        self.road_map.init_d_star(self.current_vertex)
+        self.road_map.d_star.compute_shortest_path(self.current_vertex)
+        self.road_map.draw_path(self.current_vertex, idx=f'car {self.car_number}')
+        print(self.road_map.end.pos)
 
     def generate_graph(self):
         print("generating graph")
-        self.prm.generate_graph()
+        self.road_map.generate_graph()
 
-        print(self.prm.graph.n, self.prm.graph.e)
+        print(self.road_map.graph.n, self.road_map.graph.e)
 
 
     def remove_vertices(self, index):
@@ -90,19 +90,19 @@ class Car:
         for segment in new:
             for point in segment:
                 for block in block_options(map_index_from_pos(point), vertex_removal_radius, self.map_shape):
-                    for vertex in self.prm.vertices[block[0]][block[1]]:
+                    for vertex in self.road_map.vertices[block[0]][block[1]]:
                         if vertex and not self.segments_partial_map.check_state(vertex):
-                            self.prm.remove_vertex(vertex)
+                            self.road_map.remove_vertex(vertex)
         return new
 
     def remove_edges(self, new_segments):
-        edge_removal_radius = np.ceil(self.prm.res / consts.vertex_offset)
-        problematic_vertices: Set[PRM.Vertex] = set()
-        problematic_edges: Set[PRM.Edge] = set()
+        edge_removal_radius = np.ceil(self.road_map.res / consts.vertex_offset)
+        problematic_vertices: Set[road_map.Vertex] = set()
+        problematic_edges: Set[road_map.Edge] = set()
         for segment in new_segments:
             for point in segment:
                 for block in block_options(map_index_from_pos(point), edge_removal_radius, self.map_shape):
-                    problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
+                    problematic_vertices.update(self.road_map.vertices[block[0]][block[1]])
 
         for vertex in problematic_vertices:
             if vertex is None:
@@ -115,14 +115,14 @@ class Car:
                 for edge in problematic_edges:
                     if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
                             consts.width + 2 * consts.epsilon:
-                        self.prm.remove_edge(edge)
+                        self.road_map.remove_edge(edge)
 
     def scan_environment(self):
         """
         scans the environment and updates the discovery values
         :return:
         """
-        old_graph_sizes = (self.prm.graph.n, self.prm.graph.e)
+        old_graph_sizes = (self.road_map.graph.n, self.road_map.graph.e)
         directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
         new_segments = []
         for i, direction in enumerate(directions):
@@ -137,7 +137,7 @@ class Car:
                     new_segments += self.remove_vertices(i)
 
         self.remove_edges(new_segments)
-        return old_graph_sizes != (self.prm.graph.n, self.prm.graph.e)  # we removed new edges or vertices
+        return old_graph_sizes != (self.road_map.graph.n, self.road_map.graph.e)  # we removed new edges or vertices
 
     def ray_cast(self, car, offset, direction):
         """
@@ -203,7 +203,7 @@ class Car:
 
         if self.calculations_clock == 0:
             self.trace.append(self.center_pos)
-            next_vertex = self.prm.next_in_path(self.current_vertex)
+            next_vertex = self.road_map.next_in_path(self.current_vertex)
             if next_vertex is None:
                 if (not self.is_backwards_driving) or dist(self.center_pos, self.next_vertex.pos) <= 0.1:
                     self.next_vertex = self.prev_vertex.pop()
@@ -215,12 +215,12 @@ class Car:
                 self.is_backwards_driving = False
 
         if self.calculations_clock % consts.calculate_action_time == 0:
-            transformed = self.prm.transform_by_values(
+            transformed = self.road_map.transform_by_values(
                 self.center_pos, self.rotation, self.next_vertex
             )
             x_tag, y_tag = transformed[0][0], transformed[0][1]
 
-            radius = np.sqrt(self.prm.radius_x_y_squared(x_tag, y_tag))
+            radius = np.sqrt(self.road_map.radius_x_y_squared(x_tag, y_tag))
             delta = np.sign(y_tag) * np.arctan(consts.length / radius)
 
             rotation = [delta, delta]
@@ -251,7 +251,7 @@ class Car:
         # updating map;
         self.base_pos, quaternions = p.getBasePositionAndOrientation(self.car_model)
         self.rotation = p.getEulerFromQuaternion(quaternions)[2]
-        self.center_pos = PRM.pos_to_car_center(
+        self.center_pos = road_map.pos_to_car_center(
             np.array(self.base_pos[:2]), self.rotation
         )
 
@@ -273,12 +273,12 @@ class Car:
         self.swivel = np.arctan(1 / cot_delta)
 
         prev_vertex = self.current_vertex
-        self.current_vertex = self.prm.get_closest_vertex(
+        self.current_vertex = self.road_map.get_closest_vertex(
             self.center_pos, self.rotation
         )
         if self.current_vertex != prev_vertex and not self.is_backwards_driving:
             self.prev_vertex.append(prev_vertex)
-            self.prm.d_star.k_m += d_star.h(prev_vertex, self.current_vertex)
+            self.road_map.d_star.k_m += d_star.h(prev_vertex, self.current_vertex)
 
         self.scan_environment()
 
@@ -300,7 +300,7 @@ class Car:
             )
 
         steering = [4, 6]
-        base_position = list(PRM.car_center_to_pos(np.array(self.start_point[:2]), self.rotation)) + [0]
+        base_position = list(road_map.car_center_to_pos(np.array(self.start_point[:2]), self.rotation)) + [0]
         # TODO: maybe immidatiatly set the right pos and rot
         p.resetBasePositionAndOrientation(car, base_position, p.getQuaternionFromEuler([0, 0, self.rotation]))
 

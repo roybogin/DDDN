@@ -1,6 +1,6 @@
 import numpy as np
 
-import PRM
+import road_map
 
 '''
 Maze Format: json

@@ -7,7 +7,6 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 import consts
-import d_star
 from WeightedGraph import Edge, WeightedGraph, Vertex
 from d_star import DStar
 from helper import dist, map_index_from_pos, block_options
@@ -21,8 +20,8 @@ def car_center_to_pos(pos: np.ndarray, theta) -> np.ndarray:
     return pos[:2] - consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
 
 
-class PRM:
-    def __init__(self, shape, prm=None):
+class Road_Map:
+    def __init__(self, shape, road_map=None):
         self.end = None
         self.shape = shape
         self.max_angle_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
@@ -30,9 +29,9 @@ class PRM:
         # resolution of the path planner
         self.tol = 0.02  # tolerance of the path planner
         self.d_star: DStar | None = None
-        if prm is not None:
-            self.graph = prm.graph
-            self.vertices = prm.vertices
+        if road_map is not None:
+            self.graph = road_map.graph
+            self.vertices = road_map.vertices
         else:
             self.graph = WeightedGraph()
             self.vertices: List[List[List[Vertex]]] = []
