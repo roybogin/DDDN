@@ -1,4 +1,5 @@
 from math import sqrt
+import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle, Circle
 from helper import perpendicularDistance
@@ -14,6 +15,11 @@ class Map:
         # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
         self.map = map
         self.size = size
+
+        self.points = []
+        self.distances = []
+        self.new_segments = []
+        self.number_of_segment = []
 
     def plot(self, ax):
         """
@@ -118,7 +124,8 @@ class Map:
         :param points: the points to add.
         """
         new_points = []
-
+        self.points += points
+        self.new_segments = []
         segment_representation = self.segment_representation()
 
         # filtering the points we don't need to add.
@@ -141,7 +148,7 @@ class Map:
         # dividing the points into segments (for when the samples come from 2 diffrent obstacles):
         segment_to_add = [new_points[0]]
         for i in range(len(new_points) - 1):
-
+            self.distances.append(dist(new_points[i], new_points[i + 1]))
             # if the next point is too far away, start a new segment
             if dist(new_points[i], new_points[i + 1]) > SAMPLE_DIST:
                 new_segment = self.points_to_line(segment_to_add)
