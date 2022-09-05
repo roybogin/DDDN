@@ -35,10 +35,11 @@ class Env:
         super(Env, self).__init__()
 
         # define Matplotlib figure and axis
-        self.ax = plt.gca()  # pyplot to draw and debug
-        plt_size = consts.size_map_quarter + 1  # pyplot size
-        plt.axis([-plt_size, plt_size, -plt_size, plt_size])
-        self.maze_title = maze["title"]
+        if consts.drawing:
+            self.ax = plt.gca()  # pyplot to draw and debug
+            plt_size = consts.size_map_quarter + 1  # pyplot size
+            plt.axis([-plt_size, plt_size, -plt_size, plt_size])
+            self.maze_title = maze["title"]
 
         self.segments_partial_map: Map = Map([consts.map_borders.copy()])
 
@@ -67,20 +68,36 @@ class Env:
             Car(i, positions[i], self.prm, self.segments_partial_map)
             for i in range(self.number_of_cars)
         ]
-        self.reset()
+
+        self.add_borders()
+
+        self.run_time = 0
+
+        self.obstacles = map_create.create_map(
+            self.maze, epsilon=consts.epsilon, client=p
+        )
+        self.bodies = self.borders + self.obstacles
+
+        for car in self.cars:
+            car.bodies = self.bodies
+            car.borders = self.borders
+
         for car in self.cars:
             car.pybullet_init()
 
     def generate_graph(self):
-        print("generating graph")
+        """
+        calls the prm genearte_graph function
+        """
         self.prm.generate_graph()
 
-        print(self.prm.graph.n, self.prm.graph.e)
+        if consts.debug:
+            print("generated graph")
+            print(self.prm.graph.n, self.prm.graph.e)
 
     def start_env(self):
         """
         start the pybullet environment and create the car
-        :return:
         """
         if consts.is_visual:
             a = p.connect(p.GUI)
@@ -108,38 +125,11 @@ class Env:
 
     def add_borders(self):
         """
-        adds the boarders to the maze
+        adds the boarder walls to the maze
         """
         self.borders = map_create.create_poly_wall(
             consts.map_borders, epsilon=consts.epsilon, client=p
         )
-
-    def remove_all_bodies(self):
-        """
-        removes all collision bodies from the map
-        :return:
-        """
-        for body in self.bodies:
-            p.removeBody(body)
-        self.bodies = []
-
-    def reset(self):
-        """
-        resets the environment
-        """
-        self.remove_all_bodies()
-        self.add_borders()
-
-        self.run_time = 0
-
-        self.obstacles = map_create.create_map(
-            self.maze, epsilon=consts.epsilon, client=p
-        )
-        self.bodies = self.borders + self.obstacles
-
-        for car in self.cars:
-            car.bodies = self.bodies
-            car.borders = self.borders
 
     # TODO: call check collision on each car
     def check_collision(self, car_model, obstacles, margin=0, max_distance=1.0):
@@ -162,11 +152,12 @@ class Env:
                     return True
         return False
 
-    # TODO: handle finishing the maze in all various ways
+    # TODO: handle finishing the maze in all various ways, the change should go up to car level.
+
     def step(self):
         """
         runs the simulation one step
-        :return: (next observation, reward, did the simulation finish, info)
+        calls the step and scan on all cars
         """
 
         if consts.print_runtime and self.run_time % 500 == 0:
@@ -181,7 +172,7 @@ class Env:
         self.run_time += 1
 
         for car in self.cars:
-            car.scan()
+            car.update_state()
 
         if (
             len(self.graph.deleted_edges) != 0
@@ -237,20 +228,22 @@ def main():
         stop = env.step()
     print(f"total time: {time.time() - t0}")
     p.disconnect()
-    env.segments_partial_map.plot(env.ax)
+    if consts.drawing:
+        env.segments_partial_map.plot(env.ax)
     for idx, car in enumerate(env.cars):
         plt.plot(
             [a for a, _ in car.trace],
             [a for _, a in car.trace],
             label=f"actual car {idx}",
         )
-    plt.title(f'{maze["title"]} - time {env.run_time}')
-    ax = env.ax
-    box = ax.get_position()
-    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-    # Put a legend to the right of the current axis
-    ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-    plt.show()
+    if consts.drawing:
+        plt.title(f'{maze["title"]} - time {env.run_time}')
+        ax = env.ax
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        # Put a legend to the right of the current axis
+        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+        plt.show()
 
 
 if __name__ == "__main__":

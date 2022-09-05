@@ -5,9 +5,21 @@ import numpy as np
 from gym.utils import seeding
 import math
 
+
+# debbuging flags:
+debugging = True
+drawing = True
+show_scaned_maze = True
+show_projected_path = True
+show_actual_path = True
+show_goal_starting_points = True
+
+
 is_visual = False  # do we want to see visual footage
-use_real_time = 0  # is the simulation running in real time - probably should always be 0
-time_step = 0.01    # what is a time step in the pybullet simulation
+use_real_time = (
+    0  # is the simulation running in real time - probably should always be 0
+)
+time_step = 0.01  # what is a time step in the pybullet simulation
 
 cameraDistance = 11
 cameraYaw = 0
@@ -48,6 +60,6 @@ width = 0.2
 a_2 = 0.1477  # a_2 of the car
 
 
-calculate_action_time = 10 # 10
-calculate_d_star_time = 20 # 20
+calculate_action_time = 10  # 10
+calculate_d_star_time = 20  # 20
 reset_count_time = 60
