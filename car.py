@@ -114,7 +114,8 @@ class Car:
 
     def remove_edges(self, new_segments, deactivate=False):
         """
-        TODO: doc this, idk wtf this do
+        given walls in segments we calculate which walls we need to remove from the graph
+        deactivate indicates if we want to deactivate rather than remove
         """
         edge_removal_radius = np.ceil(self.prm.res / consts.vertex_offset)
         problematic_vertices: Set[PRM.Vertex] = set()
@@ -230,14 +231,27 @@ class Car:
         return False
 
     def deactivate_edges(self):
-        points_to_check = [(self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
-                           (self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] + 1/2 * consts.length),
-                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] + 1/2 * consts.length),
-                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
-                           (self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
-                           ]
-        points_to_check = [self.prm.rotate_angle(point, self.rotation) for point in points_to_check]
-        self.remove_edges([points_to_check], True)
+        points_to_check = [[(self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
+                           (self.center_pos[0] - 1/2 * consts.width, self.center_pos[1]),
+                           (self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] + 1/2 * consts.length)],
+                           [(self.center_pos[0], self.center_pos[1] - 1/2 * consts.length),
+                           (self.center_pos[0], self.center_pos[1]),
+                           (self.center_pos[0], self.center_pos[1] + 1/2 * consts.length)],
+                           [(self.center_pos[0] + 1/2 * consts.width,  self.center_pos[1] - 1/2 * consts.length),
+                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1]),
+                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] + 1/2 * consts.length)],
+                           [(self.center_pos[0] - 1/2 * consts.width,  self.center_pos[1] - 1/2 * consts.length),
+                           (self.center_pos[0], self.center_pos[1] - 1/2 * consts.length),
+                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length)],
+                           [(self.center_pos[0] - 1/2 * consts.width,  self.center_pos[1]),
+                           (self.center_pos[0], self.center_pos[1]),
+                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1])],
+                           [(self.center_pos[0] - 1/2 * consts.width,  self.center_pos[1] + 1/2 * consts.length),
+                           (self.center_pos[0], self.center_pos[1] + 1/2 * consts.length),
+                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] + 1/2 * consts.length)]]
+
+        points_to_check = [[self.prm.rotate_angle(point, self.rotation) for point in segment] for segment in points_to_check]
+        self.remove_edges(points_to_check, True)
 
     def step(self):
         """
@@ -247,7 +261,6 @@ class Car:
         needs_parking = False
         for number in range(self.car_number):
             other = self.cars[number]
-            print(dist(self.center_pos, other.center_pos))
             if dist(self.center_pos, other.center_pos) < consts.minimum_car_dist:
                 needs_parking = True
 
