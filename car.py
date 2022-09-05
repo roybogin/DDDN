@@ -7,6 +7,7 @@ import pybullet_data as pd
 # from gym.utils import seeding
 
 import PRM
+import consts
 import d_star
 import map_create
 import mazes
@@ -108,11 +109,12 @@ class Car:
                     map_index_from_pos(point), vertex_removal_radius, self.map_shape
                 ):
                     for vertex in self.prm.vertices[block[0]][block[1]]:
-                        if vertex and not self.segments_partial_map.check_state(vertex):
+                        if vertex and dist(vertex.pos, point) < consts.width:
                             self.prm.remove_vertex(vertex)
         return new
 
-    def remove_edges(self, new_segments, deactivate=False):
+    def remove_edges(self, new_
+        segments, deactivate=False):
         """
         TODO: doc this, idk wtf this do
         """
@@ -139,7 +141,7 @@ class Car:
             for edge in problematic_edges:
                 for i in range(len(segment) - 1):
                     if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
-                            consts.length + 2 * consts.epsilon:
+                            consts.width:
                         if not deactivate:
                             self.prm.remove_edge(edge)
                         else:
@@ -152,6 +154,7 @@ class Car:
         """
         scans the environment and updates the discovery values
         """
+        print('d4_1')
         old_graph_sizes = (self.prm.graph.n, self.prm.graph.e)
         directions = [
             2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)
@@ -171,13 +174,12 @@ class Car:
             if did_hit:
                 self.hits[i].append((end[0], end[1]))
                 if len(self.hits[i]) == consts.max_hits_before_calculation:
+                    print(f'd4_1,{i}')
                     new_segments += self.remove_vertices(i)
-
+        print('d4_2')
         self.remove_edges(new_segments)
-        return old_graph_sizes != (
-            self.prm.graph.n,
-            self.prm.graph.e,
-        )  # we removed new edges or vertices
+        print('d4_3')
+        return old_graph_sizes != (self.prm.graph.n, self.prm.graph.e)  # we removed new edges or vertices
 
     def ray_cast(self, car, offset, direction):
         """
@@ -236,7 +238,7 @@ class Car:
                            (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
                            (self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
                            ]
-        points_to_check = [self.prm.rotate_angle(point, self.rotation) for point in points_to_check]
+        points_to_check = [self.prm.rotate_angle(np.array(point), self.rotation) for point in points_to_check]
         self.remove_edges([points_to_check], True)
 
     def step(self):
@@ -247,8 +249,8 @@ class Car:
         needs_parking = False
         for number in range(self.car_number):
             other = self.cars[number]
-            print(dist(self.center_pos, other.center_pos))
-            if dist(self.center_pos, other.center_pos) < consts.minimum_car_dist:
+            distance_from_car = dist(self.center_pos, other.center_pos)
+            if (self.parked and distance_from_car < 2 * consts.minimum_car_dist) or distance_from_car < consts.minimum_car_dist:
                 needs_parking = True
 
         changed_parking = False
@@ -283,7 +285,7 @@ class Car:
         if self.next_vertex and dist(self.center_pos, self.next_vertex.pos) <= 0.05:
             print("got to", self.center_pos, self.rotation)
             self.calculations_clock = 0
-        if self.calculations_clock == 100:
+        if self.calculations_clock == consts.reset_count_time:
             self.calculations_clock = 0
 
         if self.calculations_clock == 0:
@@ -344,12 +346,13 @@ class Car:
     # TODO : doc
     def scan(self):
         # updating map;
+        print('d1')
         self.base_pos, quaternions = p.getBasePositionAndOrientation(self.car_model)
         self.rotation = p.getEulerFromQuaternion(quaternions)[2]
         self.center_pos = PRM.pos_to_car_center(
             np.array(self.base_pos[:2]), self.rotation
         )
-
+        print('d2')
         # checking if collided or finished
         if self.check_collision(self.car_model, self.bodies + [other.car_model for other in self.cars]):
             self.crashed = True
@@ -362,20 +365,18 @@ class Car:
         self.base_pos = self.base_pos[:2]
 
         # saving for later
-        swivel_states = p.getJointStates(self.car_model, self.steering)
-        angles = [state[0] for state in swivel_states]
-        cot_delta = (1 / np.tan(angles[0]) + 1 / np.tan(angles[1])) / 2
-        self.swivel = np.arctan(1 / cot_delta)
-
+        # swivel_states = p.getJointStates(self.car_model, self.steering)
+        # angles = [state[0] for state in swivel_states]
+        # cot_delta = (1 / np.tan(angles[0]) + 1 / np.tan(angles[1])) / 2
+        # self.swivel = np.arctan(1 / cot_delta)
+        print('d3')
         prev_vertex = self.current_vertex
-        self.current_vertex = self.prm.get_closest_vertex(
-            self.center_pos, self.rotation
-        )
+        self.current_vertex = self.prm.get_closest_vertex(self.center_pos, self.rotation)
         if self.current_vertex != prev_vertex and not self.is_backwards_driving:
             self.prev_vertex.append(prev_vertex)
-
+        print('d4')
         self.scan_environment()
-
+        print('d5')
         return self.crashed or self.finished
         # self.segments_partial_map.show()
 

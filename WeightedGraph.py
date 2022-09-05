@@ -101,7 +101,6 @@ class WeightedGraph:
             other_vertex = edge.dst
             if edge in other_vertex.in_edges:
                 other_vertex.in_edges.remove(edge)
-                deleted_edges.add(edge)
                 self.e -= 1
                 self.deleted_edges.add(edge)
                 edge.weight = np.inf
