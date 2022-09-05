@@ -41,7 +41,7 @@ class Env:
             plt.axis([-plt_size, plt_size, -plt_size, plt_size])
             self.maze_title = maze["title"]
 
-        self.segments_partial_map: Map = Map([consts.map_borders.copy()])
+        self.segments_partial_map: Map = Map()
 
         self.run_time = None  # time of the run
 
@@ -93,10 +93,8 @@ class Env:
         calls the prm genearte_graph function
         """
         self.prm.generate_graph()
-
-        if consts.debug:
-            print("generated graph")
-            print(self.prm.graph.n, self.prm.graph.e)
+        print("generated graph")
+        print(self.prm.graph.n, self.prm.graph.e)
 
     def start_env(self):
         """
