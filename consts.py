@@ -2,10 +2,9 @@
 from typing import DefaultDict, Tuple
 
 import numpy as np
-from gym.utils import seeding
 import math
 
-is_visual = False  # do we want to see visual footage
+is_visual = True  # do we want to see visual footage
 use_real_time = 0  # is the simulation running in real time - probably should always be 0
 time_step = 0.01    # what is a time step in the pybullet simulation
 
@@ -16,7 +15,7 @@ cameraTargetPosition = [0, 0, 0]
 
 # interpreting NN outputs
 max_steer = np.pi / 4
-max_velocity = 10
+max_velocity = 5
 max_force = 100
 epsilon = 0.1
 
@@ -46,6 +45,8 @@ print_runtime = True  # do we want to print the total time of the run
 length = 0.325
 width = 0.2
 a_2 = 0.1477  # a_2 of the car
+
+minimum_car_dist = 2
 
 
 calculate_action_time = 10 # 10
