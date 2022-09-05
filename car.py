@@ -114,8 +114,7 @@ class Car:
                             self.prm.remove_vertex(vertex)
         return new
 
-    def remove_edges(self, new_
-        segments, deactivate=False):
+    def remove_edges(self, new_segments, deactivate=False):
         """
         given walls in segments we calculate which walls we need to remove from the graph
         deactivate indicates if we want to deactivate rather than remove
