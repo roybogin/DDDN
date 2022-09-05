@@ -4,13 +4,13 @@ from typing import Set, List, Dict
 
 import pybullet as p
 import pybullet_data as pd
-from gym.utils import seeding
 
 import PRM
 import consts
 import d_star
 import map_create
 import mazes
+from WeightedGraph import Edge
 from helper import *
 from scan_to_map import Map
 from car import Car
@@ -84,6 +84,9 @@ class Env:
 
         for car in self.cars:
             car.pybullet_init()
+
+        for car in self.cars:
+            car.set_cars([other for other in self.cars if other != car])
 
     def generate_graph(self):
         """
@@ -164,8 +167,23 @@ class Env:
             print("time:", self.run_time)
 
         # updating target velocity and steering angle
+        changed_edges: Set[Edge] = set()
         for car in self.cars:
-            car.step()
+            if car.step():
+                changed_edges.update(car.changed_edges)
+                if not car.parked:
+                    car.changed_edges.clear()
+
+        if len(changed_edges) != 0:
+            print('computing paths')
+            t = time.time()
+            for car in self.cars:
+                if car.parked:
+                    continue
+                car.prm.update_d_star(changed_edges, car.current_vertex)
+                car.prm.d_star.compute_shortest_path(car.current_vertex)
+                car.calculations_clock = 0
+            print('all paths computed in ', time.time() - t)
 
         p.stepSimulation()
 
@@ -181,7 +199,7 @@ class Env:
             print("computing paths")
             t = time.time()
             for car in self.cars:
-                car.prm.update_d_star()
+                car.prm.update_d_star(self.graph.deleted_edges, car.current_vertex)
                 car.prm.d_star.compute_shortest_path(car.current_vertex)
                 car.calculations_clock = 0
             print("all paths computed in ", time.time() - t)
@@ -222,7 +240,7 @@ class Env:
 def main():
     t0 = time.time()
     stop = False
-    maze = mazes.default_data_set[1]
+    maze = mazes.default_data_set[0]
     env = Env(maze)
     while not stop:
         stop = env.step()

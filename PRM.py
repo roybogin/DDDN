@@ -4,13 +4,17 @@ from typing import Set, List
 
 import numpy as np
 from matplotlib import pyplot as plt
-from tqdm import tqdm
 
 import consts
 import d_star
 from WeightedGraph import Edge, WeightedGraph, Vertex
 from d_star import DStar
 from helper import dist, map_index_from_pos, block_options
+
+
+def tqdm(a,*args, **kwargs):
+    print('TQDMMMMMMMMMMMMMMMMM')
+    return a
 
 
 def pos_to_car_center(pos: np.ndarray, theta) -> np.ndarray:
@@ -34,6 +38,7 @@ class PRM:
         # resolution of the path planner
         self.tol = 0.02  # tolerance of the path planner
         self.d_star: DStar | None = None
+        self.s_last: Vertex = None
         if prm is not None:
             self.graph = prm.graph
             self.vertices = prm.vertices
@@ -259,14 +264,23 @@ class PRM:
 
     def init_d_star(self, start_vertex: Vertex):
         self.d_star = DStar(self.graph, start_vertex, self.end)
+        self.s_last = start_vertex
 
-    def update_d_star(self):
-        for edge in self.graph.deleted_edges:
-            u, v, c = edge.src, edge.dst, edge.weight
-            edge.weight = np.inf  # not needed but just to be safe
+    def update_d_star(self, edge_set: Set[Edge], current_vertex: Vertex):
+        # assumes edges weights have already changed
+        self.d_star.k_m += d_star.h(self.s_last, self.end)
+        self.s_last = current_vertex
+        for edge in edge_set:
+            u, v, curr_weight = edge.src, edge.dst, edge.weight
+            old_weight = np.inf
+            if curr_weight == np.inf:
+                old_weight = edge.original_weight
             rhs = self.d_star.rhs
             g = self.d_star.g
-            if rhs[u] == c + g[v]:
-                possible_rhs = (edge.weight + g[edge.dst] for edge in u.out_edges)
-                rhs[u] = min(possible_rhs, default=np.inf)
+            if old_weight > curr_weight:
+                rhs[u] = min(rhs[u], curr_weight + g[v])
+            elif rhs[u] == old_weight + g[v]:
+                if u != self.end:
+                    possible_rhs = (edge.weight + g[edge.dst] for edge in u.out_edges)
+                    rhs[u] = min(possible_rhs, default=np.inf)
             self.d_star.update_vertex(u)

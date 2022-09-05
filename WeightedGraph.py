@@ -28,6 +28,8 @@ class Edge:
         self.src: Vertex = vertex_1  # vertex that edge exits from
         self.dst: Vertex = vertex_2  # vertex that edge enters
         self.weight: float = weight  # weight of the edge
+        self.original_weight: float = weight  # original edge weight for temporary changes
+        self.parked_cars: int = 0  # amount of cars parked near this edge
         self.active = True
 
 
@@ -78,6 +80,7 @@ class WeightedGraph:
         if removed_edge:
             self.e -= 1
             self.deleted_edges.add(edge)
+            edge.weight = np.inf
         else:
             print('false edge')  # just to be sure that there is no error
 
@@ -92,6 +95,7 @@ class WeightedGraph:
                 other_vertex.out_edges.remove(edge)
                 self.e -= 1
                 self.deleted_edges.add(edge)
+                edge.weight = np.inf
         v.in_edges.clear()  # not needed but just in case
         for edge in v.out_edges:
             other_vertex = edge.dst
@@ -100,6 +104,7 @@ class WeightedGraph:
                 deleted_edges.add(edge)
                 self.e -= 1
                 self.deleted_edges.add(edge)
+                edge.weight = np.inf
         v.out_edges.clear()  # not needed but just in case
 
         self.vertices.remove(v)

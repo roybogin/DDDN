@@ -43,6 +43,14 @@ default_data_set = [
     {
         'walls': [],
         'positions': [
+                        {'start': [-4, 0, 0], 'end': [4, 0, 0], 'rotation': 0},
+                        {'start': [4, 0, 0], 'end': [-4, 0, 0], 'rotation': np.pi},
+                      ],
+        'title': 'collision testing'
+    },
+    {
+        'walls': [],
+        'positions': [
                         {'start': [0, 0, 0], 'end': [2, 0, 0], 'rotation': 0},
                         {'start': [0, 5, 0], 'end': [2, 5, 0], 'rotation': 0},
                       ],

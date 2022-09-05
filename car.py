@@ -4,13 +4,13 @@ from typing import Set, Dict, List
 
 import pybullet as p
 import pybullet_data as pd
-from gym.utils import seeding
+# from gym.utils import seeding
 
 import PRM
 import d_star
 import map_create
 import mazes
-from WeightedGraph import WeightedGraph
+from WeightedGraph import WeightedGraph, Edge
 from helper import *
 from scan_to_map import Map
 
@@ -23,6 +23,9 @@ class Car:
         self.car_number = index
         self.borders = None
         self.bodies = None
+
+        self.parked = False
+        self.changed_edges: Set[Edge] = set()
 
         self.is_backwards_driving = False
 
@@ -67,6 +70,7 @@ class Car:
         self.car_model = None  # pybullet ID of the car
         self.wheels = None  # pybullet ID of the wheels for setting speed
         self.steering = None  # pybullet ID of the wheels for steering
+        self.cars = None # pybullet ID's for all the cars in the environment
 
     def pybullet_init(self):
         """
@@ -81,6 +85,9 @@ class Car:
         if consts.drawing:
             self.prm.draw_path(self.current_vertex, idx=f"car {self.car_number}")
         print(self.prm.end.pos)
+
+    def set_cars(self, cars):
+        self.cars = cars
 
     def generate_graph(self):
         print("generating graph")
@@ -106,7 +113,7 @@ class Car:
                             self.prm.remove_vertex(vertex)
         return new
 
-    def remove_edges(self, new_segments):
+    def remove_edges(self, new_segments, deactivate=False):
         """
         TODO: doc this, idk wtf this do
         """
@@ -130,16 +137,17 @@ class Car:
                 ):
                     problematic_edges.add(edge)
         for segment in new_segments:
-            for i in range(len(segment) - 1):
-                for edge in problematic_edges:
-                    if (
-                        edge.active
-                        and distance_between_lines(
-                            segment[i], segment[i + 1], edge.src.pos, edge.dst.pos
-                        )
-                        < consts.width + 2 * consts.epsilon
-                    ):
-                        self.prm.remove_edge(edge)
+            for edge in problematic_edges:
+                for i in range(len(segment) - 1):
+                    if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
+                            consts.length + 2 * consts.epsilon:
+                        if not deactivate:
+                            self.prm.remove_edge(edge)
+                        else:
+                            edge.weight = np.inf
+                            self.changed_edges.add(edge)
+                            edge.parked_cars += 1
+                        break   # don't check for other segments
 
     def scan_environment(self):
         """
@@ -222,12 +230,57 @@ class Car:
                     return True
         return False
 
+    def deactivate_edges(self):
+        points_to_check = [(self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
+                           (self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] + 1/2 * consts.length),
+                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] + 1/2 * consts.length),
+                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
+                           (self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
+                           ]
+        points_to_check = [self.prm.rotate_angle(point, self.rotation) for point in points_to_check]
+        self.remove_edges([points_to_check], True)
+
     def step(self):
         """
         this function is called each frame,
         with the known graph vertex the car is on, and next vertex for the car to get to,
         the function gets the next action to make, and performes it on the pybullet server.
         """
+        needs_parking = False
+        for number in range(self.car_number):
+            other = self.cars[number]
+            print(dist(self.center_pos, other.center_pos))
+            if dist(self.center_pos, other.center_pos) < consts.minimum_car_dist:
+                needs_parking = True
+
+        changed_parking = False
+
+        if needs_parking and not self.parked:
+            self.parked = True
+            self.deactivate_edges()
+            changed_parking = True
+            print('parking')
+        if not needs_parking and self.parked:
+            changed_parking = True
+            self.parked = False
+            self.calculations_clock = 0  # need to do calculations now
+            for edge in self.changed_edges:
+                edge.parked_cars -= 1
+                if edge.parked_cars == 0:
+                    edge.weight = edge.original_weight
+
+        if self.parked or changed_parking:
+            self.action = [0, [0, 0]]
+            # moving
+            for wheel in self.wheels:
+                p.setJointMotorControl2(self.car_model, wheel, p.VELOCITY_CONTROL, targetVelocity=0,
+                                        force=consts.max_force)
+
+            for steer in self.steering:
+                p.setJointMotorControl2(self.car_model, steer, p.POSITION_CONTROL, targetPosition=0)
+
+            # NOTE: calculation clock is irrelevant
+            return changed_parking
 
         if self.next_vertex and dist(self.center_pos, self.next_vertex.pos) <= 0.05:
             print("got to", self.center_pos, self.rotation)
@@ -288,6 +341,7 @@ class Car:
                     self.car_model, steer, p.POSITION_CONTROL, targetPosition=angle
                 )
         self.calculations_clock += 1
+        return False
 
     def update_state(self):
         """
@@ -303,7 +357,7 @@ class Car:
         )
 
         # checking if collided or finished
-        if self.check_collision(self.car_model, self.bodies):
+        if self.check_collision(self.car_model, self.bodies + [other.car_model for other in self.cars]):
             self.crashed = True
         if dist(self.center_pos, self.end_point) < consts.min_dist_to_target:
             self.finished = True
@@ -324,7 +378,6 @@ class Car:
         )
         if self.current_vertex != prev_vertex and not self.is_backwards_driving:
             self.prev_vertex.append(prev_vertex)
-            self.prm.d_star.k_m += d_star.h(prev_vertex, self.current_vertex)
 
         self.scan_environment()
 
