@@ -23,7 +23,7 @@ epsilon = 0.1
 min_dist_to_target = 0.5  # distance from target that is treated as success
 ray_length = 5  # length of ray
 ray_amount = 6
-size_map_quarter = 10
+size_map_quarter = 5
 vertex_offset = 0.11
 map_borders = [
     (size_map_quarter, size_map_quarter),
@@ -48,6 +48,6 @@ width = 0.2
 a_2 = 0.1477  # a_2 of the car
 
 
-calculate_action_time = 10
-calculate_d_star_time = 30
+calculate_action_time = 10 # 10
+calculate_d_star_time = 20 # 20
 reset_count_time = 60

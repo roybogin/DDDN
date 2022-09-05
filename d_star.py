@@ -129,8 +129,6 @@ class DStar:
         computes the shortest path
         :return:
         """
-        print('computing path')
-        t = time.time()
         self.start_vertex = vertex
         while self.q.top_key() < self.calc_key(self.start_vertex) or \
                 self.rhs[self.start_vertex] > self.g[self.start_vertex]:
@@ -160,4 +158,3 @@ class DStar:
                     if u != self.goal_vertex:
                         self.rhs[u] = min((e.weight + self.g[e.dst] for e in u.out_edges), default=np.inf)
                 self.update_vertex(u)
-        print('path computed in ', time.time() - t)

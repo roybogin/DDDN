@@ -103,17 +103,16 @@ def create_poly_wall(poly, epsilon, client):
     return walls
 
 
-def create_map(in_map, end_point, epsilon, client):
+def create_map(in_map, epsilon, client):
     # TODO: finish docstring - create_map
     """
     creates the map in pybullet
     :param in_map: the walls inside the map
-    :param end_point: the map's end goal for the car
     :param epsilon:
     :param client:  pybullet client to use
     :return: a list of IDs of the walls in pybullet
     """
-    # TODO: add end point to the map
+    # TODO: add end point to the map without collisions
     walls = []
     for poly in in_map:
         walls += create_poly_wall(poly, epsilon, client)
@@ -121,84 +120,3 @@ def create_map(in_map, end_point, epsilon, client):
     # create_wall(end, p.getQuaternionFromEuler([0, 0, 0]), epsilon / 2, epsilon / 2, client)
     return walls
 
-
-# TODO: delete?
-"""def main():
-
-    cid = p.connect(p.SHARED_MEMORY)
-    if cid < 0:
-        p.connect(p.GUI)
-
-    p.resetSimulation()
-    p.setGravity(0, 0, -10)
-
-    useRealTimeSim = 0
-
-    # for video recording (works best on Mac and Linux, not well on Windows)
-    # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "racecar.mp4")
-    p.setRealTimeSimulation(useRealTimeSim)  # either this
-    # p.loadURDF("plane.urdf")
-    p.loadSDF(os.path.join(pybullet_data.getDataPath(), "stadium.sdf"))
-
-    car = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "racecar/racecar.urdf"))
-    inactive_wheels = [3, 5, 7]
-    wheels = [2]
-
-    for wheel in inactive_wheels:
-        p.setJointMotorControl2(
-            car, wheel, p.VELOCITY_CONTROL, targetVelocity=0, force=0
-        )
-
-    steering = [4, 6]
-
-    targetVelocitySlider = p.addUserDebugParameter("wheelVelocity", -30, 30, 0)
-    maxForceSlider = p.addUserDebugParameter("maxForce", 0, 10, 10)
-    steeringSlider = p.addUserDebugParameter("steering", -1, 1, 0)
-    epsilon = 0.1
-    create_poly_wall([
-        (-1, 3),
-        (0, 10),
-        (1, 3),
-        (10, 10),
-        (3, 1),
-        (10, 0),
-        (3, -1),
-        (10, -10),
-        (1, -3),
-        (0, -10),
-        (-1, -3),
-        (-10, -10),
-        (-3, -1),
-        (-10, 0),
-        (-3, 1),
-        (-10, 10),
-        (-1, 3),
-    ], epsilon, p)
-
-    while True:
-        maxForce = p.readUserDebugParameter(maxForceSlider)
-        targetVelocity = p.readUserDebugParameter(targetVelocitySlider)
-        steeringAngle = p.readUserDebugParameter(steeringSlider)
-
-        for wheel in wheels:
-            p.setJointMotorControl2(
-                car,
-                wheel,
-                p.VELOCITY_CONTROL,
-                targetVelocity=targetVelocity,
-                force=maxForce,
-            )
-
-        for steer in steering:
-            p.setJointMotorControl2(
-                car, steer, p.POSITION_CONTROL, targetPosition=steeringAngle
-            )
-            # if useRealTimeSim == 0:
-            #    p.stepSimulation()
-            # time.sleep(0.01)
-        ## first ball
-
-
-if __name__ == "__main__":
-    main()
-"""

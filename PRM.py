@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 import consts
+import d_star
 from WeightedGraph import Edge, WeightedGraph, Vertex
 from d_star import DStar
 from helper import dist, map_index_from_pos, block_options
@@ -20,36 +21,40 @@ def car_center_to_pos(pos: np.ndarray, theta) -> np.ndarray:
     return pos[:2] - consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
 
 
-
 class PRM:
-    def __init__(self, shape):
-
-        self.deleted_edges: Set[Edge] = set()
-        self.graph = WeightedGraph()
-        self.shape = shape
-        self.vertices: List[List[List[Vertex]]] = []
+    def __init__(self, shape, prm=None):
         self.end = None
-        angle_offset = 2 * np.pi / consts.directions_per_vertex
-        for _ in range(shape[0]):
-            self.vertices.append([])
-            for _ in range(shape[1]):
-                self.vertices[-1].append([])
-        x_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset - consts.size_map_quarter
-        for col_idx in tqdm(range(consts.amount_vertices_from_edge, self.shape[1] - consts.amount_vertices_from_edge)):
-            y_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset - consts.size_map_quarter
-            for row_idx in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
-                theta_temp = 0
-                for _ in range(consts.directions_per_vertex):
-                    new_vertex = self.graph.add_vertex(np.array([x_temp, y_temp]), theta_temp)
-                    self.vertices[col_idx][row_idx].append(new_vertex)
-                    theta_temp += angle_offset
-                y_temp += consts.vertex_offset
-            x_temp += consts.vertex_offset
+        self.shape = shape
         self.max_angle_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
         self.res = np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
         # resolution of the path planner
         self.tol = 0.02  # tolerance of the path planner
         self.d_star: DStar | None = None
+        if prm is not None:
+            self.graph = prm.graph
+            self.vertices = prm.vertices
+        else:
+            self.graph = WeightedGraph()
+            self.vertices: List[List[List[Vertex]]] = []
+            angle_offset = 2 * np.pi / consts.directions_per_vertex
+            for _ in range(shape[0]):
+                self.vertices.append([])
+                for _ in range(shape[1]):
+                    self.vertices[-1].append([])
+            x_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset - consts.size_map_quarter
+            for col_idx in tqdm(
+                    range(consts.amount_vertices_from_edge, self.shape[1] - consts.amount_vertices_from_edge)):
+                y_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset - consts.size_map_quarter
+                for row_idx in range(consts.amount_vertices_from_edge,
+                                     self.shape[0] - consts.amount_vertices_from_edge):
+                    theta_temp = 0
+                    for _ in range(consts.directions_per_vertex):
+                        new_vertex = self.graph.add_vertex(np.array([x_temp, y_temp]), theta_temp)
+                        self.vertices[col_idx][row_idx].append(new_vertex)
+                        theta_temp += angle_offset
+                    y_temp += consts.vertex_offset
+                x_temp += consts.vertex_offset
+
     def radius_delta(self, delta: float):
         if np.tan(delta) == 0:
             return np.inf
@@ -90,8 +95,8 @@ class PRM:
                     differential_theta = self.theta_curve(x_tag, y_tag)
                     if not only_forward or x_tag >= 0:
                         if abs(differential_theta - transformed[1]) < self.tol or abs(
-                                2 * np.pi + differential_theta - transformed[1]) < self.tol or abs(
-                                -2 * np.pi + differential_theta - transformed[1]) < self.tol:
+                                2 * np.pi + differential_theta - transformed[1]) < self.tol \
+                                or abs(-2 * np.pi + differential_theta - transformed[1]) < self.tol:
                             if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
                                 ret.append((neighbor_block[0] - block[0], neighbor_block[1] - block[1], theta - angle))
         return ret
@@ -176,7 +181,7 @@ class PRM:
     def draw_path(self, current_vertex: Vertex, idx=''):
         x_list = [current_vertex.pos[0]]
         y_list = [current_vertex.pos[1]]
-        plt.scatter(x_list, y_list, c='black', label='start')
+        plt.scatter(x_list, y_list, label=f'start {idx}')
         vertex = current_vertex
         parent = self.next_in_path(vertex)
         while (parent != vertex) and (parent is not None):
@@ -184,22 +189,29 @@ class PRM:
             parent = self.next_in_path(vertex)
             x_list.append(vertex.pos[0])
             y_list.append(vertex.pos[1])
-        plt.scatter(x_list[-1], y_list[-1], c='green', label='end goal')
-        plt.plot(x_list, y_list, label=f'projected path {idx}')
+        plt.scatter(x_list[-1], y_list[-1], label=f'end goal {idx}')
+        plt.plot(x_list, y_list, label=f'projected {idx}')
 
     def remove_vertex(self, v: Vertex):
         index = map_index_from_pos(v.pos)
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(v.theta / angle_offset)
         self.vertices[index[0]][index[1]][angle] = None
-        return self.graph.remove_vertex(v, self.deleted_edges)
+        self.graph.remove_vertex(v)
 
     def remove_edge(self, e: Edge):
-        return self.graph.remove_edge(e, self.deleted_edges)
+        self.graph.remove_edge(e)
 
     def init_d_star(self, start_vertex: Vertex):
         self.d_star = DStar(self.graph, start_vertex, self.end)
 
-
-
-
+    def update_d_star(self):
+        for edge in self.graph.deleted_edges:
+            u, v, c = edge.src, edge.dst, edge.weight
+            edge.weight = np.inf  # not needed but just to be safe
+            rhs = self.d_star.rhs
+            g = self.d_star.g
+            if rhs[u] == c + g[v]:
+                possible_rhs = (edge.weight + g[edge.dst] for edge in u.out_edges)
+                rhs[u] = min(possible_rhs, default=np.inf)
+            self.d_star.update_vertex(u)
