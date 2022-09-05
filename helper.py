@@ -16,6 +16,7 @@ def draw_binary_matrix(mat):
     draws the given matrix with matplotlib
     :param mat: the binary matrix to draw
     :return:
+    #not_used :
     """
     cmap = ListedColormap(["b", "g"])
     matrix = np.array(mat, dtype=np.uint8)

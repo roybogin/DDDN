@@ -29,8 +29,12 @@ class PRM:
     def __init__(self, shape, prm=None):
         self.end = None
         self.shape = shape
-        self.max_angle_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
-        self.res = np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)  #
+        self.max_angle_radius = self.radius_delta(
+            consts.max_steer
+        )  # radius of arc for maximum steering
+        self.res = np.sqrt(
+            self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2
+        )  #
         # resolution of the path planner
         self.tol = 0.02  # tolerance of the path planner
         self.d_star: DStar | None = None
@@ -46,15 +50,31 @@ class PRM:
                 self.vertices.append([])
                 for _ in range(shape[1]):
                     self.vertices[-1].append([])
-            x_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset - consts.size_map_quarter
+            x_temp = (
+                consts.vertex_offset / 2
+                + consts.amount_vertices_from_edge * consts.vertex_offset
+                - consts.size_map_quarter
+            )
             for col_idx in tqdm(
-                    range(consts.amount_vertices_from_edge, self.shape[1] - consts.amount_vertices_from_edge)):
-                y_temp = consts.vertex_offset / 2 + consts.amount_vertices_from_edge * consts.vertex_offset - consts.size_map_quarter
-                for row_idx in range(consts.amount_vertices_from_edge,
-                                     self.shape[0] - consts.amount_vertices_from_edge):
+                range(
+                    consts.amount_vertices_from_edge,
+                    self.shape[1] - consts.amount_vertices_from_edge,
+                )
+            ):
+                y_temp = (
+                    consts.vertex_offset / 2
+                    + consts.amount_vertices_from_edge * consts.vertex_offset
+                    - consts.size_map_quarter
+                )
+                for row_idx in range(
+                    consts.amount_vertices_from_edge,
+                    self.shape[0] - consts.amount_vertices_from_edge,
+                ):
                     theta_temp = 0
                     for _ in range(consts.directions_per_vertex):
-                        new_vertex = self.graph.add_vertex(np.array([x_temp, y_temp]), theta_temp)
+                        new_vertex = self.graph.add_vertex(
+                            np.array([x_temp, y_temp]), theta_temp
+                        )
                         self.vertices[col_idx][row_idx].append(new_vertex)
                         theta_temp += angle_offset
                     y_temp += consts.vertex_offset
@@ -88,8 +108,12 @@ class PRM:
         ret = []
         block = map_index_from_pos(pos)
         v = self.vertices[block[0]][block[1]][angle]
-        for neighbor_block in block_options(block, np.ceil(self.res / consts.vertex_offset), self.shape):
-            for theta, u in enumerate(self.vertices[neighbor_block[0]][neighbor_block[1]]):
+        for neighbor_block in block_options(
+            block, np.ceil(self.res / consts.vertex_offset), self.shape
+        ):
+            for theta, u in enumerate(
+                self.vertices[neighbor_block[0]][neighbor_block[1]]
+            ):
                 weight = dist(v.pos, u.pos)
                 if weight == 0:
                     continue
@@ -99,11 +123,24 @@ class PRM:
                     x_tag, y_tag = transformed[0][0], transformed[0][1]
                     differential_theta = self.theta_curve(x_tag, y_tag)
                     if not only_forward or x_tag >= 0:
-                        if abs(differential_theta - transformed[1]) < self.tol or abs(
-                                2 * np.pi + differential_theta - transformed[1]) < self.tol \
-                                or abs(-2 * np.pi + differential_theta - transformed[1]) < self.tol:
-                            if self.radius_x_y_squared(x_tag, y_tag) >= self.max_angle_radius ** 2:
-                                ret.append((neighbor_block[0] - block[0], neighbor_block[1] - block[1], theta - angle))
+                        if (
+                            abs(differential_theta - transformed[1]) < self.tol
+                            or abs(2 * np.pi + differential_theta - transformed[1])
+                            < self.tol
+                            or abs(-2 * np.pi + differential_theta - transformed[1])
+                            < self.tol
+                        ):
+                            if (
+                                self.radius_x_y_squared(x_tag, y_tag)
+                                >= self.max_angle_radius ** 2
+                            ):
+                                ret.append(
+                                    (
+                                        neighbor_block[0] - block[0],
+                                        neighbor_block[1] - block[1],
+                                        theta - angle,
+                                    )
+                                )
         return ret
 
     def possible_offsets(self, pos: np.ndarray, only_forward=False):
@@ -116,14 +153,26 @@ class PRM:
         to_add = self.possible_offsets(np.array([0, 0]), True)
         for theta, angle in tqdm(enumerate(to_add), total=consts.directions_per_vertex):
             for diff in angle:
-                for x in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
-                    for y in range(consts.amount_vertices_from_edge, self.shape[0] - consts.amount_vertices_from_edge):
-                        if consts.amount_vertices_from_edge <= x + diff[0] < self.shape[
-                            0] - consts.amount_vertices_from_edge and consts.amount_vertices_from_edge <= y + diff[1] < \
-                                self.shape[1] - consts.amount_vertices_from_edge:
+                for x in range(
+                    consts.amount_vertices_from_edge,
+                    self.shape[0] - consts.amount_vertices_from_edge,
+                ):
+                    for y in range(
+                        consts.amount_vertices_from_edge,
+                        self.shape[0] - consts.amount_vertices_from_edge,
+                    ):
+                        if (
+                            consts.amount_vertices_from_edge
+                            <= x + diff[0]
+                            < self.shape[0] - consts.amount_vertices_from_edge
+                            and consts.amount_vertices_from_edge
+                            <= y + diff[1]
+                            < self.shape[1] - consts.amount_vertices_from_edge
+                        ):
                             v1 = self.vertices[x][y][theta]
                             v2 = self.vertices[x + diff[0]][y + diff[1]][
-                                (theta + diff[2]) % consts.directions_per_vertex]
+                                (theta + diff[2]) % consts.directions_per_vertex
+                            ]
                             weight = dist(v1.pos, v2.pos)
                             self.graph.add_edge(v1, v2, weight)
 
@@ -134,7 +183,7 @@ class PRM:
             self.graph.add_edge(v, self.end, 0)
         return self.end.pos
 
-    '''def dijkstra(self, root: Vertex):
+    """def dijkstra(self, root: Vertex):
         print("dijkstra")
         t1 = time.time()
         self.distances.clear()
@@ -155,7 +204,7 @@ class PRM:
                     self.distances[v] = (dist_u + weight, u)
                     dist_v = dist_u + weight
                     heapq.heappush(pq, (dist_v, v))
-        print(f"finished dijkstra in {time.time() - t1}")'''
+        print(f"finished dijkstra in {time.time() - t1}")"""
 
     def get_closest_vertex(self, pos: np.ndarray, theta: float):
         block = map_index_from_pos(pos)
@@ -166,9 +215,11 @@ class PRM:
     def next_in_path(self, vertex: Vertex):
         successors = ((e.dst, e.weight) for e in vertex.out_edges if e.weight != np.inf)
         next_vertex_key = lambda dest, weight: self.d_star.g[dest] + weight
-        next_vertex = min(successors, key=lambda tup: next_vertex_key(*tup), default=(None,))[0]
+        next_vertex = min(
+            successors, key=lambda tup: next_vertex_key(*tup), default=(None,)
+        )[0]
         if next_vertex is None:
-            print('no successors')
+            print("no successors")
         return next_vertex
 
     def transform_pov(self, vertex_1: Vertex, vertex_2: Vertex):
@@ -178,15 +229,19 @@ class PRM:
         :param vertex_2:
         :return:
         """
-        return self.rotate_angle(vertex_2.pos - vertex_1.pos, -vertex_1.theta), vertex_2.theta - vertex_1.theta
+        return (
+            self.rotate_angle(vertex_2.pos - vertex_1.pos, -vertex_1.theta),
+            vertex_2.theta - vertex_1.theta,
+        )
 
     def transform_by_values(self, pos: np.ndarray, theta: float, vertex_2: Vertex):
         return self.rotate_angle(vertex_2.pos - pos, -theta), vertex_2.theta - theta
 
-    def draw_path(self, current_vertex: Vertex, idx=''):
+    def draw_path(self, current_vertex: Vertex, idx=""):
         x_list = [current_vertex.pos[0]]
         y_list = [current_vertex.pos[1]]
-        plt.scatter(x_list, y_list, label=f'start {idx}')
+
+        plt.scatter(x_list, y_list, label=f"start {idx}")
         vertex = current_vertex
         parent = self.next_in_path(vertex)
         while (parent != vertex) and (parent is not None):
@@ -194,8 +249,8 @@ class PRM:
             parent = self.next_in_path(vertex)
             x_list.append(vertex.pos[0])
             y_list.append(vertex.pos[1])
-        plt.scatter(x_list[-1], y_list[-1], label=f'end goal {idx}')
-        plt.plot(x_list, y_list, label=f'projected {idx}')
+        plt.scatter(x_list[-1], y_list[-1], label=f"end goal {idx}")
+        plt.plot(x_list, y_list, label=f"projected {idx}")
 
     def remove_vertex(self, v: Vertex):
         index = map_index_from_pos(v.pos)

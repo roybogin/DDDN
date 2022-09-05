@@ -19,7 +19,8 @@ from scan_to_map import Map
 class Car:
     def __init__(self, index: int, positions: Dict, prm: PRM, segments_map: Map):
         super(Car, self).__init__()
-        self.ax = plt.gca()  # pyplot to draw and debug
+        if consts.drawing:
+            self.ax = plt.gca()  # pyplot to draw and debug
         self.car_number = index
         self.borders = None
         self.bodies = None
@@ -82,20 +83,20 @@ class Car:
 
         self.prm.init_d_star(self.current_vertex)
         self.prm.d_star.compute_shortest_path(self.current_vertex)
-        self.prm.draw_path(self.current_vertex, idx=f"car {self.car_number}")
+        if consts.drawing:
+            self.prm.draw_path(self.current_vertex, idx=f"car {self.car_number}")
         print(self.prm.end.pos)
 
     def set_cars(self, cars):
         self.cars = cars
 
     def generate_graph(self):
-        "calls the prm generate_graph function"
         print("generating graph")
         self.prm.generate_graph()
 
         print(self.prm.graph.n, self.prm.graph.e)
 
-    def remove_vertices(self, index):
+    def add_obstacles(self, index):
         """
         TODO: doc this, idk wtf this do
         """
@@ -116,7 +117,8 @@ class Car:
     def remove_edges(self, new_
         segments, deactivate=False):
         """
-        TODO: doc this, idk wtf this do
+        given walls in segments we calculate which walls we need to remove from the graph
+        deactivate indicates if we want to deactivate rather than remove
         """
         edge_removal_radius = np.ceil(self.prm.res / consts.vertex_offset)
         problematic_vertices: Set[PRM.Vertex] = set()
@@ -175,7 +177,7 @@ class Car:
                 self.hits[i].append((end[0], end[1]))
                 if len(self.hits[i]) == consts.max_hits_before_calculation:
                     print(f'd4_1,{i}')
-                    new_segments += self.remove_vertices(i)
+                    new_segments += self.add_obstacles(i)
         print('d4_2')
         self.remove_edges(new_segments)
         print('d4_3')
@@ -243,8 +245,9 @@ class Car:
 
     def step(self):
         """
-        runs the simulation one step
-        :return: (next observation, reward, did the simulation finish, info)
+        this function is called each frame,
+        with the known graph vertex the car is on, and next vertex for the car to get to,
+        the function gets the next action to make, and performes it on the pybullet server.
         """
         needs_parking = False
         for number in range(self.car_number):
@@ -304,10 +307,10 @@ class Car:
                 self.is_backwards_driving = False
 
         if self.calculations_clock % consts.calculate_action_time == 0:
-            transformed = self.prm.transform_by_values(
+            transformed_vertex = self.prm.transform_by_values(
                 self.center_pos, self.rotation, self.next_vertex
             )
-            x_tag, y_tag = transformed[0][0], transformed[0][1]
+            x_tag, y_tag = transformed_vertex[0][0], transformed_vertex[0][1]
 
             radius = np.sqrt(self.prm.radius_x_y_squared(x_tag, y_tag))
             delta = np.sign(y_tag) * np.arctan(consts.length / radius)
@@ -343,8 +346,12 @@ class Car:
         self.calculations_clock += 1
         return False
 
-    # TODO : doc
-    def scan(self):
+    def update_state(self):
+        """
+        updates the state of the car afrer a step,
+        updates variables and checks if the car collided with something, or got to it's goal.
+        returns true if this car is done
+        """
         # updating map;
         print('d1')
         self.base_pos, quaternions = p.getBasePositionAndOrientation(self.car_model)
@@ -358,7 +365,6 @@ class Car:
             self.crashed = True
         if dist(self.center_pos, self.end_point) < consts.min_dist_to_target:
             self.finished = True
-        # # getting values for NN
         if self.base_pos[2] > 0.1:
             self.crashed = True
 
@@ -378,7 +384,6 @@ class Car:
         self.scan_environment()
         print('d5')
         return self.crashed or self.finished
-        # self.segments_partial_map.show()
 
     def create_car_model(self):
         """

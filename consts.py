@@ -8,6 +8,15 @@ is_visual = False  # do we want to see visual footage
 use_real_time = 0  # is the simulation running in real time - probably should always be 0
 time_step = 0.01    # what is a time step in the pybullet simulation
 
+# debbuging flags:
+debugging = True
+drawing = True
+show_scaned_maze = True
+show_projected_path = True
+show_actual_path = True
+show_goal_starting_points = True
+
+
 cameraDistance = 11
 cameraYaw = 0
 cameraPitch = -89.9
@@ -49,6 +58,7 @@ a_2 = 0.1477  # a_2 of the car
 minimum_car_dist = 1
 
 
-calculate_action_time = 50
-calculate_d_star_time = 50
-reset_count_time = 150
+calculate_action_time = 50  # 10
+calculate_d_star_time = 50  # 20
+reset_count_time = 150      # 60
+
