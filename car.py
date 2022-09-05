@@ -30,15 +30,15 @@ class Car:
 
         self.calculations_clock = 0
 
-        self.rotation = positions['rotation']  # rotation of the car (in radians)
+        self.rotation = positions["rotation"]  # rotation of the car (in radians)
         self.base_pos = None  # the position of the car according to bullet, not used
-        self.start_point = positions['start']  # starting point of the map
+        self.start_point = positions["start"]  # starting point of the map
 
         self.finished = False  # did the car get to the goal
         self.crashed = False  # did the car crash
         self.swivel = 0  # swivel of the car - angle of steering wheel
 
-        self.end_point = positions['end']  # end point of the map
+        self.end_point = positions["end"]  # end point of the map
 
         self.segments_partial_map: Map = segments_map
 
@@ -56,7 +56,9 @@ class Car:
         self.next_vertex = None
 
         self.end_point = self.prm.set_end(np.array(self.end_point[:2]))
-        self.current_vertex = self.prm.get_closest_vertex(self.start_point, self.rotation)
+        self.current_vertex = self.prm.get_closest_vertex(
+            self.start_point, self.rotation
+        )
         print(f"new end is {self.end_point}")
         self.start_point = [self.current_vertex.pos[0], self.current_vertex.pos[1], 0]
         self.center_pos = self.current_vertex.pos
@@ -65,71 +67,98 @@ class Car:
         self.wheels = None  # pybullet ID of the wheels for setting speed
         self.steering = None  # pybullet ID of the wheels for steering
 
-    def after_py_bullet(self):
+    def pybullet_init(self):
+        """
+        initiations done after the pybullet server has started
+        """
         self.car_model, self.wheels, self.steering = self.create_car_model()
 
         self.scan_environment()
 
         self.prm.init_d_star(self.current_vertex)
         self.prm.d_star.compute_shortest_path(self.current_vertex)
-        self.prm.draw_path(self.current_vertex, idx=f'car {self.car_number}')
+        self.prm.draw_path(self.current_vertex, idx=f"car {self.car_number}")
         print(self.prm.end.pos)
 
     def generate_graph(self):
+        "calls the prm generate_graph function"
         print("generating graph")
         self.prm.generate_graph()
 
         print(self.prm.graph.n, self.prm.graph.e)
 
-
     def remove_vertices(self, index):
+        """
+        TODO: doc this, idk wtf this do
+        """
         vertex_removal_radius = math.ceil(0.4 / consts.vertex_offset)
         self.segments_partial_map.add_points_to_map(self.hits[index])
         self.hits[index] = []
         new = self.segments_partial_map.new_segments
         for segment in new:
             for point in segment:
-                for block in block_options(map_index_from_pos(point), vertex_removal_radius, self.map_shape):
+                for block in block_options(
+                    map_index_from_pos(point), vertex_removal_radius, self.map_shape
+                ):
                     for vertex in self.prm.vertices[block[0]][block[1]]:
                         if vertex and not self.segments_partial_map.check_state(vertex):
                             self.prm.remove_vertex(vertex)
         return new
 
     def remove_edges(self, new_segments):
+        """
+        TODO: doc this, idk wtf this do
+        """
         edge_removal_radius = np.ceil(self.prm.res / consts.vertex_offset)
         problematic_vertices: Set[PRM.Vertex] = set()
         problematic_edges: Set[PRM.Edge] = set()
         for segment in new_segments:
             for point in segment:
-                for block in block_options(map_index_from_pos(point), edge_removal_radius, self.map_shape):
+                for block in block_options(
+                    map_index_from_pos(point), edge_removal_radius, self.map_shape
+                ):
                     problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
 
         for vertex in problematic_vertices:
             if vertex is None:
                 continue
             for edge in vertex.in_edges | vertex.out_edges:
-                if edge.src in problematic_vertices and edge.dst in problematic_vertices:
+                if (
+                    edge.src in problematic_vertices
+                    and edge.dst in problematic_vertices
+                ):
                     problematic_edges.add(edge)
         for segment in new_segments:
             for i in range(len(segment) - 1):
                 for edge in problematic_edges:
-                    if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
-                            consts.width + 2 * consts.epsilon:
+                    if (
+                        edge.active
+                        and distance_between_lines(
+                            segment[i], segment[i + 1], edge.src.pos, edge.dst.pos
+                        )
+                        < consts.width + 2 * consts.epsilon
+                    ):
                         self.prm.remove_edge(edge)
 
     def scan_environment(self):
         """
         scans the environment and updates the discovery values
-        :return:
         """
         old_graph_sizes = (self.prm.graph.n, self.prm.graph.e)
-        directions = [2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)]
+        directions = [
+            2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)
+        ]
         new_segments = []
         for i, direction in enumerate(directions):
 
             did_hit, start, end = self.ray_cast(
-                self.car_model, [0, 0, 0.5],
-                [-consts.ray_length * np.cos(direction), -consts.ray_length * np.sin(direction), 0]
+                self.car_model,
+                [0, 0, 0.5],
+                [
+                    -consts.ray_length * np.cos(direction),
+                    -consts.ray_length * np.sin(direction),
+                    0,
+                ],
             )
             if did_hit:
                 self.hits[i].append((end[0], end[1]))
@@ -137,7 +166,10 @@ class Car:
                     new_segments += self.remove_vertices(i)
 
         self.remove_edges(new_segments)
-        return old_graph_sizes != (self.prm.graph.n, self.prm.graph.e)  # we removed new edges or vertices
+        return old_graph_sizes != (
+            self.prm.graph.n,
+            self.prm.graph.e,
+        )  # we removed new edges or vertices
 
     def ray_cast(self, car, offset, direction):
         """
@@ -205,7 +237,9 @@ class Car:
             self.trace.append(self.center_pos)
             next_vertex = self.prm.next_in_path(self.current_vertex)
             if next_vertex is None:
-                if (not self.is_backwards_driving) or dist(self.center_pos, self.next_vertex.pos) <= 0.1:
+                if (not self.is_backwards_driving) or dist(
+                    self.center_pos, self.next_vertex.pos
+                ) <= 0.1:
                     self.next_vertex = self.prev_vertex.pop()
                     self.is_backwards_driving = True
                     print("popped")
@@ -239,11 +273,18 @@ class Car:
 
             # moving
             for wheel in self.wheels:
-                p.setJointMotorControl2(self.car_model, wheel, p.VELOCITY_CONTROL, targetVelocity=wanted_speed,
-                                        force=consts.max_force)
+                p.setJointMotorControl2(
+                    self.car_model,
+                    wheel,
+                    p.VELOCITY_CONTROL,
+                    targetVelocity=wanted_speed,
+                    force=consts.max_force,
+                )
 
             for steer, angle in zip(self.steering, wanted_steering_angle):
-                p.setJointMotorControl2(self.car_model, steer, p.POSITION_CONTROL, targetPosition=angle)
+                p.setJointMotorControl2(
+                    self.car_model, steer, p.POSITION_CONTROL, targetPosition=angle
+                )
         self.calculations_clock += 1
 
     # TODO : doc
@@ -300,8 +341,12 @@ class Car:
             )
 
         steering = [4, 6]
-        base_position = list(PRM.car_center_to_pos(np.array(self.start_point[:2]), self.rotation)) + [0]
+        base_position = list(
+            PRM.car_center_to_pos(np.array(self.start_point[:2]), self.rotation)
+        ) + [0]
         # TODO: maybe immidatiatly set the right pos and rot
-        p.resetBasePositionAndOrientation(car, base_position, p.getQuaternionFromEuler([0, 0, self.rotation]))
+        p.resetBasePositionAndOrientation(
+            car, base_position, p.getQuaternionFromEuler([0, 0, self.rotation])
+        )
 
         return car, wheels, steering
