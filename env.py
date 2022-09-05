@@ -38,7 +38,7 @@ class Env:
         self.ax = plt.gca()  # pyplot to draw and debug
         plt_size = consts.size_map_quarter + 1  # pyplot size
         plt.axis([-plt_size, plt_size, -plt_size, plt_size])
-        self.maze_title = maze['title']
+        self.maze_title = maze["title"]
 
         self.segments_partial_map: Map = Map([consts.map_borders.copy()])
 
@@ -58,15 +58,18 @@ class Env:
         self.obstacles = []  # list of obstacle IDs in pybullet
         self.bodies = []  # list of all collision body IDs in pybullet
 
-        self.maze = maze['walls']
+        self.maze = maze["walls"]
 
         self.start_env()
-        positions = maze['positions']
+        positions = maze["positions"]
         self.number_of_cars = len(positions)
-        self.cars: List[Car] = [Car(i, positions[i], self.prm, self.segments_partial_map) for i in range(self.number_of_cars)]
+        self.cars: List[Car] = [
+            Car(i, positions[i], self.prm, self.segments_partial_map)
+            for i in range(self.number_of_cars)
+        ]
         self.reset()
         for car in self.cars:
-            car.after_py_bullet()
+            car.pybullet_init()
 
         for car in self.cars:
             car.set_cars([other for other in self.cars if other != car])
@@ -132,7 +135,9 @@ class Env:
 
         self.run_time = 0
 
-        self.obstacles = map_create.create_map(self.maze, epsilon=consts.epsilon, client=p)
+        self.obstacles = map_create.create_map(
+            self.maze, epsilon=consts.epsilon, client=p
+        )
         self.bodies = self.borders + self.obstacles
 
         for car in self.cars:
@@ -196,14 +201,17 @@ class Env:
         for car in self.cars:
             car.scan()
 
-        if len(self.graph.deleted_edges) != 0 and self.run_time % consts.calculate_d_star_time == 0:
-            print('computing paths')
+        if (
+            len(self.graph.deleted_edges) != 0
+            and self.run_time % consts.calculate_d_star_time == 0
+        ):
+            print("computing paths")
             t = time.time()
             for car in self.cars:
                 car.prm.update_d_star(self.graph.deleted_edges, car.current_vertex)
                 car.prm.d_star.compute_shortest_path(car.current_vertex)
                 car.calculations_clock = 0
-            print('all paths computed in ', time.time() - t)
+            print("all paths computed in ", time.time() - t)
             self.graph.deleted_edges.clear()
 
         if self.run_time >= consts.max_time:
@@ -224,12 +232,12 @@ class Env:
             if car.finished:
                 car.trace.append(car.end_point)
             elif car.crashed:
-                plt.scatter(car.trace[-1][0], car.trace[-1][1], label=f'crash car {idx}')
+                plt.scatter(
+                    car.trace[-1][0], car.trace[-1][1], label=f"crash car {idx}"
+                )
 
         if crashed:
-            print(
-                f"crashed {self.maze_title} - time {self.run_time}"
-            )
+            print(f"crashed {self.maze_title} - time {self.run_time}")
             return True
         if finished:
             print(f"finished {self.maze_title}" f" - time {self.run_time}")
@@ -252,13 +260,14 @@ def main():
         plt.plot(
             [a for a, _ in car.trace],
             [a for _, a in car.trace],
-            label=f"actual car {idx}")
+            label=f"actual car {idx}",
+        )
     plt.title(f'{maze["title"]} - time {env.run_time}')
     ax = env.ax
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
     # Put a legend to the right of the current axis
-    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     plt.show()
 
 

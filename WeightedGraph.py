@@ -84,6 +84,7 @@ class WeightedGraph:
         else:
             print('false edge')  # just to be sure that there is no error
 
+
     def remove_vertex(self, v: Vertex):
         if v not in self.vertices:
             print('false vertex')  # just to be sure that there is no error
@@ -100,6 +101,7 @@ class WeightedGraph:
             other_vertex = edge.dst
             if edge in other_vertex.in_edges:
                 other_vertex.in_edges.remove(edge)
+                deleted_edges.add(edge)
                 self.e -= 1
                 self.deleted_edges.add(edge)
                 edge.weight = np.inf
