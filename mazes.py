@@ -106,7 +106,7 @@ default_training_set = [
 
     {
         'walls': [[(6, -6), (6, -2), (2, -6), (0, -4), (0, 4), (-2, -2), (-2, 2), (8, 2), (8, -6)]],
-        'positions': [{'start': [0, 0, 0], 'end': [2, -4, 0], 'rotation': 0}],
+        'positions': [{'start': [1, 1, 0], 'end': [2, -4, 0], 'rotation': 0}],
         'title': 'Ben Hagadol'
     }
 ]

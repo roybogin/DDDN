@@ -45,7 +45,7 @@ seed = None  # randomness seed
 
 
 directions_per_vertex = 36
-amount_vertices_from_edge = math.ceil(0.3 / vertex_offset)
+amount_vertices_from_edge = math.ceil(0.2 / vertex_offset)
 
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
 max_time = int(5e4)  # time before forcing a new maze
@@ -58,7 +58,7 @@ a_2 = 0.1477  # a_2 of the car
 minimum_car_dist = 1
 
 
-calculate_action_time = 50  # 10
-calculate_d_star_time = 50  # 20
-reset_count_time = 150      # 60
+calculate_action_time = 40  # 10
+calculate_d_star_time = 40  # 20
+reset_count_time = 100      # 60
 

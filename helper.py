@@ -11,6 +11,33 @@ def dist(point1, point2):
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
 
+def get_wall(point1, point2):
+    theta = math.atan2(point1[1] - point2[1], point1[0] - point2[0])
+    ret = [(point1[0] + math.sqrt(2) * consts.epsilon * math.cos(theta - math.pi / 2),
+             point1[1] + math.sqrt(2) * consts.epsilon * math.sin(theta - math.pi / 2)),
+           (point1[0] + math.sqrt(2) * consts.epsilon * math.cos(theta + math.pi / 2),
+            point1[1] + math.sqrt(2) * consts.epsilon * math.sin(theta + math.pi / 2)),
+           (point2[0] + math.sqrt(2) * consts.epsilon * math.cos(-theta - math.pi / 2),
+            point2[1] + math.sqrt(2) * consts.epsilon * math.sin(-theta - math.pi / 2)),
+           (point2[0] + math.sqrt(2) * consts.epsilon * math.cos(-theta + math.pi / 2),
+            point2[1] + math.sqrt(2) * consts.epsilon * math.sin(-theta + math.pi / 2)),
+           (point1[0] + math.sqrt(2) * consts.epsilon * math.cos(theta - math.pi / 2),
+            point1[1] + math.sqrt(2) * consts.epsilon * math.sin(theta - math.pi / 2))]
+    return ret
+
+
+def is_in_rect(rect, point):
+    """
+    :param rect: a 5 point list of the rectanle, where the last point is the first point.
+    :param point:  the point we want to check
+    :returns True if the point is inide of the rectangle, false o.w.
+    """
+    for i in range(4):
+        if orientation(rect[i], rect[i + 1], point) < 0:
+            return False
+    return True
+
+
 def draw_binary_matrix(mat):
     """
     draws the given matrix with matplotlib
@@ -179,26 +206,8 @@ def onSegment(p, q, r):
 def orientation(p, q, r):
     # to find the orientation of an ordered triplet (p,q,r)
     # function returns the following values:
-    # 0 : Collinear points
-    # 1 : Clockwise points
-    # 2 : Counterclockwise
-
-    # See https://www.geeksforgeeks.org/orientation-3-ordered-points/amp/ 
-    # for details of below formula. 
-
     val = (float(q[1] - p[1]) * (r[0] - q[0])) - (float(q[0] - p[0]) * (r[1] - q[1]))
-    if val > 0:
-
-        # Clockwise orientation
-        return 1
-    elif val < 0:
-
-        # Counterclockwise orientation
-        return 2
-    else:
-
-        # Collinear orientation
-        return 0
+    return val
 
 
 # The main function that returns true if 
@@ -206,10 +215,10 @@ def orientation(p, q, r):
 def doIntersect(p1, q1, p2, q2):
     # Find the 4 orientations required for
     # the general and special cases
-    o1 = orientation(p1, q1, p2)
-    o2 = orientation(p1, q1, q2)
-    o3 = orientation(p2, q2, p1)
-    o4 = orientation(p2, q2, q1)
+    o1 = np.sign(orientation(p1, q1, p2))
+    o2 = np.sign(orientation(p1, q1, q2))
+    o3 = np.sign(orientation(p2, q2, p1))
+    o4 = np.sign(orientation(p2, q2, q1))
 
     # General case
     if (o1 != o2) and (o3 != o4):

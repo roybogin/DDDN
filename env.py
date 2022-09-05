@@ -94,7 +94,7 @@ class Env:
         """
         self.prm.generate_graph()
 
-        if consts.debug:
+        if consts.debugging:
             print("generated graph")
             print(self.prm.graph.n, self.prm.graph.e)
 
