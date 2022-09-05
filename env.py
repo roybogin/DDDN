@@ -163,11 +163,10 @@ class Env:
         calls the step and scan on all cars
         """
 
-        if consts.print_runtime and self.run_time % 1 == 0:
+        if consts.print_runtime and self.run_time % 100 == 0:
             print("time:", self.run_time)
 
         # updating target velocity and steering angle
-        print('a')
         changed_edges: Set[Edge] = set()
         for car in self.cars:
             if car.step():
@@ -192,38 +191,35 @@ class Env:
                 #         o = sum((1 for e in v.out_edges if e.weight != np.inf))
                 #         i = sum((1 for e in v.in_edges if e.weight != np.inf))
                 #         map[row].append(o+i)
-        print('b')
         if len(changed_edges) != 0:
             print('computing paths - park')
             t = time.time()
             for car in self.cars:
-                if car.parked:
+                if car.parked or car.finished:
                     continue
                 car.prm.update_d_star(changed_edges, car.current_vertex)
                 car.prm.d_star.compute_shortest_path(car.current_vertex)
                 car.calculations_clock = 0
             print('all paths computed in ', time.time() - t)
-        print('c')
 
         p.stepSimulation()
 
         self.run_time += 1
-        print('d')
 
         for car in self.cars:
             car.update_state()
-        print('e')
 
         if len(self.graph.deleted_edges) != 0 and self.run_time % consts.calculate_d_star_time == 0:
             print("computing paths - wall")
             t = time.time()
             for car in self.cars:
+                if car.parked or car.finished:
+                    continue
                 car.prm.update_d_star(self.graph.deleted_edges, car.current_vertex)
                 car.prm.d_star.compute_shortest_path(car.current_vertex)
                 car.calculations_clock = 0
             print("all paths computed in ", time.time() - t)
             self.graph.deleted_edges.clear()
-        print('f')
 
         if self.run_time >= consts.max_time:
             print(f"out of time in {self.maze_title}")

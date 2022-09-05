@@ -45,7 +45,7 @@ seed = None  # randomness seed
 
 
 directions_per_vertex = 36
-amount_vertices_from_edge = math.ceil(0.2 / vertex_offset)
+amount_vertices_from_edge = math.ceil(0.3 / vertex_offset)
 
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
 max_time = int(5e4)  # time before forcing a new maze

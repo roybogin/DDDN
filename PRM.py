@@ -273,6 +273,8 @@ class PRM:
         for edge in edge_set:
             u, v, curr_weight = edge.src, edge.dst, edge.weight
             old_weight = np.inf
+            if not edge.active:
+                curr_weight = np.inf
             if curr_weight == np.inf:
                 old_weight = edge.original_weight
             rhs = self.d_star.rhs
@@ -281,6 +283,6 @@ class PRM:
                 rhs[u] = min(rhs[u], curr_weight + g[v])
             elif rhs[u] == old_weight + g[v]:
                 if u != self.end:
-                    possible_rhs = (edge.weight + g[edge.dst] for edge in u.out_edges)
+                    possible_rhs = (e.weight + g[e.dst] for e in u.out_edges)
                     rhs[u] = min(possible_rhs, default=np.inf)
             self.d_star.update_vertex(u)

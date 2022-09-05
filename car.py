@@ -155,7 +155,6 @@ class Car:
         """
         scans the environment and updates the discovery values
         """
-        print('d4_1')
         old_graph_sizes = (self.prm.graph.n, self.prm.graph.e)
         directions = [
             2 * np.pi * i / consts.ray_amount for i in range(consts.ray_amount)
@@ -175,11 +174,8 @@ class Car:
             if did_hit:
                 self.hits[i].append((end[0], end[1]))
                 if len(self.hits[i]) == consts.max_hits_before_calculation:
-                    print(f'd4_1,{i}')
                     new_segments += self.add_obstacles(i)
-        print('d4_2')
         self.remove_edges(new_segments)
-        print('d4_3')
         return old_graph_sizes != (self.prm.graph.n, self.prm.graph.e)  # we removed new edges or vertices
 
     def ray_cast(self, car, offset, direction):
@@ -352,13 +348,11 @@ class Car:
         returns true if this car is done
         """
         # updating map;
-        print('d1')
         self.base_pos, quaternions = p.getBasePositionAndOrientation(self.car_model)
         self.rotation = p.getEulerFromQuaternion(quaternions)[2]
         self.center_pos = PRM.pos_to_car_center(
             np.array(self.base_pos[:2]), self.rotation
         )
-        print('d2')
         # checking if collided or finished
         if self.check_collision(self.car_model, self.bodies + [other.car_model for other in self.cars]):
             self.crashed = True
@@ -374,14 +368,11 @@ class Car:
         # angles = [state[0] for state in swivel_states]
         # cot_delta = (1 / np.tan(angles[0]) + 1 / np.tan(angles[1])) / 2
         # self.swivel = np.arctan(1 / cot_delta)
-        print('d3')
         prev_vertex = self.current_vertex
         self.current_vertex = self.prm.get_closest_vertex(self.center_pos, self.rotation)
         if self.current_vertex != prev_vertex and not self.is_backwards_driving:
             self.prev_vertex.append(prev_vertex)
-        print('d4')
         self.scan_environment()
-        print('d5')
         return self.crashed or self.finished
 
     def create_car_model(self):
