@@ -1,5 +1,4 @@
 from math import sqrt
-import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle, Circle
 from helper import perpendicularDistance
@@ -7,7 +6,6 @@ import consts
 from PRM import Vertex
 
 SAMPLE_DIST = 0.8
-testing = True
 
 
 class Map:
@@ -16,13 +14,6 @@ class Map:
         # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
         self.map = map
         self.size = size
-
-        ##for testing:
-        if testing:
-            self.points = []
-            self.distances = []
-            self.new_segments = []
-            self.number_of_segment = []
 
     def plot(self, ax):
         """
@@ -33,7 +24,6 @@ class Map:
         # we can find the left,bottom point with two lines of length epsilon,
         # one going from x1y1 in on the line, and one perpendicular to it.
         # should be a bit more accurate
-
 
         # add a rectangle for each segment:
         for segment in segments:
@@ -50,7 +40,7 @@ class Map:
                         (x1 - consts.epsilon, min(y1, y2) - consts.epsilon),
                         2 * consts.epsilon,
                         2 * consts.epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
-                        color='red'
+                        color="red",
                     )
                 )
 
@@ -65,7 +55,7 @@ class Map:
                         2 * consts.epsilon + sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2),
                         2 * consts.epsilon,
                         theta * 180 / np.pi,
-                        color='red'
+                        color="red",
                     )
                 )
         # drawing the end_points of each segment:
@@ -86,8 +76,10 @@ class Map:
         for point in points:
             for segment in self.new_segments:
                 for i in range(len(segment) - 1):
-                    if perpendicularDistance(point, segment[i],
-                                             segment[i + 1]) < consts.epsilon:  # TODO: enter on false?
+                    if (
+                        perpendicularDistance(point, segment[i], segment[i + 1])
+                        < consts.epsilon
+                    ):  # TODO: enter on false?
                         return False
         return True
 
@@ -107,8 +99,14 @@ class Map:
                 x_temp = consts.length * (-1 / 2 + i / (num_sample_car - 1))
                 y_temp = consts.width * (-1 / 2 + j / (num_sample_car - 1))
                 to_check.append(
-                    (vertex.pos[0] + x_temp * np.cos(vertex.theta) - y_temp * np.sin(vertex.theta),
-                        vertex.pos[1] + x_temp * np.sin(vertex.theta) + y_temp * np.cos(vertex.theta))
+                    (
+                        vertex.pos[0]
+                        + x_temp * np.cos(vertex.theta)
+                        - y_temp * np.sin(vertex.theta),
+                        vertex.pos[1]
+                        + x_temp * np.sin(vertex.theta)
+                        + y_temp * np.cos(vertex.theta),
+                    )
                 )
         return self.check_batch(to_check)
 
@@ -120,16 +118,17 @@ class Map:
         :param points: the points to add.
         """
         new_points = []
-        if testing:
-            self.points += points
-            self.new_segments = []
+
         segment_representation = self.segment_representation()
 
         # filtering the points we don't need to add.
         for point in points:
             should_add = True
             for segment in segment_representation:
-                if perpendicularDistance(point, segment[0], segment[1]) < consts.epsilon:
+                if (
+                    perpendicularDistance(point, segment[0], segment[1])
+                    < consts.epsilon
+                ):
                     should_add = False
             if should_add:
                 new_points.append(point)
@@ -142,8 +141,7 @@ class Map:
         # dividing the points into segments (for when the samples come from 2 diffrent obstacles):
         segment_to_add = [new_points[0]]
         for i in range(len(new_points) - 1):
-            if testing:
-                self.distances.append(dist(new_points[i], new_points[i + 1]))
+
             # if the next point is too far away, start a new segment
             if dist(new_points[i], new_points[i + 1]) > SAMPLE_DIST:
                 new_segment = self.points_to_line(segment_to_add)
