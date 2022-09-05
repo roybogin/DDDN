@@ -213,7 +213,7 @@ class PRM:
         return self.vertices[block[0]][block[1]][angle]
 
     def next_in_path(self, vertex: Vertex):
-        successors = ((e.dst, e.weight) for e in vertex.out_edges)
+        successors = ((e.dst, e.weight) for e in vertex.out_edges if e.weight != np.inf)
         next_vertex_key = lambda dest, weight: self.d_star.g[dest] + weight
         next_vertex = min(
             successors, key=lambda tup: next_vertex_key(*tup), default=(None,)
