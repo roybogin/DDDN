@@ -1,19 +1,22 @@
 from math import sqrt
-import matplotlib.pyplot as plt
+
 import numpy as np
 from matplotlib.patches import Rectangle, Circle
-from helper import perpendicularDistance
+
 import consts
 from PRM import Vertex
+from helper import perpendicularDistance, dist
 
 SAMPLE_DIST = 0.8
 
 
 class Map:
     # map is a list of segments, the obstacles
-    def __init__(self, map=[], size=int(consts.size_map_quarter * 1.2)):
+    def __init__(self, initial_map=None, size=int(consts.size_map_quarter * 1.2)):
         # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
-        self.map = map
+        if initial_map is None:
+            initial_map = []
+        self.map = initial_map
         self.size = size
 
         self.points = []
@@ -172,29 +175,6 @@ class Map:
 
         return segments
 
-    def map_length(self):
-        """
-        returns the cumulative length of the map
-        #not_used
-        """
-        total_length = 0
-        for segment in self.segment_representation():
-            total_length += dist(segment[0], segment[1])
-        return total_length
-
-    def segment_representation_as_points(self):
-        """
-        should probably be deleted, not sure how this gives something better then segment_representation
-        #not_used
-        """
-        segments = ()
-        for i in range(len(self.map)):
-            for j in range(1, len((self.map[i]))):
-                x1, y1 = self.map[i][j - 1]
-                x2, y2 = self.map[i][j]
-                segments.append((x1, y1, x2, y2))
-        return segments
-
     def __str__(self):
         """
         :return: a string representation of the map
@@ -227,12 +207,6 @@ class Map:
         """
         self.map.append(chain)
 
-    def remove(self, chain):
-        """
-        remove the chain from map, if it is in the map
-        #not_used
-        """
-        self.map.remove(chain)
 
     def points_to_line(self, points):
         """
@@ -262,20 +236,3 @@ class Map:
             result = [points[0], points[-1]]
         # Return the result
         return result
-
-
-def euler_dist(point1, point2):
-    """
-    :return: the l2 distance between point1 and point2
-    #not_used
-    """
-    x1, y1 = point1
-    x2, y2 = point2
-    return sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
-
-
-def dist(point1, point2):
-    """
-    :return: the l2 distance between point1 and point2
-    """
-    return sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
