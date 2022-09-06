@@ -67,7 +67,7 @@ class Map:
         # drawing the end_points of each segment:
         for segment in self.new_segments:
             for point in segment:
-                ax.add_patch(Circle(point, 0.05, color="r"))
+                ax.add_patch(Circle(point, 0.05, color="b"))
 
         self.number_of_segment.append(len(self.segment_representation()))
         return

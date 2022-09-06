@@ -11,18 +11,25 @@ def dist(point1, point2):
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
 
-def get_wall(point1, point2):
+def get_wall(point1, point2, width):
+    """
+    function return a wall with width around
+    :param point1:
+    :param point2:
+    :param width:
+    :return:
+    """
     theta = math.atan2(point1[1] - point2[1], point1[0] - point2[0])
-    ret = [(point1[0] + math.sqrt(2) * consts.epsilon * math.cos(theta - math.pi / 2),
-             point1[1] + math.sqrt(2) * consts.epsilon * math.sin(theta - math.pi / 2)),
-           (point1[0] + math.sqrt(2) * consts.epsilon * math.cos(theta + math.pi / 2),
-            point1[1] + math.sqrt(2) * consts.epsilon * math.sin(theta + math.pi / 2)),
-           (point2[0] + math.sqrt(2) * consts.epsilon * math.cos(-theta - math.pi / 2),
-            point2[1] + math.sqrt(2) * consts.epsilon * math.sin(-theta - math.pi / 2)),
-           (point2[0] + math.sqrt(2) * consts.epsilon * math.cos(-theta + math.pi / 2),
-            point2[1] + math.sqrt(2) * consts.epsilon * math.sin(-theta + math.pi / 2)),
-           (point1[0] + math.sqrt(2) * consts.epsilon * math.cos(theta - math.pi / 2),
-            point1[1] + math.sqrt(2) * consts.epsilon * math.sin(theta - math.pi / 2))]
+    ret = [(point1[0] + math.sqrt(2) * width * math.cos(theta - math.pi / 2),
+            point1[1] + math.sqrt(2) * width * math.sin(theta - math.pi / 2)),
+           (point1[0] + math.sqrt(2) * width * math.cos(theta + math.pi / 2),
+            point1[1] + math.sqrt(2) * width * math.sin(theta + math.pi / 2)),
+           (point2[0] + math.sqrt(2) * width * math.cos(-theta - math.pi / 2),
+            point2[1] + math.sqrt(2) * width * math.sin(-theta - math.pi / 2)),
+           (point2[0] + math.sqrt(2) * width * math.cos(-theta + math.pi / 2),
+            point2[1] + math.sqrt(2) * width * math.sin(-theta + math.pi / 2)),
+           (point1[0] + math.sqrt(2) * width * math.cos(theta - math.pi / 2),
+            point1[1] + math.sqrt(2) * width * math.sin(theta - math.pi / 2))]
     return ret
 
 

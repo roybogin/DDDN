@@ -169,7 +169,7 @@ class Env:
         # updating target velocity and steering angle
         changed_edges: Set[Edge] = set()
         for car in self.cars:
-            if car.step():
+            if car and car.step():
                 print('time now is ', self.run_time)
                 changed_edges.update(car.changed_edges)
                 if not car.parked:
@@ -195,11 +195,12 @@ class Env:
             print('computing paths - park')
             t = time.time()
             for car in self.cars:
-                if car.parked or car.finished:
-                    continue
-                car.prm.update_d_star(changed_edges, car.current_vertex)
-                car.prm.d_star.compute_shortest_path(car.current_vertex)
-                car.calculations_clock = 0
+                if car:
+                    if car.parked or car.finished:
+                        continue
+                    car.prm.update_d_star(changed_edges, car.current_vertex)
+                    car.prm.d_star.compute_shortest_path(car.current_vertex)
+                    car.calculations_clock = 0
             print('all paths computed in ', time.time() - t)
 
         p.stepSimulation()
@@ -207,17 +208,24 @@ class Env:
         self.run_time += 1
 
         for car in self.cars:
-            car.update_state()
+            if car:
+                car.update_state()
+                if car.finished:
+                    p.removeBody(car.car_model)
+                    idx = car.car_number
+                    del car
+                    self.cars[idx] = None
 
         if len(self.graph.deleted_edges) != 0 and self.run_time % consts.calculate_d_star_time == 0:
             print("computing paths - wall")
             t = time.time()
             for car in self.cars:
-                if car.parked or car.finished:
-                    continue
-                car.prm.update_d_star(self.graph.deleted_edges, car.current_vertex)
-                car.prm.d_star.compute_shortest_path(car.current_vertex)
-                car.calculations_clock = 0
+                if car:
+                    if car.parked or car.finished:
+                        continue
+                    car.prm.update_d_star(self.graph.deleted_edges, car.current_vertex)
+                    car.prm.d_star.compute_shortest_path(car.current_vertex)
+                    car.calculations_clock = 0
             print("all paths computed in ", time.time() - t)
             self.graph.deleted_edges.clear()
 
@@ -229,8 +237,8 @@ class Env:
                     car.trace.append(car.end_point)
             return True
 
-        crashed = any(car.crashed for car in self.cars)
-        finished = all(car.finished for car in self.cars)
+        crashed = any(car.crashed for car in self.cars if car)
+        finished = all(car.finished for car in self.cars if car)
 
         if not (crashed or finished):
             return False
@@ -256,7 +264,7 @@ class Env:
 def main():
     t0 = time.time()
     stop = False
-    maze = mazes.default_data_set[2]
+    maze = mazes.default_data_set[1]
     env = Env(maze)
     while not stop:
         stop = env.step()

@@ -52,7 +52,7 @@ default_data_set = [
         'walls': [],
         'positions': [
                         {'start': [0, 0, 0], 'end': [2, 0, 0], 'rotation': 0},
-                        {'start': [0, 5, 0], 'end': [2, 5, 0], 'rotation': 0},
+                        {'start': [0, 5, 0], 'end': [4, 5, 0], 'rotation': 0},
                       ],
         'title': 'empty test maze'
     },

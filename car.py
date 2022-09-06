@@ -96,14 +96,12 @@ class Car:
 
         print(self.prm.graph.n, self.prm.graph.e)
 
-    def add_obstacles(self, index):
+    def remove_vertices(self, new):
         """
-        TODO: doc this, idk wtf this do
+        this function removes all vertices not viable by the addition of a new list of segments
+        :param new: the new segments to take into account
         """
         vertex_removal_radius = math.ceil(0.4 / consts.vertex_offset)
-        self.segments_partial_map.add_points_to_map(self.hits[index])
-        self.hits[index] = []
-        new = self.segments_partial_map.new_segments
         for segment in new:
             for point in segment:
                 for block in block_options(
@@ -112,7 +110,6 @@ class Car:
                     for vertex in self.prm.vertices[block[0]][block[1]]:
                         if vertex and dist(vertex.pos, point) < consts.width:
                             self.prm.remove_vertex(vertex)
-        return new
 
     def remove_edges(self, new_segments, deactivate=False):
         """
@@ -141,15 +138,19 @@ class Car:
         for segment in new_segments:
             for edge in problematic_edges:
                 for i in range(len(segment) - 1):
-                    if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
-                            consts.width:
-                        if not deactivate:
+                    if not deactivate:
+                        if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
+                                consts.width + consts.epsilon:
                             self.prm.remove_edge(edge)
-                        else:
+                            break   # don't check for other segments
+                    else:
+                        if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
+                                consts.width + 2 * consts.epsilon:
                             edge.weight = np.inf
                             self.changed_edges.add(edge)
                             edge.parked_cars += 1
-                        break   # don't check for other segments
+                            break
+
 
     def scan_environment(self):
         """
@@ -174,7 +175,11 @@ class Car:
             if did_hit:
                 self.hits[i].append((end[0], end[1]))
                 if len(self.hits[i]) == consts.max_hits_before_calculation:
-                    new_segments += self.add_obstacles(i)
+                    self.segments_partial_map.add_points_to_map(self.hits[i])
+                    self.hits[i] = []
+                    new = self.segments_partial_map.new_segments
+                    new_segments += new
+                    self.remove_vertices(new)
         self.remove_edges(new_segments)
         return old_graph_sizes != (self.prm.graph.n, self.prm.graph.e)  # we removed new edges or vertices
 
