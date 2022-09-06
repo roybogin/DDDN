@@ -1,6 +1,6 @@
 import heapq
 import time
-from typing import Set, List, Optional, Sequence, Tuple
+from typing import Set, List, Optional, Sequence, Tuple, Any
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -225,25 +225,42 @@ class PRM:
         """
         return self.rotate_angle(vertex_2.pos - vertex_1.pos, -vertex_1.theta), vertex_2.theta - vertex_1.theta
 
-    def transform_by_values(self, pos: np.ndarray, theta: float, vertex_2: Vertex):
+    def transform_by_values(self, pos: np.ndarray, theta: float, vertex_2: Vertex) -> Tuple[np.ndarray, float]:
+        """
+        show vertex_2 from the POV of (pos, angle)
+        :param pos: position for POV
+        :param theta: angle for POV
+        :param vertex_2: vertex to transform
+        :return: the position and angle of vertex_2 from the perspective of (pos, theta)
+        """
         return self.rotate_angle(vertex_2.pos - pos, -theta), vertex_2.theta - theta
 
-    def draw_path(self, current_vertex: Vertex, idx=""):
+    def draw_path(self, current_vertex: Vertex, idx: Any = ""):
+        """
+        draw the planned path of the car from an initial vertex
+        :param current_vertex: vertex to start the planning from
+        :param idx: index of the car to add to legend
+        """
         x_list = [current_vertex.pos[0]]
         y_list = [current_vertex.pos[1]]
 
         plt.scatter(x_list, y_list, label=f"start {idx}")
         vertex = current_vertex
         parent = self.next_in_path(vertex)
-        while (parent != vertex) and (parent is not None):
+        while (parent != self.end) and (parent is not None):
             vertex = parent
-            parent = self.next_in_path(vertex)
+            if parent != self.end:
+                parent = self.next_in_path(vertex)
             x_list.append(vertex.pos[0])
             y_list.append(vertex.pos[1])
         plt.scatter(x_list[-1], y_list[-1], label=f"end goal {idx}")
         plt.plot(x_list, y_list, label=f"projected {idx}")
 
     def remove_vertex(self, v: Vertex):
+        """
+        remove vertex from the graph
+        :param v: vertex to be removed
+        """
         index = map_index_from_pos(v.pos)
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(v.theta / angle_offset)
@@ -251,13 +268,27 @@ class PRM:
         self.graph.remove_vertex(v)
 
     def remove_edge(self, e: Edge):
+        """
+        remove edge from the graph
+        :param e: edge to be removed
+        """
         self.graph.remove_edge(e)
 
     def init_d_star(self, start_vertex: Vertex):
+        """
+        initialize D* algorithm
+        :param start_vertex: starting vertex of he algorithm
+        """
         self.d_star = DStar(self.graph, start_vertex, self.end)
         self.s_last = start_vertex
 
     def update_d_star(self, edge_set: Set[Edge], current_vertex: Vertex):
+        """
+        code to run when updated edges need to be accounted by the D* (assuming weight changed fr original to
+        infinity or the opposite direction)
+        :param edge_set: edges that wre changed
+        :param current_vertex: current vertex of the car
+        """
         # assumes edges weights have already changed
         self.d_star.k_m += d_star.h(self.s_last, self.end)
         self.s_last = current_vertex
