@@ -112,7 +112,6 @@ def create_map(in_map, epsilon, client):
     :param client:  pybullet client to use
     :return: a list of IDs of the walls in pybullet
     """
-    # TODO: add end point to the map without collisions
     walls = []
     for poly in in_map:
         walls += create_poly_wall(poly, epsilon, client)

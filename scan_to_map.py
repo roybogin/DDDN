@@ -85,10 +85,7 @@ class Map:
         for point in points:
             for segment in self.new_segments:
                 for i in range(len(segment) - 1):
-                    if (
-                        perpendicularDistance(point, segment[i], segment[i + 1])
-                        < consts.epsilon
-                    ):  # TODO: enter on false?
+                    if perpendicularDistance(point, segment[i], segment[i + 1]) < consts.epsilon:
                         return False
         return True
 

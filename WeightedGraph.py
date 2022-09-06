@@ -53,7 +53,6 @@ class WeightedGraph:
         """
         if index is None:
             index = self.n
-        # new_vertex = Vertex(pos_to_car_center(pos, theta), theta, index)    # TODO: need to fix
         new_vertex = Vertex(pos, theta, index)
         self.vertices.add(new_vertex)
         self.n += 1

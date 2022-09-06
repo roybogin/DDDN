@@ -1,62 +1,69 @@
 import os
-import time
-from typing import Set, Dict, List
+from typing import Set, Dict, Sequence, Optional, List
 
 import pybullet as p
 import pybullet_data as pd
-# from gym.utils import seeding
 
 import PRM
-import consts
-import d_star
-import map_create
-import mazes
-from WeightedGraph import WeightedGraph, Edge
+from WeightedGraph import Edge, Vertex
 from helper import *
 from scan_to_map import Map
 
 
 class Car:
     def __init__(self, index: int, positions: Dict, prm: PRM, segments_map: Map):
+        """
+        creates a car instance for the maze
+        :param index: index of the car in the environment
+        :param positions: dictionary that states the initial position, end position and initial rotation of the car (
+        in the specified format from the user guide)
+        :param prm: shared prm object that the cars get as input to create copies
+        :param segments_map: shared map for the cars that will be updated when the car encounters walls
+        """
         super(Car, self).__init__()
         if consts.drawing:
             self.ax = plt.gca()  # pyplot to draw and debug
-        self.car_number = index
-        self.borders = None
-        self.bodies = None
+            self.trace: List = []  # the trace of the car's paths, for plotting
 
-        self.parked = False
-        self.changed_edges: Set[Edge] = set()
+        self.car_number: int = index
+        self.borders = None  # TODO:typing and type explain
+        self.bodies = None  # TODO:typing and type explain
 
-        self.is_backwards_driving = False
+        self.parked: bool = False  # is the car currently parked # TODO: change name to is_parked
+        self.changed_edges: Set[Edge] = set()   # set of edges that were affected by the car parking
 
-        self.action = None
-        self.trace = []  # the trace of the car's paths, for plotting
+        self.is_backwards_driving: bool = False  # is the car currently driving backwards
 
-        self.calculations_clock = 0
+        self.action: Optional[Sequence[float, np.ndarray]] = None  # current action for the car and contains two items -
+        # first is a value representing car speed relative the maximum speed and second is a numpy array for the
+        # rotation of each wheel
 
-        self.rotation = positions["rotation"]  # rotation of the car (in radians)
-        self.base_pos = None  # the position of the car according to bullet, not used
-        self.start_point = positions["start"]  # starting point of the map
+        self.calculations_clock: int = 0  # internal clock for specific calculations like wall avoiding walls
 
-        self.finished = False  # did the car get to the goal
-        self.crashed = False  # did the car crash
-        self.swivel = 0  # swivel of the car - angle of steering wheel
+        self.rotation: float = positions["rotation"]  # rotation of the car (in radians)
+        self.base_pos: Optional[Sequence[float]] = None  # the position of the car according to bullet, not used
+        self.start_point: Sequence[float] = positions["start"]  # starting point of the map
 
-        self.end_point = positions["end"]  # end point of the map
+        self.finished: bool = False  # did the car get to the goal
+        self.crashed: bool = False  # did the car crash
 
-        self.segments_partial_map: Map = segments_map
+        self.end_point: Sequence[float] = positions["end"]  # end point of the map
 
-        self.hits = [[] for _ in range(consts.ray_amount)]
-        map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)
-        self.map_shape = (map_length, map_length)
+        self.segments_partial_map: Map = segments_map   # a shared map for all cars that contains the discovered
+        # obstacles
 
-        self.prm = PRM.PRM(self.map_shape, prm)
+        self.hits: List = [[] for _ in range(consts.ray_amount)]    # list of hits from the ray casters on the cars
+        # for wall detection
 
         # initialize in prm
 
-        self.current_vertex = None
-        self.next_vertex = None
+        map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)  # amount of vertices in each row\col
+        self.map_shape = (map_length, map_length)  # shape of the vertices on the map
+
+        self.prm = PRM.PRM(self.map_shape, prm)  # prm object for running D* lite
+
+        self.current_vertex: Optional[Vertex] = None  # current vertex in the prm that matches the car (the closest one)
+        self.next_vertex = None  # vertex in the prm that matches the car (the closest one)
         self.prev_vertex = []
         self.next_vertex = None
 
@@ -393,7 +400,6 @@ class Car:
         base_position = list(
             PRM.car_center_to_pos(np.array(self.start_point[:2]), self.rotation)
         ) + [0]
-        # TODO: maybe immidatiatly set the right pos and rot
         p.resetBasePositionAndOrientation(
             car, base_position, p.getQuaternionFromEuler([0, 0, self.rotation])
         )

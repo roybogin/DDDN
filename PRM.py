@@ -1,6 +1,6 @@
 import heapq
 import time
-from typing import Set, List
+from typing import Set, List, Optional, Sequence
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -37,8 +37,8 @@ class PRM:
         )  #
         # resolution of the path planner
         self.tol = 0.02  # tolerance of the path planner
-        self.d_star: DStar | None = None
-        self.s_last: Vertex = None
+        self.d_star: Optional[DStar] = None
+        self.s_last: Optional[Vertex] = None
         if prm is not None:
             self.graph = prm.graph
             self.vertices = prm.vertices
@@ -206,7 +206,7 @@ class PRM:
                     heapq.heappush(pq, (dist_v, v))
         print(f"finished dijkstra in {time.time() - t1}")"""
 
-    def get_closest_vertex(self, pos: np.ndarray, theta: float):
+    def get_closest_vertex(self, pos: np.ndarray | Sequence[float], theta: float):
         block = map_index_from_pos(pos)
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(theta / angle_offset)

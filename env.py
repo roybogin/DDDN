@@ -6,14 +6,12 @@ import pybullet as p
 import pybullet_data as pd
 
 import PRM
-import consts
-import d_star
 import map_create
 import mazes
 from WeightedGraph import Edge
+from car import Car
 from helper import *
 from scan_to_map import Map
-from car import Car
 
 
 def add_discovered_matrix(discovered_matrix, start, end):
@@ -133,29 +131,6 @@ class Env:
         self.borders = map_create.create_poly_wall(
             consts.map_borders, epsilon=consts.epsilon, client=p
         )
-
-    # TODO: call check collision on each car
-    def check_collision(self, car_model, obstacles, margin=0, max_distance=1.0):
-        """
-        did the car collide with an obstacle
-        :param car_model: car ID
-        :param obstacles: list of body IDs to check collision of the car with
-        :param margin: margin of error for collision - if the distance is smaller than the margin - the car collided
-        :param max_distance: distance from the car to search for collisions in
-        :return: did the car collide with an obstacle
-        """
-        for ob in obstacles:
-            closest_points = p.getClosestPoints(car_model, ob, distance=max_distance)
-            closest_points = [
-                a for a in closest_points if not (a[1] == a[2] == car_model)
-            ]
-            if len(closest_points) != 0:
-                distance = np.min([pt[8] for pt in closest_points])
-                if distance < margin:
-                    return True
-        return False
-
-    # TODO: handle finishing the maze in all various ways, the change should go up to car level.
 
     def step(self):
         """
