@@ -10,7 +10,6 @@ import consts
 def dist(point1, point2):
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
-
 def get_wall(point1, point2):
     theta = math.atan2(point1[1] - point2[1], point1[0] - point2[0])
     ret = [(point1[0] + math.sqrt(2) * consts.epsilon * math.cos(theta - math.pi / 2),
@@ -36,18 +35,6 @@ def is_in_rect(rect, point):
         if orientation(rect[i], rect[i + 1], point) < 0:
             return False
     return True
-
-
-def draw_binary_matrix(mat):
-    """
-    draws the given matrix with matplotlib
-    :param mat: the binary matrix to draw
-    :return:
-    #not_used :
-    """
-    cmap = ListedColormap(["b", "g"])
-    matrix = np.array(mat, dtype=np.uint8)
-    plt.imshow(matrix, cmap=cmap)
 
 
 def add_lists(lists):
