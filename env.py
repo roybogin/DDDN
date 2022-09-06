@@ -68,6 +68,8 @@ class Env:
             Car(i, positions[i], self.prm, self.segments_partial_map)
             for i in range(self.number_of_cars)
         ]
+        if consts.drawing:
+            self.traces: List[List] = [car.trace for car in self.cars]
 
         self.add_borders()
 
@@ -86,7 +88,7 @@ class Env:
             car.pybullet_init()
 
         for car in self.cars:
-            car.set_cars([other for other in self.cars if other != car])
+            car.set_cars(self.cars)
 
     def generate_graph(self):
         """
@@ -232,9 +234,11 @@ class Env:
         if self.run_time >= consts.max_time:
             print(f"out of time in {self.maze_title}")
             for idx, car in enumerate(self.cars):
-                car.trace.append(car.center_pos)
-                if car.finished:
-                    car.trace.append(car.end_point)
+                if car:
+                    car.trace.append(car.center_pos)
+                    if car.finished:
+                        car.trace.append(car.end_point)
+
             return True
 
         crashed = any(car.crashed for car in self.cars if car)
@@ -243,13 +247,14 @@ class Env:
         if not (crashed or finished):
             return False
         for idx, car in enumerate(self.cars):
-            car.trace.append(car.center_pos)
-            if car.finished:
-                car.trace.append(car.end_point)
-            elif car.crashed:
-                plt.scatter(
-                    car.trace[-1][0], car.trace[-1][1], label=f"crash car {idx}"
-                )
+            if car:
+                car.trace.append(car.center_pos)
+                if car.finished:
+                    car.trace.append(car.end_point)
+                elif car.crashed:
+                    plt.scatter(
+                        car.trace[-1][0], car.trace[-1][1], label=f"crash car {idx}"
+                    )
 
         if crashed:
             print(f"crashed {self.maze_title} - time {self.run_time}")
@@ -264,7 +269,7 @@ class Env:
 def main():
     t0 = time.time()
     stop = False
-    maze = mazes.default_data_set[1]
+    maze = mazes.default_data_set[2]
     env = Env(maze)
     while not stop:
         stop = env.step()
@@ -273,7 +278,8 @@ def main():
     if consts.drawing:
         env.segments_partial_map.plot(env.ax)
         for idx, car in enumerate(env.cars):
-            plt.plot([a for a, _ in car.trace], [a for _, a in car.trace], label=f"actual car {idx}")
+            curr_trace = env.traces[idx]
+            plt.plot([a for a, _ in curr_trace], [a for _, a in curr_trace], label=f"actual car {idx}")
         plt.title(f'{maze["title"]} - time {env.run_time}')
         ax = env.ax
         box = ax.get_position()

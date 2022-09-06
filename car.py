@@ -29,6 +29,7 @@ class Car:
         self.changed_edges: Set[Edge] = set()
 
         self.is_backwards_driving = False
+        self.backward_driving_counter = 0   # counter for how many steps we were driving backwards
 
         self.action = None
         self.trace = []  # the trace of the car's paths, for plotting
@@ -140,12 +141,12 @@ class Car:
                 for i in range(len(segment) - 1):
                     if not deactivate:
                         if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
-                                consts.width + consts.epsilon:
+                                consts.width + 2 * consts.epsilon:
                             self.prm.remove_edge(edge)
                             break   # don't check for other segments
                     else:
                         if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
-                                consts.width + 2 * consts.epsilon:
+                                consts.width + 3 * consts.epsilon:
                             edge.weight = np.inf
                             self.changed_edges.add(edge)
                             edge.parked_cars += 1
@@ -252,9 +253,10 @@ class Car:
         needs_parking = False
         for number in range(self.car_number):
             other = self.cars[number]
-            distance_from_car = dist(self.center_pos, other.center_pos)
-            if (self.parked and distance_from_car < 2 * consts.minimum_car_dist) or distance_from_car < consts.minimum_car_dist:
-                needs_parking = True
+            if other:
+                distance_from_car = dist(self.center_pos, other.center_pos)
+                if (self.parked and distance_from_car < 2 * consts.minimum_car_dist) or distance_from_car < consts.minimum_car_dist:
+                    needs_parking = True
 
         changed_parking = False
 
@@ -294,17 +296,21 @@ class Car:
         if self.calculations_clock == 0:
             self.trace.append(self.center_pos)
             next_vertex = self.prm.next_in_path(self.current_vertex)
-            if next_vertex is None:
+            if self.is_backwards_driving:
+                self.backward_driving_counter -= 1
+            if next_vertex is None or self.backward_driving_counter > 0:
                 if (not self.is_backwards_driving) or dist(
                     self.center_pos, self.next_vertex.pos
                 ) <= 0.1:
                     self.next_vertex = self.prev_vertex.pop()
                     self.is_backwards_driving = True
                     print("popped")
+                    self.backward_driving_counter = 2
             else:
                 print("forward")
                 self.next_vertex = next_vertex
                 self.is_backwards_driving = False
+                self.backward_driving_counter = 0
 
         if self.calculations_clock % consts.calculate_action_time == 0:
             transformed_vertex = self.prm.transform_by_values(
@@ -359,7 +365,7 @@ class Car:
             np.array(self.base_pos[:2]), self.rotation
         )
         # checking if collided or finished
-        if self.check_collision(self.car_model, self.bodies + [other.car_model for other in self.cars]):
+        if self.check_collision(self.car_model, self.bodies + [other.car_model for other in self.cars if other]):
             self.crashed = True
         if dist(self.center_pos, self.end_point) < consts.min_dist_to_target:
             self.finished = True
