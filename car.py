@@ -3,6 +3,7 @@ from typing import Set, Dict, Sequence, Optional, List, Tuple
 
 import pybullet as p
 import pybullet_data as pd
+from matplotlib import pyplot as plt
 
 import PRM
 from WeightedGraph import Edge, Vertex
@@ -339,7 +340,7 @@ class Car:
         # updating map;
         self.base_pos, quaternions = p.getBasePositionAndOrientation(self.car_model)
         self.rotation = p.getEulerFromQuaternion(quaternions)[2]
-        self.center_pos = PRM.pos_to_car_center(np.array(self.base_pos[:2]), self.rotation)
+        self.center_pos = pos_to_car_center(np.array(self.base_pos[:2]), self.rotation)
 
         # checking if collided or finished
         if self.check_collision(self.car_model, self.bodies + [other.car_model for other in self.cars]):
@@ -374,7 +375,7 @@ class Car:
 
         steering = [4, 6]
         base_position = list(
-            PRM.car_center_to_pos(np.array(self.start_point[:2]), self.rotation)
+            car_center_to_pos(np.array(self.start_point[:2]), self.rotation)
         ) + [0]
         p.resetBasePositionAndOrientation(
             car, base_position, p.getQuaternionFromEuler([0, 0, self.rotation])

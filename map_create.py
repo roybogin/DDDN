@@ -1,8 +1,12 @@
 import math
+from typing import Sequence
+
 import pybullet as p
 
+from helper import dist
 
-def create_wall(pos, orientation, length, width, client):
+
+def create_wall(pos: Sequence[float], orientation: Sequence[float], length: float, width: float, client) -> int:
     """
     creating a wall on the pybullet map
     :param pos: middle point of the wall
@@ -29,15 +33,8 @@ def create_wall(pos, orientation, length, width, client):
     return block
 
 
-def distance(p1, p2):
-    """
-    calculate the distance between two 2d points
-    """
-    return math.sqrt(pow(p1[0] - p2[0], 2) + pow(p1[1] - p2[1], 2))
-
-
 def create_poly_wall(poly, epsilon, client):
-    # TODO: finish docstring - create_poly_wall
+    # TODO: finish docstring and typing - create_poly_wall
     """
     create a polygonal chain of walls
     :param poly:
@@ -50,7 +47,7 @@ def create_poly_wall(poly, epsilon, client):
     if len(poly) < 2 or (len(poly) == 2 and poly[0] == poly[1]):
         print("Illegal polygonal wall")
         return
-    length = distance(poly[0], poly[1]) + 2 * epsilon
+    length = dist(poly[0], poly[1]) + 2 * epsilon
     width = 2 * epsilon
     if poly[0] != poly[-1]:
         prev_angle = math.atan2(poly[1][1] - poly[0][1], poly[1][0] - poly[0][0])
@@ -63,7 +60,7 @@ def create_poly_wall(poly, epsilon, client):
         prev_angle = math.atan2(poly[-1][1] - poly[-2][1], poly[-1][0] - poly[-2][0])
 
     for i in range(start, len(poly) - 1):
-        length = distance(poly[i], poly[i + 1]) + epsilon
+        length = dist(poly[i], poly[i + 1]) + epsilon
         angle = math.atan2(poly[i + 1][1] - poly[i][1], poly[i + 1][0] - poly[i][0])
         diff = angle - prev_angle
         while diff > math.pi:
@@ -104,7 +101,7 @@ def create_poly_wall(poly, epsilon, client):
 
 
 def create_map(in_map, epsilon, client):
-    # TODO: finish docstring - create_map
+    # TODO: finish docstring and typing - create_map
     """
     creates the map in pybullet
     :param in_map: the walls inside the map

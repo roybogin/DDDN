@@ -1,14 +1,20 @@
 import math
 
 import numpy as np
-from matplotlib import pyplot as plt
-from matplotlib.colors import ListedColormap
-
 import consts
+
+
+def pos_to_car_center(pos: np.ndarray, theta) -> np.ndarray:
+    return pos[:2] + consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
+
+
+def car_center_to_pos(pos: np.ndarray, theta) -> np.ndarray:
+    return pos[:2] - consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
 
 
 def dist(point1, point2):
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
+
 
 def get_wall(point1, point2):
     theta = math.atan2(point1[1] - point2[1], point1[0] - point2[0])
