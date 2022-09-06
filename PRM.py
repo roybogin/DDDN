@@ -1,5 +1,3 @@
-import heapq
-import time
 from typing import Set, List, Optional, Sequence, Tuple, Any
 
 import numpy as np
@@ -13,16 +11,88 @@ from helper import dist, map_index_from_pos, block_options
 
 
 # TODO: remove
-def tqdm(a,*args, **kwargs):
+def tqdm(a, *args, **kwargs):
     print('TQDMMMMMMMMMMMMMMMMM')
     return a
+
+
+def radius_delta(delta: float) -> float:
+    """
+    radius of the path given wheel angle
+    :param delta: angle of wheels relative to the car body
+    :return: radius of the path
+    """
+    if np.tan(delta) == 0:
+        return np.inf
+    return np.sqrt(consts.a_2 ** 2 + (consts.length / (np.tan(delta) ** 2)))
+
+
+def rotate_angle(vec: np.ndarray, alpha: float) -> np.ndarray:
+    """
+    rotate a vector by an angle
+    :param vec: vector to rotate
+    :param alpha: angle to rotate the vector by
+    :return: the rotated vector
+    """
+    cos, sin = np.cos(alpha), np.sin(alpha)
+    return np.array([[cos, -sin], [sin, cos]]) @ vec
+
+
+def radius_x_y_squared(x: float, y: float) -> float:
+    """
+    radius of the path given another position (x, y) assuming the current location is 0, 0 and rotation 0
+    :param x: x of the other position
+    :param y: y of the other position
+    :return: radius of the path
+    """
+    if y == 0:
+        return np.inf
+    t = (x ** 2 + 2 * consts.a_2 * x + y ** 2) / (2 * y)
+    return t ** 2 + consts.a_2 ** 2
+
+
+def theta_curve(x_tag: float, y_tag: float) -> float:
+    """
+    calculated derivative of y wrt. x on the calculated path at (0, 0) when another known point on the path is given
+    :param x_tag: x of the other position
+    :param y_tag: y of the other position
+    :return: derivative of y wrt. x on the calculated path
+    """
+    if y_tag == 0:
+        return 0
+    to_root = radius_x_y_squared(x_tag, y_tag) - (consts.a_2 ** 2)
+    if to_root == 0:
+        return np.sign(y_tag) * np.pi / 2
+    val = consts.a_2 / np.sqrt(to_root)
+    return np.sign(y_tag) * np.arctan(val)
+
+
+def transform_pov(vertex_1: Vertex, vertex_2: Vertex) -> Tuple[np.ndarray, float]:
+    """
+    show vertex_2 from the POV of vertex_1
+    :param vertex_1: a vertex
+    :param vertex_2: a vertex
+    :return: the position and angle of vertex_2 from the perspective of vertex_1
+    """
+    return rotate_angle(vertex_2.pos - vertex_1.pos, -vertex_1.theta), vertex_2.theta - vertex_1.theta
+
+
+def transform_by_values(pos: np.ndarray, theta: float, vertex_2: Vertex) -> Tuple[np.ndarray, float]:
+    """
+    show vertex_2 from the POV of (pos, angle)
+    :param pos: position for POV
+    :param theta: angle for POV
+    :param vertex_2: vertex to transform
+    :return: the position and angle of vertex_2 from the perspective of (pos, theta)
+    """
+    return rotate_angle(vertex_2.pos - pos, -theta), vertex_2.theta - theta
 
 
 class PRM:
     def __init__(self, shape, prm=None):
         self.end: Optional[Vertex] = None   # The end vertex for the PRM
-        self.shape: Tuple[int, int] = shape # shape of the vertex grid (in rows and columns)
-        self.max_angle_radius: float = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
+        self.shape: Tuple[int, int] = shape  # shape of the vertex grid (in rows and columns)
+        self.max_angle_radius: float = radius_delta(consts.max_steer)  # radius of arc for maximum steering
         self.res: float = np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)
         # resolution of the path planner
         self.tol: float = 0.02  # tolerance of the path planner
@@ -30,10 +100,10 @@ class PRM:
         self.s_last: Optional[Vertex] = None    # last vertex visited
         if prm is not None:  # copy graph and vertex list
             self.graph: WeightedGraph = prm.graph
-            self.vertices: List[List[List[Vertex]]] = prm.vertices
+            self.vertices: List[List[List[Optional[Vertex]]]] = prm.vertices
         else:  # generate graph and vertex list
             self.graph = WeightedGraph()
-            self.vertices: List[List[List[Vertex]]] = []
+            self.vertices: List[List[List[Optional[Vertex]]]] = []
             angle_offset = 2 * np.pi / consts.directions_per_vertex
             for _ in range(shape[0]):
                 self.vertices.append([])
@@ -69,53 +139,6 @@ class PRM:
                     y_temp += consts.vertex_offset
                 x_temp += consts.vertex_offset
 
-    def radius_delta(self, delta: float) -> float:
-        """
-        radius of the path given wheel angle
-        :param delta: angle of wheels relative to the car body
-        :return: radius of the path
-        """
-        if np.tan(delta) == 0:
-            return np.inf
-        return np.sqrt(consts.a_2 ** 2 + (consts.length / (np.tan(delta) ** 2)))
-
-    def rotate_angle(self, vec: np.ndarray, alpha: float) -> np.ndarray:
-        """
-        rotate a vector by an angle
-        :param vec: vector to rotate
-        :param alpha: angle to rotate the vector by
-        :return: the rotated vector
-        """
-        cos, sin = np.cos(alpha), np.sin(alpha)
-        return np.array([[cos, -sin], [sin, cos]]) @ vec
-
-    def radius_x_y_squared(self, x: float, y: float) -> float:
-        """
-        radius of the path given another position (x, y) assuming the current location is 0, 0 and rotation 0
-        :param x: x of the other position
-        :param y: y of the other position
-        :return: radius of the path
-        """
-        if y == 0:
-            return np.inf
-        t = (x ** 2 + 2 * consts.a_2 * x + y ** 2) / (2 * y)
-        return t ** 2 + consts.a_2 ** 2
-
-    def theta_curve(self, x_tag: float, y_tag: float) -> float:
-        """
-        calculated derivative of y wrt. x on the calculated path at (0, 0) when another known point on the path is given
-        :param x_tag: x of the other position
-        :param y_tag: y of the other position
-        :return: derivative of y wrt. x on the calculated path
-        """
-        if y_tag == 0:
-            return 0
-        to_root = self.radius_x_y_squared(x_tag, y_tag) - (consts.a_2 ** 2)
-        if to_root == 0:
-            return np.sign(y_tag) * np.pi / 2
-        val = consts.a_2 / np.sqrt(to_root)
-        return np.sign(y_tag) * np.arctan(val)
-
     def possible_offsets_angle(self, pos: np.ndarray, angle: int, only_forward: bool = False) -> List[Tuple]:
         #TODO: docstring
         ret = []
@@ -128,9 +151,9 @@ class PRM:
                     continue
                 # TODO: move code to new function - edges to add
                 if weight <= self.res:
-                    transformed = self.transform_pov(v, u)
+                    transformed = transform_pov(v, u)
                     x_tag, y_tag = transformed[0][0], transformed[0][1]
-                    differential_theta = self.theta_curve(x_tag, y_tag)
+                    differential_theta = theta_curve(x_tag, y_tag)
                     if not only_forward or x_tag >= 0:
                         if (
                             abs(differential_theta - transformed[1]) < self.tol
@@ -140,7 +163,7 @@ class PRM:
                             < self.tol
                         ):
                             if (
-                                self.radius_x_y_squared(x_tag, y_tag)
+                                radius_x_y_squared(x_tag, y_tag)
                                 >= self.max_angle_radius ** 2
                             ):
                                 ret.append(
@@ -216,25 +239,6 @@ class PRM:
             print("no successors")
         return next_vertex
 
-    def transform_pov(self, vertex_1: Vertex, vertex_2: Vertex) -> Tuple[np.ndarray, float]:
-        """
-        show vertex_2 from the POV of vertex_1
-        :param vertex_1: a vertex
-        :param vertex_2: a vertex
-        :return: the position and angle of vertex_2 from the perspective of vertex_1
-        """
-        return self.rotate_angle(vertex_2.pos - vertex_1.pos, -vertex_1.theta), vertex_2.theta - vertex_1.theta
-
-    def transform_by_values(self, pos: np.ndarray, theta: float, vertex_2: Vertex) -> Tuple[np.ndarray, float]:
-        """
-        show vertex_2 from the POV of (pos, angle)
-        :param pos: position for POV
-        :param theta: angle for POV
-        :param vertex_2: vertex to transform
-        :return: the position and angle of vertex_2 from the perspective of (pos, theta)
-        """
-        return self.rotate_angle(vertex_2.pos - pos, -theta), vertex_2.theta - theta
-
     def draw_path(self, current_vertex: Vertex, idx: Any = ""):
         """
         draw the planned path of the car from an initial vertex
@@ -301,6 +305,8 @@ class PRM:
                 old_weight = edge.original_weight
             rhs = self.d_star.rhs
             g = self.d_star.g
+            # TODO: maybe add stuff to edge and support an edge returning to a state before updating and we skip the
+            #  calculation
             if old_weight > curr_weight:
                 rhs[u] = min(rhs[u], curr_weight + g[v])
             elif rhs[u] == old_weight + g[v]:

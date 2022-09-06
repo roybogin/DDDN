@@ -58,7 +58,7 @@ class Car:
         map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)  # amount of vertices in each row\col
         self.map_shape = (map_length, map_length)  # shape of the vertices on the map
 
-        self.prm = PRM.PRM(self.map_shape, prm)  # prm object for running D* lite
+        self.prm: PRM.PRM = PRM.PRM(self.map_shape, prm)  # prm object for running D* lite
 
         self.next_vertex: Optional[Vertex] = None  # next vertex in the car's path
         self.prev_vertex: List[Vertex] = []  # stack that contains the vertices in the car's path for backtracking
@@ -218,14 +218,14 @@ class Car:
                     return True
         return False
 
-    def deactivate_edges(self): #TODO: docstring
+    def deactivate_edges(self):  # TODO: docstring
         points_to_check = [(self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
                            (self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] + 1/2 * consts.length),
                            (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] + 1/2 * consts.length),
                            (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
                            (self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
                            ]
-        points_to_check = [self.prm.rotate_angle(np.array(point), self.rotation) for point in points_to_check]
+        points_to_check = [PRM.rotate_angle(np.array(point), self.rotation) for point in points_to_check]
         self.remove_edges([points_to_check], True)
 
     def step(self) -> bool:
@@ -290,14 +290,14 @@ class Car:
                 self.next_vertex = next_vertex
                 self.is_backwards_driving = False
 
-        if self.calculations_clock % consts.calculate_action_time == 0: # calculate needed action to get to the next
+        if self.calculations_clock % consts.calculate_action_time == 0:  # calculate needed action to get to the next
             # vertex
-            transformed_vertex = self.prm.transform_by_values(
+            transformed_vertex = PRM.transform_by_values(
                 self.center_pos, self.rotation, self.next_vertex
             )
             x_tag, y_tag = transformed_vertex[0][0], transformed_vertex[0][1]
 
-            radius = np.sqrt(self.prm.radius_x_y_squared(x_tag, y_tag))
+            radius = np.sqrt(PRM.radius_x_y_squared(x_tag, y_tag))
             delta = np.sign(y_tag) * np.arctan(consts.length / radius)
 
             rotation = [delta, delta]
@@ -334,7 +334,7 @@ class Car:
     def update_state(self) -> bool:
         """
         updates the state of the car after a step,
-        updates variables and checks if the car collided with something, or got to it's goal.
+        updates variables and checks if the car collided with something, or got to its goal.
         :return: true if this car is done
         """
         # updating map;

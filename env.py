@@ -1,16 +1,18 @@
 import os
 import time
-from typing import Set, List, Dict
+from typing import Set, List, Dict, Optional
 
 import pybullet as p
 import pybullet_data as pd
+from matplotlib import pyplot as plt
 
 import PRM
+import consts
 import map_create
 import mazes
-from WeightedGraph import Edge
+from WeightedGraph import Edge, WeightedGraph
 from car import Car
-from helper import *
+from helper import map_index_from_pos, plot_line
 from scan_to_map import Map
 
 
@@ -41,25 +43,21 @@ class Env:
 
         self.segments_partial_map: Map = Map([consts.map_borders.copy()])
 
-        self.run_time = None  # time of the run
+        self.run_time: int = 0  # time of the run
 
-        self.maze = None  # walls of the maze - list of points
-        self.borders = None  # the maze borders - object IDs
+        self.maze: List = maze["walls"]  # walls of the maze - list of points
+        self.borders: Optional[List[int]] = None  # the maze borders - object IDs
 
         map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)
 
-        self.prm = PRM.PRM((map_length, map_length))
-
+        # Initialize structures
+        self.prm: PRM.PRM = PRM.PRM((map_length, map_length))   # A PRM object to generate structures
         self.generate_graph()
-
-        self.graph = self.prm.graph
-
+        self.graph: WeightedGraph = self.prm.graph  # the graph used by all of the cars
         self.obstacles = []  # list of obstacle IDs in pybullet
         self.bodies = []  # list of all collision body IDs in pybullet
 
-        self.maze = maze["walls"]
-
-        self.start_env()
+        # Generate cars
         positions = maze["positions"]
         self.number_of_cars = len(positions)
         self.cars: List[Car] = [
@@ -67,10 +65,9 @@ class Env:
             for i in range(self.number_of_cars)
         ]
 
+        # initialize pybullet
+        self.start_env()
         self.add_borders()
-
-        self.run_time = 0
-
         self.obstacles = map_create.create_map(
             self.maze, epsilon=consts.epsilon, client=p
         )
@@ -79,16 +76,12 @@ class Env:
         for car in self.cars:
             car.bodies = self.bodies
             car.borders = self.borders
-
-        for car in self.cars:
             car.after_pybullet_init()
-
-        for car in self.cars:
-            car.set_cars([other for other in self.cars if other != car])
+            car.set_cars(self.cars)
 
     def generate_graph(self):
         """
-        calls the prm genearte_graph function
+        calls the prm generate graph function
         """
         self.prm.generate_graph()
 
@@ -128,31 +121,25 @@ class Env:
         """
         adds the boarder walls to the maze
         """
-        self.borders = map_create.create_poly_wall(
-            consts.map_borders, epsilon=consts.epsilon, client=p
-        )
+        self.borders = map_create.create_poly_wall(consts.map_borders, epsilon=consts.epsilon, client=p)
 
     def step(self):
         """
         runs the simulation one step
         calls the step and scan on all cars
         """
-
-        if consts.print_runtime and self.run_time % 100 == 0:
+        if consts.print_runtime and self.run_time % 200 == 0:
             print("time:", self.run_time)
 
-        # updating target velocity and steering angle
+        # lookat changed edges prom parking
         changed_edges: Set[Edge] = set()
         for car in self.cars:
-            if car.step():
-                print('time now is ', self.run_time)
+            if car.step():  # cars also set their wanted action here
                 changed_edges.update(car.changed_edges)
-                if not car.parked:
+                if not car.parked:  # car stopped parking - doesn't need its changed edges
                     car.changed_edges.clear()
 
 
-                # changed_edges.add(0)
-                #
                 # map = []
                 # vert = self.prm.vertices
                 # for row in range(0, len(vert)):
@@ -166,8 +153,9 @@ class Env:
                 #         o = sum((1 for e in v.out_edges if e.weight != np.inf))
                 #         i = sum((1 for e in v.in_edges if e.weight != np.inf))
                 #         map[row].append(o+i)
-        if len(changed_edges) != 0:
-            print('computing paths - park')
+        if len(changed_edges) != 0:  # TODO: maybe once every few steps
+            # update graph so cars won't collide
+            print('computing paths - parking')
             t = time.time()
             for car in self.cars:
                 if car.parked or car.finished:
@@ -177,14 +165,15 @@ class Env:
                 car.calculations_clock = 0
             print('all paths computed in ', time.time() - t)
 
-        p.stepSimulation()
-
+        p.stepSimulation()  # make a step for all cars
         self.run_time += 1
 
         for car in self.cars:
-            car.update_state()
+            car.update_state()  # all the cars scan their environment   # TODO: for speedup - maybe once in a while
 
         if len(self.graph.deleted_edges) != 0 and self.run_time % consts.calculate_d_star_time == 0:
+            # TODO: for speedup - maybe merge with other path computation
+            # cars saw a wall - compute paths
             print("computing paths - wall")
             t = time.time()
             for car in self.cars:
@@ -196,7 +185,7 @@ class Env:
             print("all paths computed in ", time.time() - t)
             self.graph.deleted_edges.clear()
 
-        if self.run_time >= consts.max_time:
+        if self.run_time >= consts.max_time:    # the car ran out of time
             print(f"out of time in {self.maze_title}")
             for idx, car in enumerate(self.cars):
                 car.trace.append(car.center_pos)
@@ -204,19 +193,22 @@ class Env:
                     car.trace.append(car.end_point)
             return True
 
+        # did any car crash or all finished
         crashed = any(car.crashed for car in self.cars)
         finished = all(car.finished for car in self.cars)
 
         if not (crashed or finished):
             return False
-        for idx, car in enumerate(self.cars):
-            car.trace.append(car.center_pos)
-            if car.finished:
-                car.trace.append(car.end_point)
-            elif car.crashed:
-                plt.scatter(
-                    car.trace[-1][0], car.trace[-1][1], label=f"crash car {idx}"
-                )
+
+        if consts.drawing:
+            for idx, car in enumerate(self.cars):
+                car.trace.append(car.center_pos)
+                if car.finished:
+                    car.trace.append(car.end_point)
+                elif car.crashed:
+                    plt.scatter(
+                        car.trace[-1][0], car.trace[-1][1], label=f"crash car {idx}"
+                    )
 
         if crashed:
             print(f"crashed {self.maze_title} - time {self.run_time}")
@@ -231,7 +223,7 @@ class Env:
 def main():
     t0 = time.time()
     stop = False
-    maze = mazes.default_data_set[2]
+    maze = mazes.default_data_set[2]    # choose maze
     env = Env(maze)
     while not stop:
         stop = env.step()

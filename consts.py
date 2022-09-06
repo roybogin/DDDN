@@ -15,6 +15,7 @@ show_scaned_maze = True
 show_projected_path = True
 show_actual_path = True
 show_goal_starting_points = True
+print_runtime = True  # do we want to print the total time of the run
 
 
 cameraDistance = 11
@@ -49,7 +50,6 @@ amount_vertices_from_edge = math.ceil(0.3 / vertex_offset)
 
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
 max_time = int(5e4)  # time before forcing a new maze
-print_runtime = True  # do we want to print the total time of the run
 
 length = 0.325
 width = 0.2
