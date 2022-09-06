@@ -12,21 +12,8 @@ import map_create
 import mazes
 from WeightedGraph import Edge, WeightedGraph
 from car import Car
-from helper import map_index_from_pos, plot_line
+from helper import map_index_from_pos
 from scan_to_map import Map
-
-
-def add_discovered_matrix(discovered_matrix, start, end):
-    """
-    updates the discovered matrix by drawing a line on it matching the endpoints of the raycast
-    :param discovered_matrix: matrix that represents the discovered areas by the car
-    :param start: start of the raycast
-    :param end: end of the raycast
-    :return: the indices of discovered area
-    """
-    x0, y0 = map_index_from_pos(start)
-    x1, y1 = map_index_from_pos(end)
-    return plot_line(x0, y0, x1, y1, discovered_matrix)
 
 
 class Env:

@@ -5,7 +5,7 @@ from matplotlib.patches import Rectangle, Circle
 
 import consts
 from PRM import Vertex
-from helper import perpendicularDistance, dist
+from helper import perpendicular_distance, dist
 
 SAMPLE_DIST = 0.8
 
@@ -85,7 +85,7 @@ class Map:
         for point in points:
             for segment in self.new_segments:
                 for i in range(len(segment) - 1):
-                    if perpendicularDistance(point, segment[i], segment[i + 1]) < consts.epsilon:
+                    if perpendicular_distance(point, segment[i], segment[i + 1]) < consts.epsilon:
                         return False
         return True
 
@@ -133,7 +133,7 @@ class Map:
             should_add = True
             for segment in segment_representation:
                 if (
-                    perpendicularDistance(point, segment[0], segment[1])
+                    perpendicular_distance(point, segment[0], segment[1])
                     < consts.epsilon
                 ):
                     should_add = False
@@ -217,7 +217,7 @@ class Map:
         if end == 0:
             return []
         for i in range(1, end - 1):
-            d = perpendicularDistance(points[i], points[0], points[-1])
+            d = perpendicular_distance(points[i], points[0], points[-1])
             if d > dmax:
                 index = i
                 dmax = d

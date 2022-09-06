@@ -2,7 +2,7 @@ import heapq
 import itertools
 import time
 from collections import defaultdict
-from typing import Tuple, DefaultDict
+from typing import Tuple, DefaultDict, Any
 
 import numpy as np
 
@@ -11,24 +11,46 @@ from helper import dist
 
 
 class PriorityQueue:
+    """
+    a class for a priority queue
+    """
     def __init__(self):
-        self.queue = []
-        self.entry_dict = {}
-        self.count = itertools.count()
+        self.queue = []  # the actual queue
+        self.entry_dict = {}  # dictionary to map object to its heap instance
+        self.count = itertools.count()  # counting value to sort equalities
 
-    def insert(self, obj, priority):
+    def insert(self, obj: Any, priority: Any):
+        """
+        insert the object to the queue
+        :param obj: the object to insert
+        :param priority:
+        :return:
+        """
         entry = [priority, next(self.count), obj]
         self.entry_dict[obj] = entry
         heapq.heappush(self.queue, entry)
 
-    def remove(self, obj):
+    def remove(self, obj: Any):
+        """
+        remove object from the queue (nullifies it and removes later)
+        :param obj: object to remove
+        """
         self.entry_dict.pop(obj)[-1] = None
 
     def update(self, obj, new_priority):
+        """
+        update the priority of an object
+        :param obj: object to update
+        :param new_priority: new priority for the object
+        """
         self.remove(obj)
         self.insert(obj, new_priority)
 
-    def pop(self):
+    def pop(self) -> Any:
+        """
+        remove object with smallest priority (min of the heap)
+        :return: the matching object
+        """
         while len(self.queue) != 0:
             priority, _, obj = heapq.heappop(self.queue)
             if obj is not None:
@@ -37,7 +59,7 @@ class PriorityQueue:
         print('empty queue')
         return None
 
-    def top(self):
+    def top(self) -> Any:
         """
         return top of heap
         :return: top of heap
@@ -51,7 +73,7 @@ class PriorityQueue:
         print('empty queue')
         return None
 
-    def top_key(self):
+    def top_key(self) -> Any:
         """
         return top of heap
         :return: key for top of heap
@@ -81,7 +103,8 @@ def h(v_1: Vertex, v_2: Vertex) -> float:
 
 
 class DStar:
-    # D* lite algorithm that we implement
+    # D* lite algorithm that we implement - code is inferred from the psuedo-code in the article
+    # https://www.cs.cmu.edu/~maxim/files/dlite_tro05.pdf
     def __init__(self, graph: WeightedGraph, start_vertex: Vertex, goal_vertex: Vertex):
         self.graph = graph
         self.start_vertex = start_vertex
@@ -127,7 +150,7 @@ class DStar:
     def compute_shortest_path(self, vertex: Vertex):
         """
         computes the shortest path
-        :return:
+        :param: vertex -> the current vertex that we want to compute from
         """
         self.start_vertex = vertex
         while self.q.top_key() < self.calc_key(self.start_vertex) or \
