@@ -119,7 +119,7 @@ class Env:
         p.setGravity(0, 0, -10)
 
         p.setRealTimeSimulation(consts.use_real_time)
-        p.setTimeStep(consts.time_step)
+        # p.setTimeStep(consts.time_step)
         p.loadSDF(os.path.join(pd.getDataPath(), "stadium.sdf"))
         p.resetDebugVisualizerCamera(
             cameraDistance=consts.cameraDistance,
@@ -215,6 +215,7 @@ class Env:
                 if car.finished:
                     p.removeBody(car.car_model)
                     idx = car.car_number
+                    car.trace.append(car.end_point)
                     del car
                     self.cars[idx] = None
 
@@ -275,6 +276,22 @@ def main():
         stop = env.step()
     print(f"total time: {time.time() - t0}")
     p.disconnect()
+    if consts.debugging:
+        map = []
+        vert = env.prm.vertices
+        for row in range(0, len(vert)):
+            map.append([])
+            for col in range(0, len(vert[row])):
+                if len(vert[row][col]) == 0 or vert[row][col][0] is None:
+                    map[row].append(0)
+                    continue
+                v = vert[row][col][0]
+
+                o = sum((1 for e in v.out_edges if e.weight != np.inf))
+                i = sum((1 for e in v.in_edges if e.weight != np.inf))
+                map[row].append(o + i)
+        with open('edges.txt', 'w') as f:
+            f.write(str(map))
     if consts.drawing:
         env.segments_partial_map.plot(env.ax)
         for idx, car in enumerate(env.cars):

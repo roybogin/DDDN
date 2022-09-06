@@ -41,8 +41,6 @@ map_borders = [
     (size_map_quarter, size_map_quarter),
 ]
 
-seed = None  # randomness seed
-
 
 directions_per_vertex = 36
 amount_vertices_from_edge = math.ceil(0.3 / vertex_offset)

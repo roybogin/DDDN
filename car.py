@@ -102,15 +102,28 @@ class Car:
         this function removes all vertices not viable by the addition of a new list of segments
         :param new: the new segments to take into account
         """
-        vertex_removal_radius = math.ceil(0.4 / consts.vertex_offset)
+        vertex_removal_radius = math.ceil(0.3 / consts.vertex_offset)
         for segment in new:
-            for point in segment:
+            if len(segment) == 1:
                 for block in block_options(
-                    map_index_from_pos(point), vertex_removal_radius, self.map_shape
+                    map_index_from_pos(segment[0]), vertex_removal_radius, self.map_shape
                 ):
                     for vertex in self.prm.vertices[block[0]][block[1]]:
-                        if vertex and dist(vertex.pos, point) < consts.width:
+                        if vertex and dist(vertex.pos, segment[0]) < consts.width:
                             self.prm.remove_vertex(vertex)
+            else:
+                for i in range(len(segment) - 1):
+                    rect = get_wall(segment[i], segment[i+1], 0.3)
+                    x_min = max(consts.amount_vertices_from_edge, min([map_index_from_pos(point)[0] for point in rect]))
+                    x_max = min(len(self.prm.vertices) - consts.amount_vertices_from_edge, max([map_index_from_pos(point)[0] for point in rect]))
+                    y_min = max(consts.amount_vertices_from_edge, min([map_index_from_pos(point)[1] for point in rect]))
+                    y_max = min(len(self.prm.vertices) - consts.amount_vertices_from_edge, max([map_index_from_pos(point)[1] for point in rect]))
+                    for x in range(x_min, x_max+1):
+                        for y in range(y_min, y_max+1):
+                            if is_in_rect(rect, (x, y)):
+                                for angle in range(consts.directions_per_vertex):
+                                    v = self.prm.vertices[x][y][angle]
+                                    self.prm.remove_vertex(v)
 
     def remove_edges(self, new_segments, deactivate=False):
         """
@@ -136,22 +149,40 @@ class Car:
                     and edge.dst in problematic_vertices
                 ):
                     problematic_edges.add(edge)
-        for segment in new_segments:
-            for edge in problematic_edges:
-                for i in range(len(segment) - 1):
+        for edge in problematic_edges:
+            changed_edge = False
+            for segment in new_segments:
+                if changed_edge:
+                    break
+                if len(segment) == 1:
                     if not deactivate:
-                        if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
+                        if edge.active and perpendicularDistance(segment[0], edge.src.pos, edge.dst.pos) < \
                                 consts.width + 2 * consts.epsilon:
                             self.prm.remove_edge(edge)
-                            break   # don't check for other segments
+                            changed_edge = True
                     else:
-                        if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
-                                consts.width + 3 * consts.epsilon:
+                        if edge.active and perpendicularDistance(segment[0], edge.src.pos, edge.dst.pos) < \
+                                consts.width + 1 * consts.epsilon:
                             edge.weight = np.inf
                             self.changed_edges.add(edge)
                             edge.parked_cars += 1
-                            break
-
+                            changed_edge = True
+                else:
+                    for i in range(len(segment) - 1):
+                        if not deactivate:
+                            if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
+                                    consts.width + 2 * consts.epsilon:
+                                self.prm.remove_edge(edge)
+                                changed_edge = True
+                                break   # exit for over i
+                        else:
+                            if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
+                                    consts.width + 1 * consts.epsilon:
+                                edge.weight = np.inf
+                                self.changed_edges.add(edge)
+                                edge.parked_cars += 1
+                                changed_edge = True
+                                break  # exit for over i
 
     def scan_environment(self):
         """
@@ -241,8 +272,12 @@ class Car:
                            (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
                            (self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
                            ]
+        horizontal_line = [(self.center_pos[0] - 1/2 * consts.width, self.center_pos[1]),
+                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1])]
+        vertical_line = [(self.center_pos[0], self.center_pos[1] - 1/2 * consts.length),
+                           (self.center_pos[0], self.center_pos[1] + 1/2 * consts.length)]
         points_to_check = [self.prm.rotate_angle(np.array(point), self.rotation) for point in points_to_check]
-        self.remove_edges([points_to_check], True)
+        self.remove_edges([points_to_check, horizontal_line, vertical_line], True)
 
     def step(self):
         """
