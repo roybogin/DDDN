@@ -24,7 +24,7 @@ cameraTargetPosition = [0, 0, 0]
 
 # interpreting NN outputs
 max_steer = np.pi / 4
-max_velocity = 10
+max_velocity = 8
 max_force = 100
 epsilon = 0.1
 
@@ -56,7 +56,7 @@ a_2 = 0.1477  # a_2 of the car
 minimum_car_dist = 1
 
 
-calculate_action_time = 40  # 10
-calculate_d_star_time = 40  # 20
-reset_count_time = 100      # 60
+calculate_action_time = 50
+calculate_d_star_time = 50
+reset_count_time = 200
 

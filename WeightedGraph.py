@@ -2,6 +2,8 @@ from typing import Set
 
 import numpy as np
 
+import consts
+
 
 class Vertex:
     """
@@ -82,12 +84,13 @@ class WeightedGraph:
             self.deleted_edges.add(edge)
             edge.weight = np.inf
         else:
-            print('false edge')  # just to be sure that there is no error
-
+            if consts.debugging:
+                print('false edge')  # just to be sure that there is no error
 
     def remove_vertex(self, v: Vertex):
         if v not in self.vertices:
-            print('false vertex')  # just to be sure that there is no error
+            if consts.debugging:
+                print('false vertex')  # just to be sure that there is no error
             return
         for edge in v.in_edges:
             other_vertex = edge.src

@@ -165,9 +165,10 @@ class Env:
         calls the step and scan on all cars
         """
 
-        if consts.print_runtime and self.run_time % 100 == 0:
+        if consts.print_runtime and self.run_time % 400 == 0:
             print("time:", self.run_time)
 
+        # TODO: reimplement deleting car when finishing - it's on the git
         # updating target velocity and steering angle
         changed_edges: Set[Edge] = set()
         for car in self.cars:

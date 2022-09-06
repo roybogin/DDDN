@@ -219,7 +219,8 @@ class PRM:
             successors, key=lambda tup: next_vertex_key(*tup), default=(None,)
         )[0]
         if next_vertex is None:
-            print("no successors")
+            if consts.debugging:
+                print("no successors")
         return next_vertex
 
     def transform_pov(self, vertex_1: Vertex, vertex_2: Vertex):

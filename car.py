@@ -29,7 +29,7 @@ class Car:
         self.changed_edges: Set[Edge] = set()
 
         self.is_backwards_driving = False
-        self.backward_driving_counter = 0   # counter for how many steps we were driving backwards
+        self.backward_driving_counter = 0  # counter for how many steps we were driving backwards
 
         self.action = None
         self.trace = []  # the trace of the car's paths, for plotting
@@ -65,14 +65,15 @@ class Car:
         self.current_vertex = self.prm.get_closest_vertex(
             self.start_point, self.rotation
         )
-        print(f"new end is {self.end_point}")
+        if consts.debugging:
+            print(f"new end is {self.end_point}")
         self.start_point = [self.current_vertex.pos[0], self.current_vertex.pos[1], 0]
         self.center_pos = self.current_vertex.pos
 
         self.car_model = None  # pybullet ID of the car
         self.wheels = None  # pybullet ID of the wheels for setting speed
         self.steering = None  # pybullet ID of the wheels for steering
-        self.cars = None # pybullet ID's for all the cars in the environment
+        self.cars = None  # pybullet ID's for all the cars in the environment
 
     def pybullet_init(self):
         """
@@ -86,7 +87,8 @@ class Car:
         self.prm.d_star.compute_shortest_path(self.current_vertex)
         if consts.drawing:
             self.prm.draw_path(self.current_vertex, idx=f"car {self.car_number}")
-        print(self.prm.end.pos)
+        if consts.debugging:
+            print(self.prm.end.pos)
 
     def set_cars(self, cars):
         self.cars = cars
@@ -106,20 +108,22 @@ class Car:
         for segment in new:
             if len(segment) == 1:
                 for block in block_options(
-                    map_index_from_pos(segment[0]), vertex_removal_radius, self.map_shape
+                        map_index_from_pos(segment[0]), vertex_removal_radius, self.map_shape
                 ):
                     for vertex in self.prm.vertices[block[0]][block[1]]:
                         if vertex and dist(vertex.pos, segment[0]) < consts.width:
                             self.prm.remove_vertex(vertex)
             else:
                 for i in range(len(segment) - 1):
-                    rect = get_wall(segment[i], segment[i+1], 0.3)
+                    rect = get_wall(segment[i], segment[i + 1], 0.3)
                     x_min = max(consts.amount_vertices_from_edge, min([map_index_from_pos(point)[0] for point in rect]))
-                    x_max = min(len(self.prm.vertices) - consts.amount_vertices_from_edge, max([map_index_from_pos(point)[0] for point in rect]))
+                    x_max = min(len(self.prm.vertices) - consts.amount_vertices_from_edge,
+                                max([map_index_from_pos(point)[0] for point in rect]))
                     y_min = max(consts.amount_vertices_from_edge, min([map_index_from_pos(point)[1] for point in rect]))
-                    y_max = min(len(self.prm.vertices) - consts.amount_vertices_from_edge, max([map_index_from_pos(point)[1] for point in rect]))
-                    for x in range(x_min, x_max+1):
-                        for y in range(y_min, y_max+1):
+                    y_max = min(len(self.prm.vertices) - consts.amount_vertices_from_edge,
+                                max([map_index_from_pos(point)[1] for point in rect]))
+                    for x in range(x_min, x_max + 1):
+                        for y in range(y_min, y_max + 1):
                             if is_in_rect(rect, (x, y)):
                                 for angle in range(consts.directions_per_vertex):
                                     v = self.prm.vertices[x][y][angle]
@@ -136,7 +140,7 @@ class Car:
         for segment in new_segments:
             for point in segment:
                 for block in block_options(
-                    map_index_from_pos(point), edge_removal_radius, self.map_shape
+                        map_index_from_pos(point), edge_removal_radius, self.map_shape
                 ):
                     problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
 
@@ -145,8 +149,8 @@ class Car:
                 continue
             for edge in vertex.in_edges | vertex.out_edges:
                 if (
-                    edge.src in problematic_vertices
-                    and edge.dst in problematic_vertices
+                        edge.src in problematic_vertices
+                        and edge.dst in problematic_vertices
                 ):
                     problematic_edges.add(edge)
         for edge in problematic_edges:
@@ -170,14 +174,14 @@ class Car:
                 else:
                     for i in range(len(segment) - 1):
                         if not deactivate:
-                            if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
-                                    consts.width + 2 * consts.epsilon:
+                            if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos,
+                                                                      edge.dst.pos) < consts.width + 2 * consts.epsilon:
                                 self.prm.remove_edge(edge)
                                 changed_edge = True
-                                break   # exit for over i
+                                break  # exit for over i
                         else:
-                            if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos, edge.dst.pos) < \
-                                    consts.width + 1 * consts.epsilon:
+                            if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos,
+                                                                      edge.dst.pos) < consts.width + 1 * consts.epsilon:
                                 edge.weight = np.inf
                                 self.changed_edges.add(edge)
                                 edge.parked_cars += 1
@@ -266,17 +270,19 @@ class Car:
         return False
 
     def deactivate_edges(self):
-        points_to_check = [(self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
-                           (self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] + 1/2 * consts.length),
-                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] + 1/2 * consts.length),
-                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
-                           (self.center_pos[0] - 1/2 * consts.width, self.center_pos[1] - 1/2 * consts.length),
+        points_to_check = [(- 1 / 2 * consts.length, - 1 / 2 * consts.width),
+                           (- 1 / 2 * consts.length, + 1 / 2 * consts.width),
+                           (+ 1 / 2 * consts.length, + 1 / 2 * consts.width),
+                           (+ 1 / 2 * consts.length, - 1 / 2 * consts.width),
+                           (- 1 / 2 * consts.length, - 1 / 2 * consts.width),
                            ]
-        horizontal_line = [(self.center_pos[0] - 1/2 * consts.width, self.center_pos[1]),
-                           (self.center_pos[0] + 1/2 * consts.width, self.center_pos[1])]
-        vertical_line = [(self.center_pos[0], self.center_pos[1] - 1/2 * consts.length),
-                           (self.center_pos[0], self.center_pos[1] + 1/2 * consts.length)]
-        points_to_check = [self.prm.rotate_angle(np.array(point), self.rotation) for point in points_to_check]
+        horizontal_line = [(- 1 / 2 * consts.length, 0),
+                           (1 / 2 * consts.length, 0)]
+        vertical_line = [(0, - 1 / 2 * consts.width),
+                         (0, + 1 / 2 * consts.width)]
+        points_to_check = [self.prm.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in points_to_check]
+        horizontal_line = [self.prm.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in horizontal_line]
+        vertical_line = [self.prm.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in vertical_line]
         self.remove_edges([points_to_check, horizontal_line, vertical_line], True)
 
     def step(self):
@@ -290,7 +296,8 @@ class Car:
             other = self.cars[number]
             if other:
                 distance_from_car = dist(self.center_pos, other.center_pos)
-                if (self.parked and distance_from_car < 2 * consts.minimum_car_dist) or distance_from_car < consts.minimum_car_dist:
+                if (
+                        self.parked and distance_from_car < 2 * consts.minimum_car_dist) or distance_from_car < consts.minimum_car_dist:
                     needs_parking = True
 
         changed_parking = False
@@ -335,14 +342,16 @@ class Car:
                 self.backward_driving_counter -= 1
             if next_vertex is None or self.backward_driving_counter > 0:
                 if (not self.is_backwards_driving) or dist(
-                    self.center_pos, self.next_vertex.pos
+                        self.center_pos, self.next_vertex.pos
                 ) <= 0.1:
                     self.next_vertex = self.prev_vertex.pop()
                     self.is_backwards_driving = True
-                    print("popped")
+                    if consts.debugging:
+                        print("popped")
                     self.backward_driving_counter = 2
             else:
-                print("forward")
+                if consts.debugging:
+                    print("forward")
                 self.next_vertex = next_vertex
                 self.is_backwards_driving = False
                 self.backward_driving_counter = 0
