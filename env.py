@@ -81,7 +81,7 @@ class Env:
             car.borders = self.borders
 
         for car in self.cars:
-            car.pybullet_init()
+            car.after_pybullet_init()
 
         for car in self.cars:
             car.set_cars([other for other in self.cars if other != car])
