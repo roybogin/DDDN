@@ -84,10 +84,10 @@ def transform_by_values(pos: np.ndarray, theta: float, vertex_2: Vertex) -> Tupl
 
 
 class PRM:
-    def __init__(self, size_map_quarter, shape, prm=None):
+    def __init__(self, size_map_quarter: float, shape: Tuple[int, int], prm=None):
         self.end: Optional[Vertex] = None   # The end vertex for the PRM
         self.shape: Tuple[int, int] = shape  # shape of the vertex grid (in rows and columns)
-        self.size_map_quarter: float = size_map_quarter # length of half of the grid (0 to end)
+        self.size_map_quarter: float = size_map_quarter  # length of half of the grid (0 to end)
         self.max_angle_radius: float = radius_delta(consts.max_steer)  # radius of arc for maximum steering
         self.res: float = np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)
         # resolution of the path planner
@@ -136,7 +136,7 @@ class PRM:
                 x_temp += consts.vertex_offset
 
     def possible_offsets_angle(self, pos: np.ndarray, angle: int, only_forward: bool = False) -> List[Tuple]:
-        #TODO: docstring
+        # TODO: docstring
         ret = []
         block = map_index_from_pos(pos, self.size_map_quarter)
         v = self.vertices[block[0]][block[1]][angle]
@@ -180,7 +180,7 @@ class PRM:
 
     def generate_graph(self):
         """
-        genere the graph by computing edges for one vertex and copying it for other vertices
+        generate the graph by computing edges for one vertex and copying it for other vertices
         """
         to_add = self.possible_offsets(np.array([0, 0]), True)
         for theta, angle in tqdm(enumerate(to_add), total=consts.directions_per_vertex):
@@ -202,7 +202,7 @@ class PRM:
 
     def set_end(self, pos: Sequence[int]):
         """
-        sets the end position of the car (rounded to nearest vertex) and connect edges to ignore rotation at end
+        sets the end position of the car (rounded to the nearest vertex) and connect edges to ignore rotation at end
         :param pos: end position of the car
         :return: the rounded end position
         """
@@ -248,7 +248,7 @@ class PRM:
         plt.scatter(x_list, y_list, label=f"start {idx}")
         vertex = current_vertex
         parent = self.next_in_path(vertex)
-        while (parent != self.end) and (parent is not None):
+        while (vertex != self.end) and (parent is not None):
             vertex = parent
             if parent != self.end:
                 parent = self.next_in_path(vertex)
@@ -278,14 +278,14 @@ class PRM:
     def init_d_star(self, start_vertex: Vertex):
         """
         initialize D* algorithm
-        :param start_vertex: starting vertex of he algorithm
+        :param start_vertex: starting vertex of the algorithm
         """
         self.d_star = DStar(self.graph, start_vertex, self.end)
         self.s_last = start_vertex
 
     def update_d_star(self, edge_set: Set[Edge], current_vertex: Vertex):
         """
-        code to run when updated edges need to be accounted by the D* (assuming weight changed fr original to
+        code to run when updated edges need to be accounted by the D* (assuming weight changed for original to
         infinity or the opposite direction)
         :param edge_set: edges that wre changed
         :param current_vertex: current vertex of the car

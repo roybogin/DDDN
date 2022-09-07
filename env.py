@@ -9,11 +9,8 @@ from matplotlib import pyplot as plt
 import PRM
 import consts
 import maze_create
-
-import mazes
 from WeightedGraph import Edge, WeightedGraph
 from car import Car
-from helper import map_index_from_pos
 from scan_to_map import Map
 
 
@@ -51,11 +48,12 @@ class Env:
         map_length = int((2 * self.size_map_quarter) // consts.vertex_offset)
 
         # Initialize structures
-        self.prm: PRM.PRM = PRM.PRM((map_length, map_length), self.size_map_quarter)   # A PRM object to generate structures
+        self.prm: PRM.PRM = PRM.PRM(self.size_map_quarter, (map_length, map_length))  # A PRM object to generate
+        # structures
         self.generate_graph()
-        self.graph: WeightedGraph = self.prm.graph  # the graph used by all of the cars
-        self.obstacles = []  # list of obstacle IDs in pybullet
-        self.bodies = []  # list of all collision body IDs in pybullet
+        self.graph: WeightedGraph = self.prm.graph  # the graph used by all the cars
+        self.obstacles: List[int] = []  # list of obstacle IDs in pybullet
+        self.bodies: List[int] = []  # list of all collision body IDs in pybullet
 
         # Generate cars
         positions = maze["positions"]
@@ -138,16 +136,16 @@ class Env:
         for car in self.cars:
             if car and car.step():
                 changed_edges.update(car.changed_edges)
-                if not car.parked:  # car stopped parking - doesn't need its changed edges
+                if not car.is_parked:  # car stopped parking - doesn't need its changed edges
                     car.changed_edges.clear()
                     
         if len(changed_edges) != 0:
-        # update graph so cars won't collide
+            # update graph so cars won't collide
             print('computing paths - parking')
             t = time.time()
             for car in self.cars:
                 if car:
-                    if car.parked or car.finished:
+                    if car.is_parked or car.finished:
                         continue
                     car.prm.update_d_star(changed_edges, car.current_vertex)
                     car.prm.d_star.compute_shortest_path(car.current_vertex)
@@ -175,7 +173,7 @@ class Env:
             t = time.time()
             for car in self.cars:
                 if car:
-                    if car.parked or car.finished:
+                    if car.is_parked or car.finished:
                         continue
                     car.prm.update_d_star(self.graph.deleted_edges, car.current_vertex)
                     car.prm.d_star.compute_shortest_path(car.current_vertex)
@@ -190,8 +188,7 @@ class Env:
                     car.trace.append(car.center_pos)
 
             return True
-            
-            
+
         # did any car crash or all finished
         crashed = any(car.crashed for car in self.cars if car)
         finished = all(car.finished for car in self.cars if car)        

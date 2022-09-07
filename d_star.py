@@ -1,6 +1,5 @@
 import heapq
 import itertools
-import time
 from collections import defaultdict
 from typing import Tuple, DefaultDict, Any
 
@@ -49,7 +48,7 @@ class PriorityQueue:
 
     def pop(self) -> Any:
         """
-        remove object with smallest priority (min of the heap)
+        remove object with the smallest priority (min of the heap)
         :return: the matching object
         """
         while len(self.queue) != 0:

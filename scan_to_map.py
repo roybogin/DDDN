@@ -16,7 +16,7 @@ class Map:
     # map is a list of segments, the obstacles
     # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
 
-    def __init__(self, initial_map: list[Polygonal_Chain] = None, size_map: float = int(consts.size_map_quarter * 1.2)):
+    def __init__(self, initial_map: list[Polygonal_Chain], size_map: float):
         if initial_map is None:
             initial_map = []
         self.map = initial_map
@@ -136,16 +136,16 @@ class Map:
         segment_representation = self.segment_representation()
 
         # filtering the points we don't need to add.
-        for Point in points:
+        for point in points:
             should_add = True
             for segment in segment_representation:
                 if (
-                    perpendicular_distance(Point, segment[0], segment[1])
+                    perpendicular_distance(point, segment[0], segment[1])
                     < consts.epsilon
                 ):
                     should_add = False
             if should_add:
-                new_points.append(Point)
+                new_points.append(point)
 
         if len(segment_representation) == 0:
             new_points = points
@@ -170,7 +170,7 @@ class Map:
 
     def segment_representation(self) -> list[tuple[Point, Point]]:
         """
-        returns a list of all of the segments in the map.
+        returns a list of all the segments in the map.
         """
         segments = []
         for i in range(len(self.map)):
@@ -211,7 +211,7 @@ class Map:
         """
         self.map.append(chain)
 
-    def points_to_line(self, points: list[Point]) -> None:
+    def points_to_line(self, points: list[Point]) -> list[Point]:
         """
         an implementation of the Ramer–Douglas–Peucker algorithm
         to make a set of points into a polygonal chain.
@@ -231,10 +231,10 @@ class Map:
         # If max distance is greater than epsilon, recursively simplify
         if dmax > consts.epsilon:
             # Recursive call
-            recResults1 = self.points_to_line(points[: index + 1])
-            recResults2 = self.points_to_line(points[index:])
+            rec_results1 = self.points_to_line(points[: index + 1])
+            rec_results2 = self.points_to_line(points[index:])
             # Build the result list
-            result = recResults1 + recResults2[1:]
+            result = rec_results1 + rec_results2[1:]
         else:
             result = [points[0], points[-1]]
         # Return the result

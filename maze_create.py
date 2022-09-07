@@ -48,7 +48,7 @@ def create_poly_wall(poly, epsilon, client):
         return
     length = dist(poly[0], poly[1]) + 2 * epsilon
     width = 2 * epsilon
-    if poly[0] != poly[-1]:  # if the given chain is not a closed chain, we dont need to shorten the first block
+    if poly[0] != poly[-1]:  # if the given chain is not a closed chain, we don't need to shorten the first block
         prev_angle = math.atan2(poly[1][1] - poly[0][1], poly[1][0] - poly[0][0])
         euler = [0, 0, prev_angle]
         orientation = p.getQuaternionFromEuler(euler)

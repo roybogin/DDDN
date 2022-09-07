@@ -6,6 +6,7 @@ import pybullet_data as pd
 from matplotlib import pyplot as plt
 
 import PRM
+import consts
 from WeightedGraph import Edge, Vertex
 from helper import *
 from scan_to_map import Map
@@ -20,7 +21,7 @@ class Car:
         in the specified format from the user guide)
         :param prm: shared prm object that the cars get as input to create copies
         :param segments_map: shared map for the cars that will be updated when the car encounters walls
-        :param size_map_quater: half of the map length (distance from (0, 0) to the walls)
+        :param size_map_quarter: half of the map length (distance from (0, 0) to the walls)
         """
         super(Car, self).__init__()
         if consts.drawing:
@@ -28,12 +29,12 @@ class Car:
             self.trace: List = []  # the trace of the car's paths, for plotting
         self.size_map_quarter = size_map_quarter
         self.car_number: int = index
-        self.borders = None  # TODO:typing and type explain
-        self.bodies = None  # TODO:typing and type explain
+        self.borders: Optional[List[int]] = None  # the maze borders - object IDs
+        self.bodies: Optional[List[int]] = None  # list of all collision body IDs in pybullet - for collision testing
 
-        self.parked: bool = False  # is the car currently parked # TODO: change name to is_parked
-        self.changed_edges: Set[Edge] = set()   # set of edges that were affected by the car parking
-        self.is_backwards_driving: bool = False # is the car currently driving backwards
+        self.is_parked: bool = False  # is the car currently parked
+        self.changed_edges: Set[Edge] = set()  # set of edges that were affected by the car parking
+        self.is_backwards_driving: bool = False  # is the car currently driving backwards
         self.backward_driving_counter: int = 0  # counter for how many steps we were driving backwards
 
         self.action: Optional[Sequence[float, np.ndarray]] = None  # current action for the car and contains two items -
@@ -50,14 +51,14 @@ class Car:
         self.finished: bool = False  # did the car get to the goal
         self.crashed: bool = False  # did the car crash
 
-        self.segments_partial_map: Map = segments_map   # a shared map for all cars that contains the discovered
+        self.segments_partial_map: Map = segments_map  # a shared map for all cars that contains the discovered
         # obstacles
-        self.hits: List = [[] for _ in range(consts.ray_amount)]    # list of hits from the ray casters on the cars
+        self.hits: List = [[] for _ in range(consts.ray_amount)]  # list of hits from the ray casters on the cars
         # for wall detection
-        map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)  # amount of vertices in each row\col
+        map_length = int((2 * size_map_quarter) // consts.vertex_offset)  # amount of vertices in each row\col
         self.map_shape = (map_length, map_length)  # shape of the vertices on the map
 
-        self.prm = PRM.PRM(self.map_shape, self.size_map_quarter, prm)   # prm object for running D* lite
+        self.prm = PRM.PRM(self.size_map_quarter, self.map_shape, prm)  # prm object for running D* lite
 
         self.next_vertex: Optional[Vertex] = None  # next vertex in the car's path
         self.prev_vertex: List[Vertex] = []  # stack that contains the vertices in the car's path for backtracking
@@ -66,18 +67,18 @@ class Car:
         # car - is rounded to the nearest vertex
         self.current_vertex: Vertex = self.prm.get_closest_vertex(self.start_point, self.rotation)  # current vertex in
         # the prm that matches the car (the closest one)
-        
+
         if consts.debugging:
             print(f"new end is {self.end_point}")
-            
-        self.start_point: Sequence[float] = [self.current_vertex.pos[0], self.current_vertex.pos[1], 0]  # rounded start position
-        self.center_pos: Sequence[float] | np.ndarray = self.current_vertex.pos   # position of car center
+
+        self.start_point: Sequence[float] = [self.current_vertex.pos[0], self.current_vertex.pos[1],
+                                             0]  # rounded start position
+        self.center_pos: Sequence[float] | np.ndarray = self.current_vertex.pos  # position of car center
 
         self.car_model: Optional[int] = None  # pybullet ID of the car
         self.wheels: Optional[list] = None  # pybullet ID of the wheels for setting speed
         self.steering: Optional[list] = None  # pybullet ID of the wheels for steering
         self.cars: Optional[list] = None  # car objects for all the cars in the environment
-
 
     def after_pybullet_init(self):
         """
@@ -98,7 +99,6 @@ class Car:
         :param cars: list of cars from environment
         """
         self.cars = cars
-
 
     def remove_vertices(self, new):
         """
@@ -155,8 +155,8 @@ class Car:
                         for block in block_options(map_index_from_pos(point1, self.size_map_quarter),
                                                    edge_removal_radius, self.map_shape):
                             problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
-                        point1 = point1 + self.prm.rotate_angle(np.array([0.1, 0]), math.atan2(point2[1] - point1[1],
-                                                                                               point2[0] - point1[0]))
+                        point1 = point1 + PRM.rotate_angle(np.array([0.1, 0]), math.atan2(point2[1] - point1[1],
+                                                                                          point2[0] - point1[0]))
                     for block in block_options(
                             map_index_from_pos(point1, self.size_map_quarter), edge_removal_radius, self.map_shape
                     ):
@@ -179,12 +179,12 @@ class Car:
                     break
                 if len(segment) == 1:
                     if not deactivate:
-                        if edge.active and perpendicularDistance(segment[0], edge.src.pos, edge.dst.pos) < \
+                        if edge.active and perpendicular_distance(segment[0], edge.src.pos, edge.dst.pos) < \
                                 consts.width + 2 * consts.epsilon:
                             self.prm.remove_edge(edge)
                             changed_edge = True
                     else:
-                        if edge.active and perpendicularDistance(segment[0], edge.src.pos, edge.dst.pos) < \
+                        if edge.active and perpendicular_distance(segment[0], edge.src.pos, edge.dst.pos) < \
                                 consts.width + 1 * consts.epsilon:
                             edge.weight = np.inf
                             self.changed_edges.add(edge)
@@ -226,7 +226,8 @@ class Car:
             if did_hit:
                 self.hits[i].append((end[0], end[1]))
                 if len(self.hits[i]) == consts.max_hits_before_calculation:
-                    print('calculating')
+                    if consts.debugging:
+                        print('calculating')
                     self.segments_partial_map.add_points_to_map(self.hits[i])
                     self.hits[i] = []
                     new = self.segments_partial_map.new_segments
@@ -283,7 +284,6 @@ class Car:
                     return True
         return False
 
-
     def deactivate_edges(self):
         points_to_check = [(- 1 / 2 * consts.length, - 1 / 2 * consts.width),
                            (- 1 / 2 * consts.length, + 1 / 2 * consts.width),
@@ -295,11 +295,11 @@ class Car:
                            (1 / 2 * consts.length, 0)]
         vertical_line = [(0, - 1 / 2 * consts.width),
                          (0, + 1 / 2 * consts.width)]
-        points_to_check = [self.prm.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in
+        points_to_check = [PRM.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in
                            points_to_check]
-        horizontal_line = [self.prm.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in
+        horizontal_line = [PRM.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in
                            horizontal_line]
-        vertical_line = [self.prm.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in
+        vertical_line = [PRM.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in
                          vertical_line]
         self.remove_edges([points_to_check, horizontal_line, vertical_line], True)
 
@@ -311,31 +311,31 @@ class Car:
         :return: has the parking state changed (started or finished parking)
         """
         needs_parking = False
-        for number in range(self.car_number):   # check if we need to park because car is to close to us
+        for number in range(self.car_number):  # check if we need to park because car is to close to us
             other = self.cars[number]
             if other:
                 distance_from_car = dist(self.center_pos, other.center_pos)
-                if (self.parked and distance_from_car < 2 * consts.minimum_car_dist) or distance_from_car < consts.minimum_car_dist:
+                if (self.is_parked and distance_from_car < 2 * consts.minimum_car_dist) or distance_from_car < consts.minimum_car_dist:
                     needs_parking = True
                     break
 
-        changed_parking = False # has the parking state changed
+        changed_parking = False  # has the parking state changed
 
-        if needs_parking and not self.parked:   # deactivate close edges so cars won't come near
-            self.parked = True
+        if needs_parking and not self.is_parked:  # deactivate close edges so cars won't come near
+            self.is_parked = True
             self.deactivate_edges()
             changed_parking = True
             print('parking')
-        if not needs_parking and self.parked:   # unpark the car and free the edges
+        if not needs_parking and self.is_parked:  # unpark the car and free the edges
             changed_parking = True
-            self.parked = False
+            self.is_parked = False
             self.calculations_clock = 0  # need to do calculations now
             for edge in self.changed_edges:
                 edge.parked_cars -= 1
                 if edge.parked_cars == 0:
                     edge.weight = edge.original_weight
 
-        if self.parked or changed_parking:  # don't move if parking
+        if self.is_parked or changed_parking:  # don't move if parking
             self.action = [0, [0, 0]]
             for wheel in self.wheels:
                 p.setJointMotorControl2(self.car_model, wheel, p.VELOCITY_CONTROL, targetVelocity=0,
@@ -344,23 +344,22 @@ class Car:
                 p.setJointMotorControl2(self.car_model, steer, p.POSITION_CONTROL, targetPosition=0)
             # NOTE: calculation clock is irrelevant
             return changed_parking
-            
-            
-        if self.next_vertex and dist(self.center_pos, self.next_vertex.pos) <= 0.05:    # get new next vertex
+
+        if self.next_vertex and dist(self.center_pos, self.next_vertex.pos) <= 0.05:  # get new next vertex
             if consts.debugging:
                 print("got to", self.center_pos, self.rotation)
             self.calculations_clock = 0
         if self.calculations_clock == consts.reset_count_time:  # reset calculation clock by time
             self.calculations_clock = 0
-            
+
         if self.calculations_clock == 0:
             if consts.drawing:
                 self.trace.append(self.center_pos)
-            next_vertex = self.prm.next_in_path(self.current_vertex)    # calculate next vertex
-            
+            next_vertex = self.prm.next_in_path(self.current_vertex)  # calculate next vertex
+
             if self.is_backwards_driving:
                 self.backward_driving_counter -= 1
-                
+
             if next_vertex is None or self.backward_driving_counter > 0:  # try to return backwards if we can't drive forwards or in the middle of driving back
                 if (not self.is_backwards_driving) or dist(self.center_pos, self.next_vertex.pos) <= 0.1:
                     if len(self.prev_vertex) > 0:
@@ -440,22 +439,22 @@ class Car:
 
         if self.finished:
             print(f'car {self.car_number} has finished! :)')
+            if consts.drawing:
+                self.trace.append(self.end_point)
+                print(self.end_point, self.prm.end.pos)
         if self.crashed:
             print(f'car {self.car_number} has crashed! :(')
+            if consts.drawing:
+                plt.scatter(self.center_pos[0], self.center_pos[1], label=f"crash car {self.car_number}")
 
         self.base_pos = self.base_pos[:2]
 
         prev_vertex = self.current_vertex
         self.current_vertex = self.prm.get_closest_vertex(self.center_pos, self.rotation)
-        if self.current_vertex != prev_vertex and not self.is_backwards_driving:    # TODO: increase distance or time for this
+        if self.current_vertex != prev_vertex and not self.is_backwards_driving:  # TODO: increase distance or time for this
             self.prev_vertex.append(prev_vertex)
         if should_scan:
             self.scan_environment()
-
-        if self.finished:
-            self.trace.append(self.end_point)
-        if self.crashed:
-            plt.scatter(self.center_pos[0], self.center_pos[1], label=f"crash car {self.car_number}")
 
         return self.crashed or self.finished
 
