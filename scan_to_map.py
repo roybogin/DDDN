@@ -2,6 +2,7 @@ from math import sqrt
 
 import numpy as np
 from matplotlib.patches import Rectangle, Circle
+from matplotlib import pyplot as plt
 
 import consts
 from PRM import Vertex
@@ -71,6 +72,10 @@ class Map:
                 ax.add_patch(Circle(point, 0.05, color="b"))
 
         self.number_of_segment.append(len(self.segment_representation()))
+        plt.xlim(-self.size / 2, self.size / 2)
+        plt.ylim(-self.size / 2, self.size / 2)
+        ax.plot()
+
         return
 
     def check_batch(self, points):
@@ -187,7 +192,7 @@ class Map:
         """
         a helper function to __str__
         :param list_of_points: list of points to get the string representation of
-        :return: string representation of the list 
+        :return: string representation of the list
         """
         string = "["
         for i in range(len(list_of_points)):
@@ -204,7 +209,6 @@ class Map:
         assumes points are given in order of the polygonal chain
         """
         self.map.append(chain)
-
 
     def points_to_line(self, points):
         """
