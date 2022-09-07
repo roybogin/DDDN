@@ -5,16 +5,14 @@ import numpy as np
 import math
 
 is_visual = not True  # do we want to see visual footage
-use_real_time = 0  # is the simulation running in real time - probably should always be 0
-time_step = 0.01    # what is a time step in the pybullet simulation
+use_real_time = (
+    0  # is the simulation running in real time - probably should always be 0
+)
+time_step = 0.01  # what is a time step in the pybullet simulation
 
 # debbuging flags:
-debugging = True
-drawing = True
-show_scaned_maze = True
-show_projected_path = True
-show_actual_path = True
-show_goal_starting_points = True
+debugging = False
+drawing = False
 
 
 cameraDistance = 11
@@ -49,7 +47,9 @@ minimum_car_dist = 1
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
 
 calculate_action_time = 50
-backwards_driving_steps = 2000 / calculate_action_time  # amount of steps we want to drive backwards if needed
+backwards_driving_steps = (
+    2000 / calculate_action_time
+)  # amount of steps we want to drive backwards if needed
 scan_time = 1  # time between scans
 calculate_d_star_time = 50
 reset_count_time = 200

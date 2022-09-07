@@ -1,0 +1,1 @@
+{"walls": [[[2.5, 1], [2.5, -1]]], "positions": [{"start": [-2, 0, 0], "end": [7, 2, 0], "rotation": 0}], "title": "maze_with_small_wall", "size": 20}

@@ -94,11 +94,7 @@ class Car:
     def set_cars(self, cars):
         self.cars = cars
 
-    def generate_graph(self):
-        print("generating graph")
-        self.prm.generate_graph()
 
-        print(self.prm.graph.n, self.prm.graph.e)
 
     def remove_vertices(self, new):
         """

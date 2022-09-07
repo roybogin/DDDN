@@ -161,7 +161,6 @@ class Env:
         runs the simulation one step
         calls the step and scan on all cars
         """
-
         if consts.print_runtime and self.run_time % 400 == 0:
             print("time:", self.run_time)
 

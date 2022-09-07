@@ -1,0 +1,1 @@
+{"walls": [[[0, 2], [2, -1], [-2, -1], [-4, 0], [-3, -4], [-4, -5]]], "positions": [{"start": [0, 0, 0], "end": [-4, 4, 0], "rotation": 0}], "title": "walls_in_the_path1", "size": 20}
