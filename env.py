@@ -36,7 +36,8 @@ class Env:
             self.ax = plt.gca()  # pyplot to draw and debug
             plt_size = self.size_map_quarter + 1  # pyplot size
             plt.axis([-plt_size, plt_size, -plt_size, plt_size])
-            self.maze_title = maze["title"]
+
+        self.maze_title = maze["title"]
 
         self.segments_partial_map: Map = Map([self.map_borders.copy()], int(self.size_map_quarter * 1.2))
 

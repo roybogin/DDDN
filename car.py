@@ -347,7 +347,8 @@ class Car:
             return changed_parking
 
         if self.next_vertex and dist(self.center_pos, self.next_vertex.pos) <= 0.05:
-            print("got to", self.center_pos, self.rotation)
+            if consts.debugging:
+                print("got to", self.center_pos, self.rotation)
             self.calculations_clock = 0
         if self.calculations_clock == consts.reset_count_time:
             if consts.debugging:
@@ -437,6 +438,13 @@ class Car:
             self.finished = True
         if self.base_pos[2] > 0.1:
             self.crashed = True
+
+        if self.finished:
+            print(f'car {self.car_number} has finished! :)')
+        if self.crashed:
+            print(f'car {self.car_number} has crashed! :(')
+
+
 
         self.base_pos = self.base_pos[:2]
 

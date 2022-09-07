@@ -8,11 +8,7 @@ import d_star
 from WeightedGraph import Edge, WeightedGraph, Vertex
 from d_star import DStar
 from helper import dist, map_index_from_pos, block_options
-
-
-def tqdm(a, *args, **kwargs):
-    print('TQDMMMMMMMMMMMMMMMMM')
-    return a
+from tqdm import tqdm
 
 
 def pos_to_car_center(pos: np.ndarray, theta) -> np.ndarray:
