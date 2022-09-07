@@ -22,7 +22,7 @@ class Env:
 
         # define Matplotlib figure and axis
 
-        self.size_map_quarter = maze['size']
+        self.size_map_quarter = maze['size'] / 2
 
         self.map_borders = [
             (self.size_map_quarter, self.size_map_quarter),
@@ -197,11 +197,11 @@ class Env:
             if car:
                 car.update_state(should_scan)
                 if car.finished:
-                    p.removeBody(car.car_model)
+                    # p.removeBody(car.car_model)
                     idx = car.car_number
                     car.trace.append(car.end_point)
-                    del car
-                    self.cars[idx] = None
+                    # del car
+                    # self.cars[idx] = None
 
         if len(self.graph.deleted_edges) != 0 and self.run_time % consts.calculate_d_star_time == 0:
             print("computing paths - wall")
