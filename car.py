@@ -1,19 +1,16 @@
 import os
-import time
-from typing import Set, Dict, List
+from typing import Set, Dict
 
 import pybullet as p
 import pybullet_data as pd
-# from gym.utils import seeding
 
 import PRM
-import consts
-import d_star
-import map_create
-import mazes
-from WeightedGraph import WeightedGraph, Edge
+from WeightedGraph import Edge
 from helper import *
 from scan_to_map import Map
+
+
+# from gym.utils import seeding
 
 
 class Car:
@@ -117,10 +114,12 @@ class Car:
             else:
                 for i in range(len(segment) - 1):
                     rect = get_wall(segment[i], segment[i + 1], 0.3)
-                    x_min = max(consts.amount_vertices_from_edge, min([map_index_from_pos(point, self.size_map_quarter)[0] for point in rect]))
+                    x_min = max(consts.amount_vertices_from_edge,
+                                min([map_index_from_pos(point, self.size_map_quarter)[0] for point in rect]))
                     x_max = min(len(self.prm.vertices) - consts.amount_vertices_from_edge,
                                 max([map_index_from_pos(point, self.size_map_quarter)[0] for point in rect]))
-                    y_min = max(consts.amount_vertices_from_edge, min([map_index_from_pos(point, self.size_map_quarter)[1] for point in rect]))
+                    y_min = max(consts.amount_vertices_from_edge,
+                                min([map_index_from_pos(point, self.size_map_quarter)[1] for point in rect]))
                     y_max = min(len(self.prm.vertices) - consts.amount_vertices_from_edge,
                                 max([map_index_from_pos(point, self.size_map_quarter)[1] for point in rect]))
                     for x in range(x_min, x_max + 1):
@@ -141,25 +140,26 @@ class Car:
         for segment in new_segments:
             if len(segment) == 1:
                 for block in block_options(
-                    map_index_from_pos(segment[0], self.size_map_quarter), edge_removal_radius, self.map_shape
+                        map_index_from_pos(segment[0], self.size_map_quarter), edge_removal_radius, self.map_shape
                 ):
                     problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
             else:
                 for i in range(len(segment) - 1):
                     point1 = segment[i]
-                    point2 = segment[i+1]
+                    point2 = segment[i + 1]
                     while dist(point1, point2) > 0.1:
-                        for block in block_options(map_index_from_pos(point1, self.size_map_quarter), edge_removal_radius, self.map_shape):
+                        for block in block_options(map_index_from_pos(point1, self.size_map_quarter),
+                                                   edge_removal_radius, self.map_shape):
                             problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
                         point1 = point1 + self.prm.rotate_angle(np.array([0.1, 0]), math.atan2(point2[1] - point1[1],
-                                                                                       point2[0] - point1[0]))
+                                                                                               point2[0] - point1[0]))
                     for block in block_options(
-                                map_index_from_pos(point1, self.size_map_quarter), edge_removal_radius, self.map_shape
-                        ):
+                            map_index_from_pos(point1, self.size_map_quarter), edge_removal_radius, self.map_shape
+                    ):
                         problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
                     for block in block_options(
-                                map_index_from_pos(point2, self.size_map_quarter), edge_removal_radius, self.map_shape
-                        ):
+                            map_index_from_pos(point2, self.size_map_quarter), edge_removal_radius, self.map_shape
+                    ):
                         problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
 
         for vertex in problematic_vertices:
@@ -215,7 +215,6 @@ class Car:
         for i, direction in enumerate(directions):
 
             did_hit, start, end = self.ray_cast(
-                self.car_model,
                 [0, 0, 0.5],
                 [
                     -consts.ray_length * np.cos(direction),
@@ -236,10 +235,9 @@ class Car:
 
         return old_graph_sizes != (self.prm.graph.n, self.prm.graph.e)  # we removed new edges or vertices
 
-    def ray_cast(self, car, offset, direction):
+    def ray_cast(self, offset, direction):
         """
         generates a raycast in a given direction
-        :param car: car ID
         :param offset: offset from the car to start the raycast
         :param direction: direction of ray
         :return: (did the ray collide with an obstacle, start position of the ray, end position of the ray)
@@ -297,24 +295,26 @@ class Car:
                            (1 / 2 * consts.length, 0)]
         vertical_line = [(0, - 1 / 2 * consts.width),
                          (0, + 1 / 2 * consts.width)]
-        points_to_check = [self.prm.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in points_to_check]
-        horizontal_line = [self.prm.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in horizontal_line]
-        vertical_line = [self.prm.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in vertical_line]
+        points_to_check = [self.prm.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in
+                           points_to_check]
+        horizontal_line = [self.prm.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in
+                           horizontal_line]
+        vertical_line = [self.prm.rotate_angle(np.array(point), self.rotation) + self.center_pos for point in
+                         vertical_line]
         self.remove_edges([points_to_check, horizontal_line, vertical_line], True)
 
     def step(self):
         """
         this function is called each frame,
         with the known graph vertex the car is on, and next vertex for the car to get to,
-        the function gets the next action to make, and performes it on the pybullet server.
+        the function gets the next action to make, and performs it on the pybullet server.
         """
         needs_parking = False
         for number in range(self.car_number):
             other = self.cars[number]
             if other:
                 distance_from_car = dist(self.center_pos, other.center_pos)
-                if (
-                        self.parked and distance_from_car < 2 * consts.minimum_car_dist) or distance_from_car < consts.minimum_car_dist:
+                if (self.parked and distance_from_car < 2 * consts.minimum_car_dist) or distance_from_car < consts.minimum_car_dist:
                     needs_parking = True
 
         changed_parking = False
@@ -421,7 +421,7 @@ class Car:
     def update_state(self, should_scan: bool):
         """
         updates the state of the car after a step,
-        updates variables and checks if the car collided with something, or got to it's goal.
+        updates variables and checks if the car collided with something, or got to its goal.
         :param should_scan: should we scan the environment in this step
         returns true if this car is done
         """
@@ -443,8 +443,6 @@ class Car:
             print(f'car {self.car_number} has finished! :)')
         if self.crashed:
             print(f'car {self.car_number} has crashed! :(')
-
-
 
         self.base_pos = self.base_pos[:2]
 
@@ -485,7 +483,6 @@ class Car:
         base_position = list(
             PRM.car_center_to_pos(np.array(self.start_point[:2]), self.rotation)
         ) + [0]
-        # TODO: maybe immidatiatly set the right pos and rot
         p.resetBasePositionAndOrientation(
             car, base_position, p.getQuaternionFromEuler([0, 0, self.rotation])
         )

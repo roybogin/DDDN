@@ -134,8 +134,6 @@ class Env:
             self.map_borders, epsilon=consts.epsilon, client=p
         )
 
-    # TODO: handle finishing the maze in all various ways, the change should go up to car level.
-
     def step(self):
         """
         runs the simulation one step
