@@ -49,7 +49,7 @@ minimum_car_dist = 1
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
 
 calculate_action_time = 50
-backwards_driving_steps = 2000 / calculate_action_time  # amount of steps we want to drive backwards if needed
+backwards_driving_steps = 4  # amount of steps we want to drive backwards if needed
 scan_time = 1  # time between scans
 calculate_d_star_time = 50
 reset_count_time = 200

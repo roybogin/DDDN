@@ -22,7 +22,7 @@ class Env:
 
         # define Matplotlib figure and axis
 
-        self.size_map_quarter = maze['size']
+        self.size_map_quarter = maze['size'] / 2
 
         self.map_borders = [
             (self.size_map_quarter, self.size_map_quarter),
@@ -133,27 +133,6 @@ class Env:
             self.map_borders, epsilon=consts.epsilon, client=p
         )
 
-    # TODO: call check collision on each car
-    def check_collision(self, car_model, obstacles, margin=0, max_distance=1.0):
-        """
-        did the car collide with an obstacle
-        :param car_model: car ID
-        :param obstacles: list of body IDs to check collision of the car with
-        :param margin: margin of error for collision - if the distance is smaller than the margin - the car collided
-        :param max_distance: distance from the car to search for collisions in
-        :return: did the car collide with an obstacle
-        """
-        for ob in obstacles:
-            closest_points = p.getClosestPoints(car_model, ob, distance=max_distance)
-            closest_points = [
-                a for a in closest_points if not (a[1] == a[2] == car_model)
-            ]
-            if len(closest_points) != 0:
-                distance = np.min([pt[8] for pt in closest_points])
-                if distance < margin:
-                    return True
-        return False
-
     # TODO: handle finishing the maze in all various ways, the change should go up to car level.
 
     def step(self):
@@ -200,7 +179,6 @@ class Env:
                 if car.finished:
                     p.removeBody(car.car_model)
                     idx = car.car_number
-                    car.trace.append(car.end_point)
                     del car
                     self.cars[idx] = None
 
@@ -222,8 +200,6 @@ class Env:
             for idx, car in enumerate(self.cars):
                 if car:
                     car.trace.append(car.center_pos)
-                    if car.finished:
-                        car.trace.append(car.end_point)
 
             return True
 
@@ -232,15 +208,6 @@ class Env:
 
         if not (crashed or finished):
             return False
-        for idx, car in enumerate(self.cars):
-            if car:
-                car.trace.append(car.center_pos)
-                if car.finished:
-                    car.trace.append(car.end_point)
-                elif car.crashed:
-                    plt.scatter(
-                        car.trace[-1][0], car.trace[-1][1], label=f"crash car {idx}"
-                    )
 
         if crashed:
             print(f"crashed {self.maze_title} - time {self.run_time}")
@@ -249,47 +216,3 @@ class Env:
             print(f"finished {self.maze_title}" f" - time {self.run_time}")
             return True
         return False
-
-
-# for testing:
-def main():
-    t0 = time.time()
-    stop = False
-    maze = mazes.default_data_set[2]
-    env = Env(maze)
-    while not stop:
-        stop = env.step()
-    print(f"total time: {time.time() - t0}")
-    p.disconnect()
-    # if consts.debugging:
-    #     edge_map = []
-    #     vert = env.prm.vertices
-    #     for row in range(0, len(vert)):
-    #         edge_map.append([])
-    #         for col in range(0, len(vert[row])):
-    #             if len(vert[row][col]) == 0 or vert[row][col][0] is None:
-    #                 edge_map[row].append(0)
-    #                 continue
-    #             v = vert[row][col][0]
-    #
-    #             o = sum((1 for e in v.out_edges if e.weight != np.inf))
-    #             i = sum((1 for e in v.in_edges if e.weight != np.inf))
-    #             edge_map[row].append(o + i)
-    #     with open('edges.txt', 'w') as f:
-    #         f.write(str(edge_map))
-    if consts.drawing:
-        env.segments_partial_map.plot(env.ax)
-        for idx, car in enumerate(env.cars):
-            curr_trace = env.traces[idx]
-            plt.plot([a for a, _ in curr_trace], [a for _, a in curr_trace], label=f"actual car {idx}")
-        plt.title(f'{maze["title"]} - time {env.run_time}')
-        ax = env.ax
-        box = ax.get_position()
-        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-        # Put a legend to the right of the current axis
-        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        plt.show()
-
-
-if __name__ == "__main__":
-    main()

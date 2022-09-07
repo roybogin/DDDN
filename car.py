@@ -149,9 +149,7 @@ class Car:
                     point1 = segment[i]
                     point2 = segment[i+1]
                     while dist(point1, point2) > 0.1:
-                        for block in block_options(
-                                map_index_from_pos(point1, self.size_map_quarter), edge_removal_radius, self.map_shape
-                        ):
+                        for block in block_options(map_index_from_pos(point1, self.size_map_quarter), edge_removal_radius, self.map_shape):
                             problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
                         point1 = point1 + self.prm.rotate_angle(np.array([0.1, 0]), math.atan2(point2[1] - point1[1],
                                                                                        point2[0] - point1[0]))
@@ -365,11 +363,12 @@ class Car:
                 if (not self.is_backwards_driving) or dist(
                         self.center_pos, self.next_vertex.pos
                 ) <= 0.1:
-                    self.next_vertex = self.prev_vertex.pop()
-                    self.is_backwards_driving = True
-                    if consts.debugging:
-                        print("popped")
-                    self.backward_driving_counter = consts.backwards_driving_steps
+                    if len(self.prev_vertex) > 0:
+                        self.next_vertex = self.prev_vertex.pop()
+                        self.is_backwards_driving = True
+                        if consts.debugging:
+                            print("popped")
+                        self.backward_driving_counter = consts.backwards_driving_steps
             else:
                 if consts.debugging:
                     print("forward")
@@ -452,6 +451,12 @@ class Car:
             self.prev_vertex.append(prev_vertex)
         if should_scan:
             self.scan_environment()
+
+        if self.finished:
+            self.trace.append(self.end_point)
+        if self.crashed:
+            plt.scatter(self.center_pos[0], self.center_pos[1], label=f"crash car {self.car_number}")
+
         return self.crashed or self.finished
 
     def create_car_model(self):
