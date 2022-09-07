@@ -1,19 +1,24 @@
 from math import sqrt
-
 import numpy as np
 from matplotlib.patches import Rectangle, Circle
 
 import consts
 from PRM import Vertex
-from helper import perpendicularDistance, dist
+from helper import perpendicular_distance, dist
 
 SAMPLE_DIST = 0.8
+
+Point = tuple[int, int]
+Polygonal_Chain = list[Point]
 
 
 class Map:
     # map is a list of segments, the obstacles
-    def __init__(self, initial_map, size_map):
-        # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
+    # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
+
+    def __init__(self, initial_map: list[Polygonal_Chain] = None, size_map: float = int(consts.size_map_quarter * 1.2)):
+        if initial_map is None:
+            initial_map = []
         self.map = initial_map
         self.size = size_map
 
@@ -22,10 +27,11 @@ class Map:
         self.new_segments = []
         self.number_of_segment = []
 
-    def plot(self, ax):
+    def plot(self, ax) -> None:
         """
-        a function to draw the current map,
+        a function to draw the current map with matplotlib,
         used for debuging and demos
+        :param ax: the current plot to draw on
         """
         segments = self.segment_representation()
         # we can find the left,bottom point with two lines of length epsilon,
@@ -73,7 +79,7 @@ class Map:
         self.number_of_segment.append(len(self.segment_representation()))
         return
 
-    def check_batch(self, points):
+    def check_batch(self, points: list[Point]) -> bool:
         """
         checks if the batch of points representing the car might colide with some segment in the map.
 
@@ -84,13 +90,13 @@ class Map:
             for segment in self.new_segments:
                 for i in range(len(segment) - 1):
                     if (
-                        perpendicularDistance(point, segment[i], segment[i + 1])
+                        perpendicular_distance(point, segment[i], segment[i + 1])
                         < consts.epsilon
-                    ):  # TODO: enter on false?
+                    ):
                         return False
         return True
 
-    def check_state(self, vertex: Vertex, num_sample_car=2):
+    def check_state(self, vertex: Vertex, num_sample_car: int = 2):
         """
         the code used to check which vertecies we need to remove from the PRM graph.
         the car is split into evenly num_sample_car^2 points,
@@ -117,7 +123,7 @@ class Map:
                 )
         return self.check_batch(to_check)
 
-    def add_points_to_map(self, points):
+    def add_points_to_map(self, points: list[Point]) -> None:
         """
         given a list of scan points, add new segments to the map.
         the new segments are an approximation of the true obstacles.
@@ -130,16 +136,16 @@ class Map:
         segment_representation = self.segment_representation()
 
         # filtering the points we don't need to add.
-        for point in points:
+        for Point in points:
             should_add = True
             for segment in segment_representation:
                 if (
-                    perpendicularDistance(point, segment[0], segment[1])
+                    perpendicular_distance(Point, segment[0], segment[1])
                     < consts.epsilon
                 ):
                     should_add = False
             if should_add:
-                new_points.append(point)
+                new_points.append(Point)
 
         if len(segment_representation) == 0:
             new_points = points
@@ -162,7 +168,7 @@ class Map:
         self.new_segments.append(new_segment)
         self.add(new_segment)
 
-    def segment_representation(self):
+    def segment_representation(self) -> list[tuple[Point, Point]]:
         """
         returns a list of all of the segments in the map.
         """
@@ -173,7 +179,7 @@ class Map:
 
         return segments
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         :return: a string representation of the map
         """
@@ -183,11 +189,11 @@ class Map:
             out += "\n"
         return out
 
-    def polygonal_chain_to_str(self, list_of_points):
+    def polygonal_chain_to_str(self, list_of_points: list[Point]) -> str:
         """
         a helper function to __str__
         :param list_of_points: list of points to get the string representation of
-        :return: string representation of the list 
+        :return: string representation of the list
         """
         string = "["
         for i in range(len(list_of_points)):
@@ -198,15 +204,14 @@ class Map:
         return string
 
     #
-    def add(self, chain):
+    def add(self, chain: Polygonal_Chain) -> None:
         """
         given a polygonal chain, adds it to map
         assumes points are given in order of the polygonal chain
         """
         self.map.append(chain)
 
-
-    def points_to_line(self, points):
+    def points_to_line(self, points: list[Point]) -> None:
         """
         an implementation of the Ramer–Douglas–Peucker algorithm
         to make a set of points into a polygonal chain.
@@ -218,7 +223,7 @@ class Map:
         if end == 0:
             return []
         for i in range(1, end - 1):
-            d = perpendicularDistance(points[i], points[0], points[-1])
+            d = perpendicular_distance(points[i], points[0], points[-1])
             if d > dmax:
                 index = i
                 dmax = d
