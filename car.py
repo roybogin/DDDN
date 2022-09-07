@@ -137,8 +137,9 @@ class Car:
         """
         edge_removal_radius = np.ceil(self.prm.res / consts.vertex_offset)
         problematic_vertices: Set[PRM.Vertex] = set()
-        problematic_edges: Set[PRM.Edge] = set()
+        changed_edges: Set[PRM.Edge] = set()
         for segment in new_segments:
+            problematic_vertices.clear()
             if len(segment) == 1:
                 for block in block_options(
                     map_index_from_pos(segment[0], self.size_map_quarter), edge_removal_radius, self.map_shape
@@ -156,54 +157,44 @@ class Car:
                         point1 = point1 + self.prm.rotate_angle(np.array([0.1, 0]), math.atan2(point2[1] - point1[1],
                                                                                        point2[0] - point1[0]))
                     for block in block_options(
-                                map_index_from_pos(point1, self.size_map_quarter), edge_removal_radius, self.map_shape
-                        ):
+                                map_index_from_pos(point1, self.size_map_quarter), edge_removal_radius, self.map_shape):
                         problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
                     for block in block_options(
-                                map_index_from_pos(point2, self.size_map_quarter), edge_removal_radius, self.map_shape
-                        ):
-                        problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
+                                map_index_from_pos(point2, self.size_map_quarter), edge_removal_radius, self.map_shape):
+                            problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
 
-        for vertex in problematic_vertices:
-            if vertex is None:
-                continue
-            for edge in vertex.in_edges | vertex.out_edges:
-                if edge.src in problematic_vertices and edge.dst in problematic_vertices:
-                    problematic_edges.add(edge)
-        for edge in problematic_edges:
-            changed_edge = False
-            for segment in new_segments:
-                if changed_edge:
-                    break
-                if len(segment) == 1:
-                    if not deactivate:
-                        if edge.active and perpendicularDistance(segment[0], edge.src.pos, edge.dst.pos) < \
-                                consts.width + 2 * consts.epsilon:
-                            self.prm.remove_edge(edge)
-                            changed_edge = True
-                    else:
-                        if edge.active and perpendicularDistance(segment[0], edge.src.pos, edge.dst.pos) < \
-                                consts.width + 1 * consts.epsilon:
-                            edge.weight = np.inf
-                            self.changed_edges.add(edge)
-                            edge.parked_cars += 1
-                            changed_edge = True
-                else:
-                    for i in range(len(segment) - 1):
-                        if not deactivate:
-                            if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos,
-                                                                      edge.dst.pos) < consts.width + 2 * consts.epsilon:
-                                self.prm.remove_edge(edge)
-                                changed_edge = True
-                                break  # exit for over i
+            for vertex in problematic_vertices:
+                if vertex is None:
+                    continue
+                for edge in vertex.in_edges | vertex.out_edges:
+                    if edge not in changed_edges and edge.src in problematic_vertices and edge.dst in problematic_vertices:
+                        if len(segment) == 1:
+                            if not deactivate:
+                                if edge.active and perpendicularDistance(segment[0], edge.src.pos, edge.dst.pos) < \
+                                        consts.width + 2 * consts.epsilon:
+                                    self.prm.remove_edge(edge)
+                                    changed_edges.add(edge)
+                            else:
+                                if edge.active and perpendicularDistance(segment[0], edge.src.pos, edge.dst.pos) < \
+                                        consts.width + 1 * consts.epsilon:
+                                    edge.weight = np.inf
+                                    self.changed_edges.add(edge)
+                                    edge.parked_cars += 1
+                                    changed_edges.add(edge)
                         else:
-                            if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos,
-                                                                      edge.dst.pos) < consts.width + 1 * consts.epsilon:
-                                edge.weight = np.inf
-                                self.changed_edges.add(edge)
-                                edge.parked_cars += 1
-                                changed_edge = True
-                                break  # exit for over i
+                            for i in range(len(segment) - 1):
+                                if not deactivate:
+                                    if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos,
+                                                                              edge.dst.pos) < consts.width + 2 * consts.epsilon:
+                                        self.prm.remove_edge(edge)
+                                        changed_edges.add(edge)
+                                else:
+                                    if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos,
+                                                                              edge.dst.pos) < consts.width + 1 * consts.epsilon:
+                                        edge.weight = np.inf
+                                        self.changed_edges.add(edge)
+                                        edge.parked_cars += 1
+                                        changed_edges.add(edge)
 
     def scan_environment(self):
         """
@@ -228,7 +219,6 @@ class Car:
             if did_hit:
                 self.hits[i].append((end[0], end[1]))
                 if len(self.hits[i]) == consts.max_hits_before_calculation:
-                    print('calculating')
                     self.segments_partial_map.add_points_to_map(self.hits[i])
                     self.hits[i] = []
                     new = self.segments_partial_map.new_segments
