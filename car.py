@@ -17,10 +17,11 @@ from scan_to_map import Map
 
 
 class Car:
-    def __init__(self, index: int, positions: Dict, prm: PRM, segments_map: Map):
+    def __init__(self, index: int, positions: Dict, prm: PRM, segments_map: Map, size_map_quarter: float):
         super(Car, self).__init__()
         if consts.drawing:
             self.ax = plt.gca()  # pyplot to draw and debug
+        self.size_map_quarter = size_map_quarter
         self.car_number = index
         self.borders = None
         self.bodies = None
@@ -49,10 +50,10 @@ class Car:
         self.segments_partial_map: Map = segments_map
 
         self.hits = [[] for _ in range(consts.ray_amount)]
-        map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)
+        map_length = int((2 * self.size_map_quarter) // consts.vertex_offset)
         self.map_shape = (map_length, map_length)
 
-        self.prm = PRM.PRM(self.map_shape, prm)
+        self.prm = PRM.PRM(self.map_shape, self.size_map_quarter, prm)
 
         # initialize in prm
 
@@ -108,7 +109,7 @@ class Car:
         for segment in new:
             if len(segment) == 1:
                 for block in block_options(
-                        map_index_from_pos(segment[0]), vertex_removal_radius, self.map_shape
+                        map_index_from_pos(segment[0], self.size_map_quarter), vertex_removal_radius, self.map_shape
                 ):
                     for vertex in self.prm.vertices[block[0]][block[1]]:
                         if vertex and dist(vertex.pos, segment[0]) < consts.width:
@@ -116,12 +117,12 @@ class Car:
             else:
                 for i in range(len(segment) - 1):
                     rect = get_wall(segment[i], segment[i + 1], 0.3)
-                    x_min = max(consts.amount_vertices_from_edge, min([map_index_from_pos(point)[0] for point in rect]))
+                    x_min = max(consts.amount_vertices_from_edge, min([map_index_from_pos(point, self.size_map_quarter)[0] for point in rect]))
                     x_max = min(len(self.prm.vertices) - consts.amount_vertices_from_edge,
-                                max([map_index_from_pos(point)[0] for point in rect]))
-                    y_min = max(consts.amount_vertices_from_edge, min([map_index_from_pos(point)[1] for point in rect]))
+                                max([map_index_from_pos(point, self.size_map_quarter)[0] for point in rect]))
+                    y_min = max(consts.amount_vertices_from_edge, min([map_index_from_pos(point, self.size_map_quarter)[1] for point in rect]))
                     y_max = min(len(self.prm.vertices) - consts.amount_vertices_from_edge,
-                                max([map_index_from_pos(point)[1] for point in rect]))
+                                max([map_index_from_pos(point, self.size_map_quarter)[1] for point in rect]))
                     for x in range(x_min, x_max + 1):
                         for y in range(y_min, y_max + 1):
                             if is_in_rect(rect, (x, y)):
@@ -138,20 +139,36 @@ class Car:
         problematic_vertices: Set[PRM.Vertex] = set()
         problematic_edges: Set[PRM.Edge] = set()
         for segment in new_segments:
-            for point in segment:
+            if len(segment) == 1:
                 for block in block_options(
-                        map_index_from_pos(point), edge_removal_radius, self.map_shape
+                    map_index_from_pos(segment[0], self.size_map_quarter), edge_removal_radius, self.map_shape
                 ):
                     problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
+            else:
+                for i in range(len(segment) - 1):
+                    point1 = segment[i]
+                    point2 = segment[i+1]
+                    while dist(point1, point2) > 0.1:
+                        for block in block_options(
+                                map_index_from_pos(point1, self.size_map_quarter), edge_removal_radius, self.map_shape
+                        ):
+                            problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
+                        point1 = point1 + self.prm.rotate_angle(np.array([0.1, 0]), math.atan2(point2[1] - point1[1],
+                                                                                       point2[0] - point1[0]))
+                    for block in block_options(
+                                map_index_from_pos(point1, self.size_map_quarter), edge_removal_radius, self.map_shape
+                        ):
+                        problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
+                    for block in block_options(
+                                map_index_from_pos(point2, self.size_map_quarter), edge_removal_radius, self.map_shape
+                        ):
+                        problematic_vertices.update(self.prm.vertices[block[0]][block[1]])
 
         for vertex in problematic_vertices:
             if vertex is None:
                 continue
             for edge in vertex.in_edges | vertex.out_edges:
-                if (
-                        edge.src in problematic_vertices
-                        and edge.dst in problematic_vertices
-                ):
+                if edge.src in problematic_vertices and edge.dst in problematic_vertices:
                     problematic_edges.add(edge)
         for edge in problematic_edges:
             changed_edge = False
@@ -211,12 +228,14 @@ class Car:
             if did_hit:
                 self.hits[i].append((end[0], end[1]))
                 if len(self.hits[i]) == consts.max_hits_before_calculation:
+                    print('calculating')
                     self.segments_partial_map.add_points_to_map(self.hits[i])
                     self.hits[i] = []
                     new = self.segments_partial_map.new_segments
                     new_segments += new
                     self.remove_vertices(new)
         self.remove_edges(new_segments)
+
         return old_graph_sizes != (self.prm.graph.n, self.prm.graph.e)  # we removed new edges or vertices
 
     def ray_cast(self, car, offset, direction):
@@ -227,10 +246,9 @@ class Car:
         :param direction: direction of ray
         :return: (did the ray collide with an obstacle, start position of the ray, end position of the ray)
         """
-        pos, quaternions = p.getBasePositionAndOrientation(car)
-        euler = p.getEulerFromQuaternion(quaternions)
-        x = math.cos(euler[2])
-        y = math.sin(euler[2])
+
+        x = math.cos(self.rotation)
+        y = math.sin(self.rotation)
         offset = [
             x * offset[0] - y * offset[1],
             x * offset[1] + y * offset[0],
@@ -241,10 +259,11 @@ class Car:
             x * direction[1] + y * direction[0],
             direction[2],
         ]
+        pos = [self.center_pos[0], self.center_pos[1], 0]
         start = add_lists([pos, offset])
         end = add_lists([pos, offset, direction])
         ray_test = p.rayTest(start, end)
-        if ray_test[0][3] == (0, 0, 0) and ray_test[0][0] not in self.borders:
+        if ray_test[0][3] == (0, 0, 0) or ray_test[0][0] in self.borders:
             return False, start[:2], end[:2]
         else:
             return True, start[:2], ray_test[0][3]
@@ -333,6 +352,8 @@ class Car:
             print("got to", self.center_pos, self.rotation)
             self.calculations_clock = 0
         if self.calculations_clock == consts.reset_count_time:
+            if consts.debugging:
+                print("reset count")
             self.calculations_clock = 0
 
         if self.calculations_clock == 0:
@@ -348,10 +369,11 @@ class Car:
                     self.is_backwards_driving = True
                     if consts.debugging:
                         print("popped")
-                    self.backward_driving_counter = 2
+                    self.backward_driving_counter = consts.backwards_driving_steps
             else:
                 if consts.debugging:
                     print("forward")
+                    print(self.backward_driving_counter)
                 self.next_vertex = next_vertex
                 self.is_backwards_driving = False
                 self.backward_driving_counter = 0
@@ -396,10 +418,11 @@ class Car:
         self.calculations_clock += 1
         return False
 
-    def update_state(self):
+    def update_state(self, should_scan: bool):
         """
-        updates the state of the car afrer a step,
+        updates the state of the car after a step,
         updates variables and checks if the car collided with something, or got to it's goal.
+        :param should_scan: should we scan the environment in this step
         returns true if this car is done
         """
         # updating map;
@@ -427,7 +450,8 @@ class Car:
         self.current_vertex = self.prm.get_closest_vertex(self.center_pos, self.rotation)
         if self.current_vertex != prev_vertex and not self.is_backwards_driving:
             self.prev_vertex.append(prev_vertex)
-        self.scan_environment()
+        if should_scan:
+            self.scan_environment()
         return self.crashed or self.finished
 
     def create_car_model(self):

@@ -1,6 +1,4 @@
-import heapq
-import time
-from typing import Set, List
+from typing import Set, List, Optional
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -12,7 +10,7 @@ from d_star import DStar
 from helper import dist, map_index_from_pos, block_options
 
 
-def tqdm(a,*args, **kwargs):
+def tqdm(a, *args, **kwargs):
     print('TQDMMMMMMMMMMMMMMMMM')
     return a
 
@@ -26,19 +24,18 @@ def car_center_to_pos(pos: np.ndarray, theta) -> np.ndarray:
 
 
 class PRM:
-    def __init__(self, shape, prm=None):
+    def __init__(self, shape, size_map_quarter, prm=None):
         self.end = None
         self.shape = shape
-        self.max_angle_radius = self.radius_delta(
-            consts.max_steer
-        )  # radius of arc for maximum steering
+        self.size_map_quarter = size_map_quarter
+        self.max_angle_radius = self.radius_delta(consts.max_steer)  # radius of arc for maximum steering
         self.res = np.sqrt(
             self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2
         )  #
         # resolution of the path planner
         self.tol = 0.02  # tolerance of the path planner
-        self.d_star: DStar | None = None
-        self.s_last: Vertex = None
+        self.d_star: Optional[DStar] = None
+        self.s_last: Optional[Vertex] = None
         if prm is not None:
             self.graph = prm.graph
             self.vertices = prm.vertices
@@ -53,7 +50,7 @@ class PRM:
             x_temp = (
                 consts.vertex_offset / 2
                 + consts.amount_vertices_from_edge * consts.vertex_offset
-                - consts.size_map_quarter
+                - self.size_map_quarter
             )
             for col_idx in tqdm(
                 range(
@@ -64,7 +61,7 @@ class PRM:
                 y_temp = (
                     consts.vertex_offset / 2
                     + consts.amount_vertices_from_edge * consts.vertex_offset
-                    - consts.size_map_quarter
+                    - self.size_map_quarter
                 )
                 for row_idx in range(
                     consts.amount_vertices_from_edge,
@@ -106,7 +103,7 @@ class PRM:
 
     def possible_offsets_angle(self, pos: np.ndarray, angle: int, only_forward=False):
         ret = []
-        block = map_index_from_pos(pos)
+        block = map_index_from_pos(pos, self.size_map_quarter)
         v = self.vertices[block[0]][block[1]][angle]
         for neighbor_block in block_options(
             block, np.ceil(self.res / consts.vertex_offset), self.shape
@@ -177,7 +174,7 @@ class PRM:
                             self.graph.add_edge(v1, v2, weight)
 
     def set_end(self, pos):
-        index = map_index_from_pos(pos)
+        index = map_index_from_pos(pos, self.size_map_quarter)
         self.end = self.graph.add_vertex(self.vertices[index[0]][index[1]][0].pos, 0)
         for v in self.vertices[index[0]][index[1]]:
             self.graph.add_edge(v, self.end, 0)
@@ -207,7 +204,7 @@ class PRM:
         print(f"finished dijkstra in {time.time() - t1}")"""
 
     def get_closest_vertex(self, pos: np.ndarray, theta: float):
-        block = map_index_from_pos(pos)
+        block = map_index_from_pos(pos, self.size_map_quarter)
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(theta / angle_offset)
         return self.vertices[block[0]][block[1]][angle]
@@ -254,7 +251,7 @@ class PRM:
         plt.plot(x_list, y_list, label=f"projected {idx}")
 
     def remove_vertex(self, v: Vertex):
-        index = map_index_from_pos(v.pos)
+        index = map_index_from_pos(v.pos, self.size_map_quarter)
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(v.theta / angle_offset)
         self.vertices[index[0]][index[1]][angle] = None

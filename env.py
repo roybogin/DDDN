@@ -1,13 +1,12 @@
 import os
 import time
-from typing import Set, List, Dict
+from typing import Set, List, Dict, Optional
 
 import pybullet as p
 import pybullet_data as pd
 
 import PRM
 import consts
-import d_star
 import map_create
 import mazes
 from WeightedGraph import Edge
@@ -16,41 +15,39 @@ from scan_to_map import Map
 from car import Car
 
 
-def add_discovered_matrix(discovered_matrix, start, end):
-    """
-    updates the discovered matrix by drawing a line on it matching the endpoints of the raycast
-    :param discovered_matrix: matrix that represents the discovered areas by the car
-    :param start: start of the raycast
-    :param end: end of the raycast
-    :return: the indices of discovered area
-    """
-    x0, y0 = map_index_from_pos(start)
-    x1, y1 = map_index_from_pos(end)
-    return plot_line(x0, y0, x1, y1, discovered_matrix)
-
-
 class Env:
     def __init__(self, maze: Dict):
 
         super(Env, self).__init__()
 
         # define Matplotlib figure and axis
+
+        self.size_map_quarter = maze['size']
+
+        self.map_borders = [
+            (self.size_map_quarter, self.size_map_quarter),
+            (self.size_map_quarter, -self.size_map_quarter),
+            (-self.size_map_quarter, -self.size_map_quarter),
+            (-self.size_map_quarter, self.size_map_quarter),
+            (self.size_map_quarter, self.size_map_quarter),
+        ]
+
         if consts.drawing:
             self.ax = plt.gca()  # pyplot to draw and debug
-            plt_size = consts.size_map_quarter + 1  # pyplot size
+            plt_size = self.size_map_quarter + 1  # pyplot size
             plt.axis([-plt_size, plt_size, -plt_size, plt_size])
             self.maze_title = maze["title"]
 
-        self.segments_partial_map: Map = Map([consts.map_borders.copy()])
+        self.segments_partial_map: Map = Map([self.map_borders.copy()], int(self.size_map_quarter * 1.2))
 
         self.run_time = None  # time of the run
 
         self.maze = None  # walls of the maze - list of points
-        self.borders = None  # the maze borders - object IDs
+        self.borders: Optional[list] = None  # the maze borders - object IDs
 
-        map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)
+        map_length = int((2 * self.size_map_quarter) // consts.vertex_offset)
 
-        self.prm = PRM.PRM((map_length, map_length))
+        self.prm = PRM.PRM((map_length, map_length), self.size_map_quarter)
 
         self.generate_graph()
 
@@ -64,8 +61,8 @@ class Env:
         self.start_env()
         positions = maze["positions"]
         self.number_of_cars = len(positions)
-        self.cars: List[Car] = [
-            Car(i, positions[i], self.prm, self.segments_partial_map)
+        self.cars: List[Optional[Car]] = [
+            Car(i, positions[i], self.prm, self.segments_partial_map, self.size_map_quarter)
             for i in range(self.number_of_cars)
         ]
         if consts.drawing:
@@ -92,7 +89,7 @@ class Env:
 
     def generate_graph(self):
         """
-        calls the prm genearte_graph function
+        calls the prm generate graph function
         """
         self.prm.generate_graph()
 
@@ -133,7 +130,7 @@ class Env:
         adds the boarder walls to the maze
         """
         self.borders = map_create.create_poly_wall(
-            consts.map_borders, epsilon=consts.epsilon, client=p
+            self.map_borders, epsilon=consts.epsilon, client=p
         )
 
     # TODO: call check collision on each car
@@ -168,6 +165,7 @@ class Env:
         if consts.print_runtime and self.run_time % 400 == 0:
             print("time:", self.run_time)
 
+
         # TODO: reimplement deleting car when finishing - it's on the git
         # updating target velocity and steering angle
         changed_edges: Set[Edge] = set()
@@ -178,22 +176,6 @@ class Env:
                 if not car.parked:
                     car.changed_edges.clear()
 
-
-                # changed_edges.add(0)
-                #
-                # map = []
-                # vert = self.prm.vertices
-                # for row in range(0, len(vert)):
-                #     map.append([])
-                #     for col in range(0, len(vert[row])):
-                #         if len(vert[row][col]) == 0:
-                #             map[row].append(0)
-                #             continue
-                #         v = vert[row][col][0]
-                #
-                #         o = sum((1 for e in v.out_edges if e.weight != np.inf))
-                #         i = sum((1 for e in v.in_edges if e.weight != np.inf))
-                #         map[row].append(o+i)
         if len(changed_edges) != 0:
             print('computing paths - park')
             t = time.time()
@@ -210,9 +192,11 @@ class Env:
 
         self.run_time += 1
 
+        should_scan = self.run_time % consts.scan_time == 0
+
         for car in self.cars:
             if car:
-                car.update_state()
+                car.update_state(should_scan)
                 if car.finished:
                     p.removeBody(car.car_model)
                     idx = car.car_number
@@ -277,22 +261,22 @@ def main():
         stop = env.step()
     print(f"total time: {time.time() - t0}")
     p.disconnect()
-    if consts.debugging:
-        map = []
-        vert = env.prm.vertices
-        for row in range(0, len(vert)):
-            map.append([])
-            for col in range(0, len(vert[row])):
-                if len(vert[row][col]) == 0 or vert[row][col][0] is None:
-                    map[row].append(0)
-                    continue
-                v = vert[row][col][0]
-
-                o = sum((1 for e in v.out_edges if e.weight != np.inf))
-                i = sum((1 for e in v.in_edges if e.weight != np.inf))
-                map[row].append(o + i)
-        with open('edges.txt', 'w') as f:
-            f.write(str(map))
+    # if consts.debugging:
+    #     edge_map = []
+    #     vert = env.prm.vertices
+    #     for row in range(0, len(vert)):
+    #         edge_map.append([])
+    #         for col in range(0, len(vert[row])):
+    #             if len(vert[row][col]) == 0 or vert[row][col][0] is None:
+    #                 edge_map[row].append(0)
+    #                 continue
+    #             v = vert[row][col][0]
+    #
+    #             o = sum((1 for e in v.out_edges if e.weight != np.inf))
+    #             i = sum((1 for e in v.in_edges if e.weight != np.inf))
+    #             edge_map[row].append(o + i)
+    #     with open('edges.txt', 'w') as f:
+    #         f.write(str(edge_map))
     if consts.drawing:
         env.segments_partial_map.plot(env.ax)
         for idx, car in enumerate(env.cars):

@@ -156,15 +156,16 @@ def norm(a):
     return math.sqrt(sum((x ** 2 for x in a)))
 
 
-def map_index_from_pos(pos):
+def map_index_from_pos(pos, size_map_quarter):
     """
-    transforms a position on the map to indices in the binary matrices
+    transforms a position on the map to indices in the vertex list
     :param pos: (x,y) pair on the map
+    :param size_map_quarter: length of half of the map
     :return: (x, y) indices that the point is contained in
     """
-    indices = [int((value + consts.size_map_quarter) / consts.vertex_offset) for value in pos[:2]]
+    indices = [int((value + size_map_quarter) / consts.vertex_offset) for value in pos[:2]]
     # keep the return value within the wanted limits for edge cases
-    return tuple([max(0, min(idx, int((2 * consts.size_map_quarter) // consts.vertex_offset) - 1)) for idx in indices])
+    return tuple([max(0, min(idx, int((2 * size_map_quarter) // consts.vertex_offset) - 1)) for idx in indices])
 
 def block_options(index, radius, map_shape, only_positives=False):
     """

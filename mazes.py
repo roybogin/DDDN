@@ -34,7 +34,8 @@ empty_set = [
     {
         'walls': [],
         'positions': [{'start': [start[0], start[1], 0], 'end': [end[0], end[1], 0], 'rotation': 0}],
-        'title': f'empty maze {index}'
+        'title': f'empty maze {index}',
+        'size': 10
     }
     for index, (start, end) in enumerate(random_start_end)
 ]
@@ -46,7 +47,8 @@ default_data_set = [
                         {'start': [-4, 0, 0], 'end': [4, 0, 0], 'rotation': 0},
                         {'start': [4, 0, 0], 'end': [-4, 0, 0], 'rotation': np.pi},
                       ],
-        'title': 'collision testing'
+        'title': 'collision testing',
+        'size': 5
     },
     {
         'walls': [],
@@ -54,30 +56,35 @@ default_data_set = [
                         {'start': [0, 0, 0], 'end': [2, 0, 0], 'rotation': 0},
                         {'start': [0, 5, 0], 'end': [4, 5, 0], 'rotation': 0},
                       ],
-        'title': 'empty test maze'
+        'title': 'empty test maze',
+        'size': 8
     },
     {
         'walls': [[(-3,0), (0,3), (3, 0)]],
         'positions': [
-                        {'start': [-4, 2, 0], 'end': [4, 2, 0], 'rotation': 0},
+                        # {'start': [-4, 2, 0], 'end': [4, 2, 0], 'rotation': 0},
                         {'start': [4, 2, 0], 'end': [-4, 2, 0], 'rotation': np.pi},
                       ],
-        'title': 'v shaped wall two cars'
+        'title': 'v shaped wall two cars',
+        'size': 8
     },
     {
         'walls': [[(2.5, 1), (2.5, -1)]],
         'positions': [{'start': [-2, 0, 0], 'end': [7, 2, 0], 'rotation': 0}],
-        'title': 'maze with small wall'
+        'title': 'maze with small wall',
+        'size': 10
     },
     {
         'walls': [[(2.5, 5), (2.5, -2.5)]],
         'positions': [{'start': [0, 0, 0], 'end': [5, 0, 0], 'rotation': 0}],
-        'title': 'maze with big wall'
+        'title': 'maze with big wall',
+        'size': 10
     },
     {
         'walls': [[(1.5, -1.5), (1.5, 1.5)], [(2, 0), (5, 0)]],
         'positions': [{'start': [0, 0, 0], 'end': [5, 0, 0], 'rotation': 0}],
-        'title': 'T shape wall'
+        'title': 'T shape wall',
+        'size': 10
     },
     {
         'walls': [[(-4, 0), (0, 4)], [(-3, 5), (3, 5)], [(-7, 4), (-3, 3)]],
@@ -87,12 +94,14 @@ default_data_set = [
     {
         'walls': [[(0, 2), (2, -1), (-2, -1), (-4, 0), (-3, -4), (-4, -5)]],
         'positions': [{'start': [0, 0, 0], 'end': [-4, 4, 0], 'rotation': 0}],
-        'title': 'walls in the path'
+        'title': 'walls in the path',
+        'size': 10
     },
     {
         'walls': [[(2, 1), (6, 2), (9, 1), (9, -1), (6, -1), (4, -0.5)]],
         'positions': [{'start': [0, 0, 0], 'end': [0, 8, 0], 'rotation': 0}],
-        'title': 'walls around the end'
+        'title': 'walls around the end',
+        'size': 10
     }
 ]
 
@@ -101,18 +110,28 @@ default_training_set = [
     {
         'walls': [[(4, 0), (0, 2), (4, 4), (7, 4), (7, -4)]],
         'positions': [{'start': [0, 0, 0], 'end': [4, 2, 0], 'rotation': 0}],
-        'title': 'walls in the path'
+        'title': 'walls in the path',
+        'size': 10
     },
 
     {
         'walls': [[(6, -6), (6, -2), (2, -6), (0, -4), (0, 4), (-2, -2), (-2, 2), (8, 2), (8, -6)]],
         'positions': [{'start': [1, 1, 0], 'end': [2, -4, 0], 'rotation': 0}],
-        'title': 'B8'
+        'title': 'B8',
+        'size': 10
     },
-{
+    {
         'walls': [[(-9.8, -6), (-8, -6)], [(-2, -9.8), (-2, -2), (-6, -2), (-6, 6)], [(-2, 9.8), (-2, 2)], [(9.8, -6), (8, -6)], [(2, -9.8), (2, -2), (6, -2), (6, 6)], [(2, 9.8), (2, 2)]],
         'positions': [{'start': [-8, -8, 0], 'end': [8, -8, 0], 'rotation': 0},
                       {'start': [8, -8, 0], 'end': [-8, -8, 0], 'rotation': np.pi}],
-        'title': 'NP'
+        'title': 'NP',
+        'size': 10
+    },
+    {
+        'walls': [[(0, -7.8), (0, 0)]],
+        'positions': [{'start': [-4, -4, 0], 'end': [4, -4, 0], 'rotation': np.pi / 2},
+                      {'start': [4, -4, 0], 'end': [-4, -4, 0], 'rotation': np.pi / 2}],
+        'title': 'big wall in middle',
+        'size': 8
     }
 ]
