@@ -16,15 +16,11 @@ class Map:
     # map is a list of segments, the obstacles
     # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
 
-    def __init__(
-        self,
-        initial_map: list[Polygonal_Chain] = None,
-        size: float = int(consts.size_map_quarter * 1.2),
-    ):
+    def __init__(self, initial_map: list[Polygonal_Chain] = None, size_map: float = int(consts.size_map_quarter * 1.2)):
         if initial_map is None:
             initial_map = []
         self.map = initial_map
-        self.size = size
+        self.size = size_map
 
         self.points = []
         self.distances = []
@@ -78,7 +74,7 @@ class Map:
         # drawing the end_points of each segment:
         for segment in self.new_segments:
             for point in segment:
-                ax.add_patch(Circle(point, 0.05, color="r"))
+                ax.add_patch(Circle(point, 0.05, color="b"))
 
         self.number_of_segment.append(len(self.segment_representation()))
         return
@@ -163,13 +159,13 @@ class Map:
             # if the next point is too far away, start a new segment
             if dist(new_points[i], new_points[i + 1]) > SAMPLE_DIST:
                 new_segment = self.points_to_line(segment_to_add)
-                self.new_segments.append(segment_to_add)
+                self.new_segments.append(new_segment)
                 self.add(new_segment)
                 segment_to_add = [new_points[i + 1]]
             else:
                 segment_to_add.append(new_points[i + 1])
         new_segment = self.points_to_line(segment_to_add)
-        self.new_segments.append(segment_to_add)
+        self.new_segments.append(new_segment)
         self.add(new_segment)
 
     def segment_representation(self) -> list[tuple[Point, Point]]:

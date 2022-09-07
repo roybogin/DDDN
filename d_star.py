@@ -6,6 +6,7 @@ from typing import Tuple, DefaultDict, Any
 
 import numpy as np
 
+import consts
 from WeightedGraph import Vertex, WeightedGraph
 from helper import dist
 
@@ -56,7 +57,8 @@ class PriorityQueue:
             if obj is not None:
                 del self.entry_dict[obj]
                 return obj
-        print('empty queue')
+        if consts.debugging:
+            print('empty queue')
         return None
 
     def top(self) -> Any:
@@ -70,7 +72,8 @@ class PriorityQueue:
                 return obj
             else:
                 heapq.heappop(self.queue)
-        print('empty queue')
+        if consts.debugging:
+            print('empty queue')
         return None
 
     def top_key(self) -> Any:
@@ -84,7 +87,8 @@ class PriorityQueue:
                 return priority
             else:
                 heapq.heappop(self.queue)
-        print('empty queue')
+        if consts.debugging:
+            print('empty queue')
         return np.inf, np.inf
 
     def __contains__(self, item):

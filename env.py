@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 import PRM
 import consts
 import maze_create
+
 import mazes
 from WeightedGraph import Edge, WeightedGraph
 from car import Car
@@ -22,23 +23,35 @@ class Env:
         super(Env, self).__init__()
 
         # define Matplotlib figure and axis
+
+        self.size_map_quarter = maze['size'] / 2
+
+        self.map_borders = [
+            (self.size_map_quarter, self.size_map_quarter),
+            (self.size_map_quarter, -self.size_map_quarter),
+            (-self.size_map_quarter, -self.size_map_quarter),
+            (-self.size_map_quarter, self.size_map_quarter),
+            (self.size_map_quarter, self.size_map_quarter),
+        ]
+
         if consts.drawing:
             self.ax = plt.gca()  # pyplot to draw and debug
-            plt_size = consts.size_map_quarter + 1  # pyplot size
+            plt_size = self.size_map_quarter + 1  # pyplot size
             plt.axis([-plt_size, plt_size, -plt_size, plt_size])
-            self.maze_title = maze["title"]
 
-        self.segments_partial_map: Map = Map([consts.map_borders.copy()])
+        self.maze_title = maze["title"]
+
+        self.segments_partial_map: Map = Map([self.map_borders.copy()], int(self.size_map_quarter * 1.2))
 
         self.run_time: int = 0  # time of the run
 
         self.maze: List = maze["walls"]  # walls of the maze - list of points
         self.borders: Optional[List[int]] = None  # the maze borders - object IDs
 
-        map_length = int((2 * consts.size_map_quarter) // consts.vertex_offset)
+        map_length = int((2 * self.size_map_quarter) // consts.vertex_offset)
 
         # Initialize structures
-        self.prm: PRM.PRM = PRM.PRM((map_length, map_length))   # A PRM object to generate structures
+        self.prm: PRM.PRM = PRM.PRM((map_length, map_length), self.size_map_quarter)   # A PRM object to generate structures
         self.generate_graph()
         self.graph: WeightedGraph = self.prm.graph  # the graph used by all of the cars
         self.obstacles = []  # list of obstacle IDs in pybullet
@@ -47,10 +60,12 @@ class Env:
         # Generate cars
         positions = maze["positions"]
         self.number_of_cars = len(positions)
-        self.cars: List[Car] = [
-            Car(i, positions[i], self.prm, self.segments_partial_map)
+        self.cars: List[Optional[Car]] = [
+            Car(i, positions[i], self.prm, self.segments_partial_map, self.size_map_quarter)
             for i in range(self.number_of_cars)
         ]
+        if consts.drawing:
+            self.traces: List[List] = [car.trace for car in self.cars]
 
         # initialize pybullet
         self.start_env()
@@ -95,7 +110,7 @@ class Env:
         p.setGravity(0, 0, -10)
 
         p.setRealTimeSimulation(consts.use_real_time)
-        p.setTimeStep(consts.time_step)
+        # p.setTimeStep(consts.time_step)
         p.loadSDF(os.path.join(pd.getDataPath(), "stadium.sdf"))
         p.resetDebugVisualizerCamera(
             cameraDistance=consts.cameraDistance,
@@ -108,55 +123,50 @@ class Env:
         """
         adds the boarder walls to the maze
         """
-        self.borders = maze_create.create_poly_wall(consts.map_borders, epsilon=consts.epsilon, client=p)
+        self.borders = map_create.create_poly_wall(self.map_borders, epsilon=consts.epsilon, client=p)
 
     def step(self):
         """
         runs the simulation one step
         calls the step and scan on all cars
         """
-        if consts.print_runtime and self.run_time % 200 == 0:
+        if consts.print_runtime and self.run_time % 400 == 0:
             print("time:", self.run_time)
-
-        # lookat changed edges prom parking
+            
+        # lookat changed edges from parking
         changed_edges: Set[Edge] = set()
         for car in self.cars:
-            if car.step():  # cars also set their wanted action here
+            if car and car.step():
                 changed_edges.update(car.changed_edges)
                 if not car.parked:  # car stopped parking - doesn't need its changed edges
                     car.changed_edges.clear()
-
-
-                # map = []
-                # vert = self.prm.vertices
-                # for row in range(0, len(vert)):
-                #     map.append([])
-                #     for col in range(0, len(vert[row])):
-                #         if len(vert[row][col]) == 0:
-                #             map[row].append(0)
-                #             continue
-                #         v = vert[row][col][0]
-                #
-                #         o = sum((1 for e in v.out_edges if e.weight != np.inf))
-                #         i = sum((1 for e in v.in_edges if e.weight != np.inf))
-                #         map[row].append(o+i)
-        if len(changed_edges) != 0:  # TODO: maybe once every few steps
-            # update graph so cars won't collide
+                    
+        if len(changed_edges) != 0:
+        # update graph so cars won't collide
             print('computing paths - parking')
             t = time.time()
             for car in self.cars:
-                if car.parked or car.finished:
-                    continue
-                car.prm.update_d_star(changed_edges, car.current_vertex)
-                car.prm.d_star.compute_shortest_path(car.current_vertex)
-                car.calculations_clock = 0
+                if car:
+                    if car.parked or car.finished:
+                        continue
+                    car.prm.update_d_star(changed_edges, car.current_vertex)
+                    car.prm.d_star.compute_shortest_path(car.current_vertex)
+                    car.calculations_clock = 0
             print('all paths computed in ', time.time() - t)
 
         p.stepSimulation()  # make a step for all cars
         self.run_time += 1
 
+        should_scan = self.run_time % consts.scan_time == 0
+
         for car in self.cars:
-            car.update_state()  # all the cars scan their environment   # TODO: for speedup - maybe once in a while
+            if car:
+                car.update_state(should_scan)  # all the cars scan their environment
+                if car.finished:
+                    p.removeBody(car.car_model)
+                    idx = car.car_number
+                    del car
+                    self.cars[idx] = None
 
         if len(self.graph.deleted_edges) != 0 and self.run_time % consts.calculate_d_star_time == 0:
             # TODO: for speedup - maybe merge with other path computation
@@ -164,38 +174,29 @@ class Env:
             print("computing paths - wall")
             t = time.time()
             for car in self.cars:
-                if car.parked or car.finished:
-                    continue
-                car.prm.update_d_star(self.graph.deleted_edges, car.current_vertex)
-                car.prm.d_star.compute_shortest_path(car.current_vertex)
-                car.calculations_clock = 0
+                if car:
+                    if car.parked or car.finished:
+                        continue
+                    car.prm.update_d_star(self.graph.deleted_edges, car.current_vertex)
+                    car.prm.d_star.compute_shortest_path(car.current_vertex)
+                    car.calculations_clock = 0
             print("all paths computed in ", time.time() - t)
             self.graph.deleted_edges.clear()
 
         if self.run_time >= consts.max_time:    # the car ran out of time
             print(f"out of time in {self.maze_title}")
             for idx, car in enumerate(self.cars):
-                car.trace.append(car.center_pos)
-                if car.finished:
-                    car.trace.append(car.end_point)
+                if car:
+                    car.trace.append(car.center_pos)
+
             return True
-
+            
+            
         # did any car crash or all finished
-        crashed = any(car.crashed for car in self.cars)
-        finished = all(car.finished for car in self.cars)
-
+        crashed = any(car.crashed for car in self.cars if car)
+        finished = all(car.finished for car in self.cars if car)        
         if not (crashed or finished):
             return False
-
-        if consts.drawing:
-            for idx, car in enumerate(self.cars):
-                car.trace.append(car.center_pos)
-                if car.finished:
-                    car.trace.append(car.end_point)
-                elif car.crashed:
-                    plt.scatter(
-                        car.trace[-1][0], car.trace[-1][1], label=f"crash car {idx}"
-                    )
 
         if crashed:
             print(f"crashed {self.maze_title} - time {self.run_time}")
@@ -204,30 +205,3 @@ class Env:
             print(f"finished {self.maze_title}" f" - time {self.run_time}")
             return True
         return False
-
-
-# for testing:
-def main():
-    t0 = time.time()
-    stop = False
-    maze = mazes.default_data_set[2]    # choose maze
-    env = Env(maze)
-    while not stop:
-        stop = env.step()
-    print(f"total time: {time.time() - t0}")
-    p.disconnect()
-    if consts.drawing:
-        env.segments_partial_map.plot(env.ax)
-        for idx, car in enumerate(env.cars):
-            plt.plot([a for a, _ in car.trace], [a for _, a in car.trace], label=f"actual car {idx}")
-        plt.title(f'{maze["title"]} - time {env.run_time}')
-        ax = env.ax
-        box = ax.get_position()
-        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-        # Put a legend to the right of the current axis
-        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        plt.show()
-
-
-if __name__ == "__main__":
-    main()

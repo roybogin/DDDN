@@ -36,20 +36,26 @@ def dist(point1: Sequence[float], point2: Sequence[float]) -> float:
     """
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
-
-def get_wall(point1, point2):
-    # TODO: docstring and typing
+# TODO: typing
+def get_wall(point1, point2, width):
+    """
+    function return a wall with width around
+    :param point1:
+    :param point2:
+    :param width:
+    :return:
+    """
     theta = math.atan2(point1[1] - point2[1], point1[0] - point2[0])
-    ret = [(point1[0] + math.sqrt(2) * consts.epsilon * math.cos(theta - math.pi / 2),
-            point1[1] + math.sqrt(2) * consts.epsilon * math.sin(theta - math.pi / 2)),
-           (point1[0] + math.sqrt(2) * consts.epsilon * math.cos(theta + math.pi / 2),
-            point1[1] + math.sqrt(2) * consts.epsilon * math.sin(theta + math.pi / 2)),
-           (point2[0] + math.sqrt(2) * consts.epsilon * math.cos(-theta - math.pi / 2),
-            point2[1] + math.sqrt(2) * consts.epsilon * math.sin(-theta - math.pi / 2)),
-           (point2[0] + math.sqrt(2) * consts.epsilon * math.cos(-theta + math.pi / 2),
-            point2[1] + math.sqrt(2) * consts.epsilon * math.sin(-theta + math.pi / 2)),
-           (point1[0] + math.sqrt(2) * consts.epsilon * math.cos(theta - math.pi / 2),
-            point1[1] + math.sqrt(2) * consts.epsilon * math.sin(theta - math.pi / 2))]
+    ret = [(point1[0] + math.sqrt(2) * width * math.cos(theta - math.pi / 2),
+            point1[1] + math.sqrt(2) * width * math.sin(theta - math.pi / 2)),
+           (point1[0] + math.sqrt(2) * width * math.cos(theta + math.pi / 2),
+            point1[1] + math.sqrt(2) * width * math.sin(theta + math.pi / 2)),
+           (point2[0] + math.sqrt(2) * width * math.cos(-theta - math.pi / 2),
+            point2[1] + math.sqrt(2) * width * math.sin(-theta - math.pi / 2)),
+           (point2[0] + math.sqrt(2) * width * math.cos(-theta + math.pi / 2),
+            point2[1] + math.sqrt(2) * width * math.sin(-theta + math.pi / 2)),
+           (point1[0] + math.sqrt(2) * width * math.cos(theta - math.pi / 2),
+            point1[1] + math.sqrt(2) * width * math.sin(theta - math.pi / 2))]
     return ret
 
 
@@ -87,15 +93,16 @@ def norm(vec: Sequence[float]):
     return dist(vec, [0]*len(vec))
 
 
-def map_index_from_pos(pos: Sequence[float]) -> Sequence[int]:
+def map_index_from_pos(pos: Sequence[float], size_map_quarter: float) -> Sequence[int]:
     """
-    transforms a position on the map to indices in the binary matrices
+    transforms a position on the map to indices in the vertex list
     :param pos: (x,y) pair on the map
+    :param size_map_quarter: length of half of the map
     :return: (x, y) indices that the point is contained in
     """
-    indices = [int((value + consts.size_map_quarter) / consts.vertex_offset) for value in pos[:2]]
+    indices = [int((value + size_map_quarter) / consts.vertex_offset) for value in pos[:2]]
     # keep the return value within the wanted limits for edge cases
-    return tuple([max(0, min(idx, int((2 * consts.size_map_quarter) // consts.vertex_offset) - 1)) for idx in indices])
+    return tuple([max(0, min(idx, int((2 * size_map_quarter) // consts.vertex_offset) - 1)) for idx in indices])
 
 
 def block_options(index: Sequence[int], radius: int, map_shape: Tuple[int, int], only_positives: bool = False) -> \

@@ -8,12 +8,7 @@ import d_star
 from WeightedGraph import Edge, WeightedGraph, Vertex
 from d_star import DStar
 from helper import dist, map_index_from_pos, block_options
-
-
-# TODO: remove
-def tqdm(a, *args, **kwargs):
-    print('TQDMMMMMMMMMMMMMMMMM')
-    return a
+from tqdm import tqdm
 
 
 def radius_delta(delta: float) -> float:
@@ -89,9 +84,10 @@ def transform_by_values(pos: np.ndarray, theta: float, vertex_2: Vertex) -> Tupl
 
 
 class PRM:
-    def __init__(self, shape, prm=None):
+    def __init__(self, size_map_quarter, shape, prm=None):
         self.end: Optional[Vertex] = None   # The end vertex for the PRM
         self.shape: Tuple[int, int] = shape  # shape of the vertex grid (in rows and columns)
+        self.size_map_quarter: float = size_map_quarter # length of half of the grid (0 to end)
         self.max_angle_radius: float = radius_delta(consts.max_steer)  # radius of arc for maximum steering
         self.res: float = np.sqrt(self.max_angle_radius ** 2 + (self.max_angle_radius - consts.a_2) ** 2)
         # resolution of the path planner
@@ -112,7 +108,7 @@ class PRM:
             x_temp = (
                 consts.vertex_offset / 2
                 + consts.amount_vertices_from_edge * consts.vertex_offset
-                - consts.size_map_quarter
+                - self.size_map_quarter
             )
             for col_idx in tqdm(
                 range(
@@ -123,7 +119,7 @@ class PRM:
                 y_temp = (
                     consts.vertex_offset / 2
                     + consts.amount_vertices_from_edge * consts.vertex_offset
-                    - consts.size_map_quarter
+                    - self.size_map_quarter
                 )
                 for row_idx in range(
                     consts.amount_vertices_from_edge,
@@ -142,7 +138,7 @@ class PRM:
     def possible_offsets_angle(self, pos: np.ndarray, angle: int, only_forward: bool = False) -> List[Tuple]:
         #TODO: docstring
         ret = []
-        block = map_index_from_pos(pos)
+        block = map_index_from_pos(pos, self.size_map_quarter)
         v = self.vertices[block[0]][block[1]][angle]
         for neighbor_block in block_options(block, np.ceil(self.res / consts.vertex_offset), self.shape):
             for theta, u in enumerate(self.vertices[neighbor_block[0]][neighbor_block[1]]):
@@ -210,7 +206,7 @@ class PRM:
         :param pos: end position of the car
         :return: the rounded end position
         """
-        index = map_index_from_pos(pos)
+        index = map_index_from_pos(pos, self.size_map_quarter)
         self.end = self.get_closest_vertex(pos, 0)
         for v in self.vertices[index[0]][index[1]]:
             if v != self.end:
@@ -224,7 +220,7 @@ class PRM:
         :param theta: given rotation
         :return: the closest vertex to a given position and rotation
         """
-        block = map_index_from_pos(pos)
+        block = map_index_from_pos(pos, self.size_map_quarter)
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(theta / angle_offset)
         return self.vertices[block[0]][block[1]][angle]
@@ -236,7 +232,8 @@ class PRM:
             successors, key=lambda tup: next_vertex_key(*tup), default=(None,)
         )[0]
         if next_vertex is None:
-            print("no successors")
+            if consts.debugging:
+                print("no successors")
         return next_vertex
 
     def draw_path(self, current_vertex: Vertex, idx: Any = ""):
@@ -265,7 +262,7 @@ class PRM:
         remove vertex from the graph
         :param v: vertex to be removed
         """
-        index = map_index_from_pos(v.pos)
+        index = map_index_from_pos(v.pos, self.size_map_quarter)
         angle_offset = 2 * np.pi / consts.directions_per_vertex
         angle = round(v.theta / angle_offset)
         self.vertices[index[0]][index[1]][angle] = None
