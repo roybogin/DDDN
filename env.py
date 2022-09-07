@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 
 import PRM
 import consts
-import map_create
+import maze_create
 import mazes
 from WeightedGraph import Edge, WeightedGraph
 from car import Car
@@ -55,7 +55,7 @@ class Env:
         # initialize pybullet
         self.start_env()
         self.add_borders()
-        self.obstacles = map_create.create_map(
+        self.obstacles = maze_create.create_map(
             self.maze, epsilon=consts.epsilon, client=p
         )
         self.bodies = self.borders + self.obstacles
@@ -108,7 +108,7 @@ class Env:
         """
         adds the boarder walls to the maze
         """
-        self.borders = map_create.create_poly_wall(consts.map_borders, epsilon=consts.epsilon, client=p)
+        self.borders = maze_create.create_poly_wall(consts.map_borders, epsilon=consts.epsilon, client=p)
 
     def step(self):
         """
