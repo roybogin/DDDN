@@ -167,7 +167,6 @@ class Env:
                     self.cars[idx] = None
 
         if len(self.graph.deleted_edges) != 0 and self.run_time % consts.calculate_d_star_time == 0:
-            # TODO: for speedup - maybe merge with other path computation
             # cars saw a wall - compute paths
             print("computing paths - wall")
             t = time.time()

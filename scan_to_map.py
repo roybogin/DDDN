@@ -79,52 +79,6 @@ class Map:
         self.number_of_segment.append(len(self.segment_representation()))
         return
 
-    # TODO: maybe remove?
-    def check_batch(self, points: list[Point]) -> bool:
-        """
-        checks if the batch of points representing the car might colide with some segment in the map.
-
-        :param points: the list of points which is the car.
-        :return: True if none of the points are too close to an obstacle.
-        """
-        for point in points:
-            for segment in self.new_segments:
-                for i in range(len(segment) - 1):
-                    if (
-                        perpendicular_distance(point, segment[i], segment[i + 1])
-                        < consts.epsilon
-                    ):
-                        return False
-        return True
-
-    # TODO: maybe remove?
-    def check_state(self, vertex: Vertex, num_sample_car: int = 2):
-        """
-        the code used to check which vertecies we need to remove from the PRM graph.
-        the car is split into evenly num_sample_car^2 points,
-        and checks if any of them is too close to an obstacle on the map.
-
-        :param vertex: the position vertex of the car.
-        :param num_sample_car: the number of vertecies to represent the car's position.
-        :return: True if the state is valid with the current map.
-        """
-        to_check = []
-        for i in range(num_sample_car):
-            for j in range(num_sample_car):
-                x_temp = consts.length * (-1 / 2 + i / (num_sample_car - 1))
-                y_temp = consts.width * (-1 / 2 + j / (num_sample_car - 1))
-                to_check.append(
-                    (
-                        vertex.pos[0]
-                        + x_temp * np.cos(vertex.theta)
-                        - y_temp * np.sin(vertex.theta),
-                        vertex.pos[1]
-                        + x_temp * np.sin(vertex.theta)
-                        + y_temp * np.cos(vertex.theta),
-                    )
-                )
-        return self.check_batch(to_check)
-
     def add_points_to_map(self, points: list[Point]) -> None:
         """
         given a list of scan points, add new segments to the map.

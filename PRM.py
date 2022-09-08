@@ -136,7 +136,13 @@ class PRM:
                 x_temp += consts.vertex_offset
 
     def possible_offsets_angle(self, pos: np.ndarray, angle: int, only_forward: bool = False) -> List[Tuple]:
-        # TODO: docstring
+        """
+        return possible offsets for edges to add for a given angle
+        :param pos: the position of the base vertex
+        :param angle: the angle of the vertex (it's index)
+        :param only_forward: only_forward indicates if it is two way or one way
+        :return: the offsets to add as edges
+        """
         ret = []
         block = map_index_from_pos(pos, self.size_map_quarter)
         v = self.vertices[block[0]][block[1]][angle]
@@ -145,7 +151,6 @@ class PRM:
                 weight = dist(v.pos, u.pos)
                 if weight == 0:
                     continue
-                # TODO: move code to new function - edges to add
                 if weight <= self.res:
                     transformed = transform_pov(v, u)
                     x_tag, y_tag = transformed[0][0], transformed[0][1]
@@ -172,7 +177,12 @@ class PRM:
         return ret
 
     def possible_offsets(self, pos: np.ndarray, only_forward=False):
-        # TODO: docstring and typing
+       """
+       returns all the possible offsets to add as edges for each angle in a given index
+       :param pos: the position of the vertex
+       :param only_forward: true for one way, false for two-way
+       :return: all the possible edges to add for each angle in the position
+       """
         ret = []
         for theta in range(consts.directions_per_vertex):
             ret.append(self.possible_offsets_angle(pos, theta, only_forward))
@@ -302,8 +312,6 @@ class PRM:
                 old_weight = edge.original_weight
             rhs = self.d_star.rhs
             g = self.d_star.g
-            # TODO: maybe add stuff to edge and support an edge returning to a state before updating and we skip the
-            #  calculation
             if old_weight > curr_weight:
                 rhs[u] = min(rhs[u], curr_weight + g[v])
             elif rhs[u] == old_weight + g[v]:
