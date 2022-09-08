@@ -130,7 +130,7 @@ class Env:
         """
         if consts.print_runtime and self.run_time % 400 == 0:
             print("time:", self.run_time)
-            
+
         # lookat changed edges from parking
         changed_edges: Set[Edge] = set()
         for car in self.cars:

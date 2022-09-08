@@ -3,6 +3,7 @@ import json
 import time
 from typing import Dict
 
+import numpy as np
 import pybullet as p
 from matplotlib import pyplot as plt
 

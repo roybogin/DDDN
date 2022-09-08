@@ -185,7 +185,7 @@ class Car:
                             changed_edge = True
                     else:
                         if edge.active and perpendicular_distance(segment[0], edge.src.pos, edge.dst.pos) < \
-                                consts.width + 1 * consts.epsilon:
+                                consts.width + 2 * consts.epsilon:
                             edge.weight = np.inf
                             self.changed_edges.add(edge)
                             edge.parked_cars += 1
@@ -200,7 +200,7 @@ class Car:
                                 break  # exit for over i
                         else:
                             if edge.active and distance_between_lines(segment[i], segment[i + 1], edge.src.pos,
-                                                                      edge.dst.pos) < consts.width + 1 * consts.epsilon:
+                                                                      edge.dst.pos) < consts.width + 2 * consts.epsilon:
                                 edge.weight = np.inf
                                 self.changed_edges.add(edge)
                                 edge.parked_cars += 1
@@ -226,8 +226,6 @@ class Car:
             if did_hit:
                 self.hits[i].append((end[0], end[1]))
                 if len(self.hits[i]) == consts.max_hits_before_calculation:
-                    if consts.debugging:
-                        print('calculating')
                     self.segments_partial_map.add_points_to_map(self.hits[i])
                     self.hits[i] = []
                     new = self.segments_partial_map.new_segments
@@ -303,6 +301,49 @@ class Car:
                          vertical_line]
         self.remove_edges([points_to_check, horizontal_line, vertical_line], True)
 
+    def calculate_action(self) -> None:
+        """
+        calculates the wanted speed and rotation for the next action to get to next_vertex
+        """
+        transformed_vertex = PRM.transform_by_values(
+            self.center_pos, self.rotation, self.next_vertex
+        )
+        x_tag, y_tag = transformed_vertex[0][0], transformed_vertex[0][1]
+
+        radius = np.sqrt(PRM.radius_x_y_squared(x_tag, y_tag))
+        delta = np.sign(y_tag) * np.arctan(consts.length / radius)
+
+        rotation = [delta, delta]
+
+        rotation = np.array(rotation)
+
+        self.action = [np.sign(x_tag) / (1 + 4 * abs(delta)), rotation]
+
+    def set_speed_and_rotation(self) -> None:
+        """
+        sets the wanted speed and rotation in the wheel joints for pybullet (with our given constraints)
+        """
+        wanted_speed = self.action[0] * consts.max_velocity
+        wanted_steering_angle = self.action[1]
+        wanted_steering_angle = np.sign(wanted_steering_angle) * np.minimum(
+            np.abs(wanted_steering_angle), consts.max_steer
+        )
+        if abs(wanted_speed) > consts.max_velocity:
+            wanted_speed = consts.max_velocity * np.sign(wanted_speed)
+
+        # moving
+        for wheel in self.wheels:
+            p.setJointMotorControl2(
+                self.car_model,
+                wheel,
+                p.VELOCITY_CONTROL,
+                targetVelocity=wanted_speed,
+                force=consts.max_force,
+            )
+
+        for steer, angle in zip(self.steering, wanted_steering_angle):
+            p.setJointMotorControl2(self.car_model, steer, p.POSITION_CONTROL, targetPosition=angle)
+
     def step(self) -> bool:
         """
         this function is called each frame,
@@ -325,8 +366,9 @@ class Car:
             self.is_parked = True
             self.deactivate_edges()
             changed_parking = True
-            print('parking')
+            print(f'parking car {self.car_number}')
         if not needs_parking and self.is_parked:  # unpark the car and free the edges
+            print(f'unparking car {self.car_number}')
             changed_parking = True
             self.is_parked = False
             self.calculations_clock = 0  # need to do calculations now
@@ -336,12 +378,10 @@ class Car:
                     edge.weight = edge.original_weight
 
         if self.is_parked or changed_parking:  # don't move if parking
-            self.action = [0, [0, 0]]
-            for wheel in self.wheels:
-                p.setJointMotorControl2(self.car_model, wheel, p.VELOCITY_CONTROL, targetVelocity=0,
-                                        force=consts.max_force)
-            for steer in self.steering:
-                p.setJointMotorControl2(self.car_model, steer, p.POSITION_CONTROL, targetPosition=0)
+            self.next_vertex = self.current_vertex  # aim at current location
+            self.action[0] *= dist(self.center_pos, self.next_vertex.pos) / consts.vertex_offset  # slow down near parking spot
+            self.calculate_action()
+            self.set_speed_and_rotation()
             # NOTE: calculation clock is irrelevant
             return changed_parking
 
@@ -371,49 +411,15 @@ class Car:
             else:
                 if consts.debugging:
                     print("forward")
-                    print(self.backward_driving_counter)
                 self.next_vertex = next_vertex
                 self.is_backwards_driving = False
                 self.backward_driving_counter = 0
 
         if self.calculations_clock % consts.calculate_action_time == 0:  # calculate needed action to get to the next
             # vertex
-            transformed_vertex = PRM.transform_by_values(
-                self.center_pos, self.rotation, self.next_vertex
-            )
-            x_tag, y_tag = transformed_vertex[0][0], transformed_vertex[0][1]
+            self.calculate_action()
 
-            radius = np.sqrt(PRM.radius_x_y_squared(x_tag, y_tag))
-            delta = np.sign(y_tag) * np.arctan(consts.length / radius)
-
-            rotation = [delta, delta]
-
-            rotation = np.array(rotation)
-
-            self.action = [np.sign(x_tag) / (1 + 4 * abs(delta)), rotation]
-
-            wanted_speed = self.action[0] * consts.max_velocity
-            wanted_steering_angle = self.action[1]
-            wanted_steering_angle = np.sign(wanted_steering_angle) * np.minimum(
-                np.abs(wanted_steering_angle), consts.max_steer
-            )
-            if abs(wanted_speed) > consts.max_velocity:
-                wanted_speed = consts.max_velocity * np.sign(wanted_speed)
-
-            # moving
-            for wheel in self.wheels:
-                p.setJointMotorControl2(
-                    self.car_model,
-                    wheel,
-                    p.VELOCITY_CONTROL,
-                    targetVelocity=wanted_speed,
-                    force=consts.max_force,
-                )
-
-            for steer, angle in zip(self.steering, wanted_steering_angle):
-                p.setJointMotorControl2(
-                    self.car_model, steer, p.POSITION_CONTROL, targetPosition=angle
-                )
+            self.set_speed_and_rotation()
         self.calculations_clock += 1
         return False
 
