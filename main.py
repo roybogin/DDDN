@@ -35,9 +35,15 @@ def main():
     )
     parser.add_argument(
         "-m",
-        "--draw_maze",
+        "--plot_maze",
         action="store_true",
         help="draw the maze map with a matplotlib plot",
+    )
+    parser.add_argument(
+        "-t",
+        "--max_time",
+        type=int,
+        help="the maximum number of ticks before the simulation is stopped.",
     )
 
     args = parser.parse_args()
@@ -46,25 +52,30 @@ def main():
         maze = json.load(f)
         f.close()
 
-    if not is_input_valid(maze):
+    if args.max_time:
+        max_time = int(args.max_time)
+    else:
+        max_time = consts.max_time
+
+    if not is_input_valid(maze, max_time):
         exit(1)
+
+    if args.plot_maze:
+        map = Map(maze["walls"], maze["size"])
+        ax = plt.gca()
+        map.plot(ax)
+        plt.show()
+        return
 
     consts.debugging = args.print
     consts.drawing = args.draw
     consts.is_visual = args.visualize
-
-    if args.draw_maze:
-        map = Map(maze["walls"], maze["size"])
-        print(map)
-        ax = plt.gca()
-        map.plot(ax)
-
-        return
+    consts.max_time = args.max_time
 
     run_sim(maze)
 
 
-def is_input_valid(maze: dict) -> bool:
+def is_input_valid(maze: dict, max_time: int) -> bool:
     """
     Check if the input maze can be contained in a square with side length maze["size"].
     :return: True if the input maze can be contained, False otherwise
@@ -91,11 +102,14 @@ def is_input_valid(maze: dict) -> bool:
         if position["start"][2] != 0 or position["end"][2] != 0:
             print("invalid input, start and endpoints must be with z value 0.")
             return False
+    if max_time <= 0:
+        print("max time should be a positive integer!")
+        return False
 
     return True
 
 
-def run_sim(maze: Dict):
+def run_sim(maze: Dict) -> None:
     t0 = time.time()
     stop = False
     env = Env(maze)
