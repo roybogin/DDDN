@@ -35,7 +35,7 @@ ray_amount = 6  # amount of rays
 vertex_offset = 0.11    # offset between vertices
 
 directions_per_vertex = 36  # amount of angles allowed for each vertex
-amount_vertices_from_edge = math.ceil(0.3 / vertex_offset)  # TODO: write constant's meaning
+amount_vertices_from_edge = math.ceil(0.3 / vertex_offset)  # the offset from possible vertices in the given map, as vertices too close to the wall will crash the car
 
 max_time = int(3e4)  # time before forcing a new maze
 

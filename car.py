@@ -457,7 +457,7 @@ class Car:
 
         prev_vertex = self.current_vertex
         self.current_vertex = self.prm.get_closest_vertex(self.center_pos, self.rotation)
-        if self.current_vertex != prev_vertex and not self.is_backwards_driving:  # TODO: increase distance or time for this
+        if self.current_vertex != prev_vertex and not self.is_backwards_driving:
             self.prev_vertex.append(prev_vertex)
         if should_scan:
             self.scan_environment()
