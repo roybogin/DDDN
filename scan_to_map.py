@@ -1,20 +1,25 @@
 from math import sqrt
-
 import numpy as np
 from matplotlib.patches import Rectangle, Circle
 from matplotlib import pyplot as plt
 
 import consts
 from PRM import Vertex
-from helper import perpendicularDistance, dist
+from helper import perpendicular_distance, dist
 
 SAMPLE_DIST = 0.8
+
+Point = tuple[int, int]
+Polygonal_Chain = list[Point]
 
 
 class Map:
     # map is a list of segments, the obstacles
-    def __init__(self, initial_map, size_map):
-        # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
+    # map represented as a list of polygonal chains, each chain is a list of consecutive vertices.
+
+    def __init__(self, initial_map: list[Polygonal_Chain], size_map: float):
+        if initial_map is None:
+            initial_map = []
         self.map = initial_map
         self.size = size_map
 
@@ -23,10 +28,11 @@ class Map:
         self.new_segments = []
         self.number_of_segment = []
 
-    def plot(self, ax):
+    def plot(self, ax) -> None:
         """
-        a function to draw the current map,
+        a function to draw the current map with matplotlib,
         used for debuging and demos
+        :param ax: the current plot to draw on
         """
         segments = self.segment_representation()
         # we can find the left,bottom point with two lines of length epsilon,
@@ -78,51 +84,7 @@ class Map:
 
         return
 
-    def check_batch(self, points):
-        """
-        checks if the batch of points representing the car might colide with some segment in the map.
-
-        :param points: the list of points which is the car.
-        :return: True if none of the points are too close to an obstacle.
-        """
-        for point in points:
-            for segment in self.new_segments:
-                for i in range(len(segment) - 1):
-                    if (
-                        perpendicularDistance(point, segment[i], segment[i + 1])
-                        < consts.epsilon
-                    ):  # TODO: enter on false?
-                        return False
-        return True
-
-    def check_state(self, vertex: Vertex, num_sample_car=2):
-        """
-        the code used to check which vertecies we need to remove from the PRM graph.
-        the car is split into evenly num_sample_car^2 points,
-        and checks if any of them is too close to an obstacle on the map.
-
-        :param vertex: the position vertex of the car.
-        :param num_sample_car: the number of vertecies to represent the car's position.
-        :return: True if the state is valid with the current map.
-        """
-        to_check = []
-        for i in range(num_sample_car):
-            for j in range(num_sample_car):
-                x_temp = consts.length * (-1 / 2 + i / (num_sample_car - 1))
-                y_temp = consts.width * (-1 / 2 + j / (num_sample_car - 1))
-                to_check.append(
-                    (
-                        vertex.pos[0]
-                        + x_temp * np.cos(vertex.theta)
-                        - y_temp * np.sin(vertex.theta),
-                        vertex.pos[1]
-                        + x_temp * np.sin(vertex.theta)
-                        + y_temp * np.cos(vertex.theta),
-                    )
-                )
-        return self.check_batch(to_check)
-
-    def add_points_to_map(self, points):
+    def add_points_to_map(self, points: list[Point]) -> None:
         """
         given a list of scan points, add new segments to the map.
         the new segments are an approximation of the true obstacles.
@@ -139,7 +101,7 @@ class Map:
             should_add = True
             for segment in segment_representation:
                 if (
-                    perpendicularDistance(point, segment[0], segment[1])
+                    perpendicular_distance(point, segment[0], segment[1])
                     < consts.epsilon
                 ):
                     should_add = False
@@ -167,9 +129,9 @@ class Map:
         self.new_segments.append(new_segment)
         self.add(new_segment)
 
-    def segment_representation(self):
+    def segment_representation(self) -> list[tuple[Point, Point]]:
         """
-        returns a list of all of the segments in the map.
+        returns a list of all the segments in the map.
         """
         segments = []
         for i in range(len(self.map)):
@@ -178,7 +140,7 @@ class Map:
 
         return segments
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         :return: a string representation of the map
         """
@@ -188,7 +150,7 @@ class Map:
             out += "\n"
         return out
 
-    def polygonal_chain_to_str(self, list_of_points):
+    def polygonal_chain_to_str(self, list_of_points: list[Point]) -> str:
         """
         a helper function to __str__
         :param list_of_points: list of points to get the string representation of
@@ -203,14 +165,15 @@ class Map:
         return string
 
     #
-    def add(self, chain):
+    def add(self, chain: Polygonal_Chain) -> None:
         """
         given a polygonal chain, adds it to map
         assumes points are given in order of the polygonal chain
         """
         self.map.append(chain)
 
-    def points_to_line(self, points):
+
+    def points_to_line(self, points: list[Point]) -> list[Point]:
         """
         an implementation of the Ramer–Douglas–Peucker algorithm
         to make a set of points into a polygonal chain.
@@ -222,7 +185,7 @@ class Map:
         if end == 0:
             return []
         for i in range(1, end - 1):
-            d = perpendicularDistance(points[i], points[0], points[-1])
+            d = perpendicular_distance(points[i], points[0], points[-1])
             if d > dmax:
                 index = i
                 dmax = d
@@ -230,10 +193,10 @@ class Map:
         # If max distance is greater than epsilon, recursively simplify
         if dmax > consts.epsilon:
             # Recursive call
-            recResults1 = self.points_to_line(points[: index + 1])
-            recResults2 = self.points_to_line(points[index:])
+            rec_results1 = self.points_to_line(points[: index + 1])
+            rec_results2 = self.points_to_line(points[index:])
             # Build the result list
-            result = recResults1 + recResults2[1:]
+            result = rec_results1 + rec_results2[1:]
         else:
             result = [points[0], points[-1]]
         # Return the result
