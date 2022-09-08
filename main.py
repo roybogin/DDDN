@@ -54,6 +54,7 @@ def main():
 
     if args.max_time:
         max_time = int(args.max_time)
+        consts.max_time = max_time
     else:
         max_time = consts.max_time
 
@@ -61,16 +62,24 @@ def main():
         exit(1)
 
     if args.plot_maze:
-        map = Map(maze["walls"], maze["size"])
+        size_map_quarter = maze["size"] / 2
+
+        map_borders = [[
+            (size_map_quarter, size_map_quarter),
+            (size_map_quarter, -size_map_quarter),
+            (-size_map_quarter, -size_map_quarter),
+            (-size_map_quarter, size_map_quarter),
+            (size_map_quarter, size_map_quarter),
+        ]]
+        plot_map = Map(maze["walls"] + map_borders, maze["size"])
         ax = plt.gca()
-        map.plot(ax)
+        plot_map.plot(ax)
         plt.show()
         return
 
     consts.debugging = args.print
     consts.drawing = args.draw
     consts.is_visual = args.visualize
-    consts.max_time = args.max_time
 
     run_sim(maze)
 

@@ -78,8 +78,9 @@ class Map:
                 ax.add_patch(Circle(point, 0.05, color="b"))
 
         self.number_of_segment.append(len(self.segment_representation()))
-        plt.xlim(-self.size / 2, self.size / 2)
-        plt.ylim(-self.size / 2, self.size / 2)
+        plot_size = self.size * 1.2
+        plt.xlim(-plot_size / 2, plot_size / 2)
+        plt.ylim(-plot_size / 2, plot_size / 2)
         ax.plot()
 
         return

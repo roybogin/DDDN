@@ -38,9 +38,7 @@ class Env:
 
         self.maze_title = maze["title"]
 
-        self.segments_partial_map: Map = Map(
-            [self.map_borders.copy()], int(self.size_map_quarter * 1.2)
-        )
+        self.segments_partial_map: Map = Map([self.map_borders.copy()], maze['size'])
 
         self.run_time: int = 0  # time of the run
 
@@ -190,9 +188,6 @@ class Env:
 
         if self.run_time >= consts.max_time:    # the car ran out of time
             print(f"out of time in {self.maze_title}")
-            for idx, car in enumerate(self.cars):
-                if car:
-                    car.trace.append(car.center_pos)
 
             return True
 

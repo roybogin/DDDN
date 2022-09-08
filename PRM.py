@@ -177,12 +177,12 @@ class PRM:
         return ret
 
     def possible_offsets(self, pos: np.ndarray, only_forward=False):
-       """
-       returns all the possible offsets to add as edges for each angle in a given index
-       :param pos: the position of the vertex
-       :param only_forward: true for one way, false for two-way
-       :return: all the possible edges to add for each angle in the position
-       """
+        """
+        returns all the possible offsets to add as edges for each angle in a given index
+        :param pos: the position of the vertex
+        :param only_forward: true for one way, false for two-way
+        :return: all the possible edges to add for each angle in the position
+        """
         ret = []
         for theta in range(consts.directions_per_vertex):
             ret.append(self.possible_offsets_angle(pos, theta, only_forward))
