@@ -447,7 +447,6 @@ class Car:
             print(f'car {self.car_number} has finished! :)')
             if consts.drawing:
                 self.trace.append(self.end_point)
-                print(self.end_point, self.prm.end.pos)
         if self.crashed:
             print(f'car {self.car_number} has crashed! :(')
             if consts.drawing:
