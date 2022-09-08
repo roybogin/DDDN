@@ -1,60 +1,54 @@
 # pybullet simulation
-from typing import List, Literal, Sequence
 
-import stable_baselines3.common.base_class
+import math
 
-is_visual = False  # do we want to see visual footage
+import numpy as np
+
+is_visual = not True  # do we want to see visual footage
 use_real_time = 0  # is the simulation running in real time - probably should always be 0
 time_step = 0.01    # what is a time step in the pybullet simulation
 
+# debugging flags:
+debugging = True    # are we debugging the code
+drawing = True  # do we want to plot the paths
+show_scaned_maze = True
+show_projected_path = True
+show_actual_path = True
+show_goal_starting_points = True
+print_runtime = True  # do we want to print the total time of the run
+
+
+# camera settings for visual pybullet
 cameraDistance = 11
-cameraYaw = -89.9
+cameraYaw = 0
 cameraPitch = -89.9
 cameraTargetPosition = [0, 0, 0]
 
-# interpreting NN outputs
-speed_scalar = 1
-steer_scalar = 0.1
-max_steer = 0.3
-max_velocity = 30
-max_force = 100
-
+max_steer = np.pi / 4   # maximum steering allowed for PRM
+max_velocity = 8   # maximum car velocity
+max_force = 100  # pybullet force
+epsilon = 0.1   # margin for walls and edge removal
 
 min_dist_to_target = 0.5  # distance from target that is treated as success
-ray_length = 5  # length of ray
-ray_amount = 6
-print_reward_breakdown = False
-size_map_quarter = 10
-block_size = 0.2
-map_borders = [
-    (size_map_quarter, size_map_quarter),
-    (size_map_quarter, -size_map_quarter),
-    (-size_map_quarter, -size_map_quarter),
-    (-size_map_quarter, size_map_quarter),
-    (size_map_quarter, size_map_quarter),
-]
+ray_length = 5  # length of ray for wall detection
+ray_amount = 6  # amount of rays
+vertex_offset = 0.11    # offset between vertices
+
+directions_per_vertex = 36  # amount of angles allowed for each vertex
+amount_vertices_from_edge = math.ceil(0.3 / vertex_offset)  # the offset from possible vertices in the given map, as vertices too close to the wall will crash the car
+
+max_time = int(3e4)  # time before forcing a new maze
+
+length = 0.325  # car length
+width = 0.2     # car width
+a_2 = 0.1477    # a_2 of the car (distance to center of mass)
+
+minimum_car_dist = 1.5    # minimum distance allowed between cars
 
 max_hits_before_calculation = 10  # amounts of new hits before adding lines to the map
-max_time = int(1.5e4)  # time before forcing a new maze
-print_runtime = False  # do we want to print the total time of the run
+calculate_action_time = 50  # maximum amount of steps to calculate a new action (velocity and wheel rotation)
+calculate_d_star_time = 50  # maximum amount of steps to recalculate the d_star in case of edge removal
+reset_count_time = 200      # maximum allowed of steps to reset the counter (and also choose a new target vertex)
+backwards_driving_steps = 4  # amount of steps we want to drive backwards if needed
+scan_time = 2  # time between scans
 
-is_model_load = True   # do we want to load a model
-loaded_model_path = None    # the loaded model filename - None means the latest
-checkpoint_steps = int(6e4)  # how many steps we want between checkpointing
-
-num_processes = 4   # amount of processes for multiprocessing
-
-# reward constants:
-DISTANCE_REWARD = 0.05  # reward for high speed
-DISCOVER_REWARD = 50    # reward for discovering more of the map
-MIN_DIST_PENALTY = -0.005   # reward for getting close to the target
-FINISH_REWARD = 1000    # reward for finishing the maze
-CRASH_PENALTY = -1000   # reward for not crashing
-TIME_PENALTY = CRASH_PENALTY/(2*max_time)    # reward for finishing in a short time
-
-
-# typing
-binary_matrix = List[List[Literal[0, 1]]]   # binary matrix
-vector = Sequence[float]    # list or tuple of floats
-network_model = stable_baselines3.common.base_class.BaseAlgorithm   # NN algorithm
-stable_baselines_env = stable_baselines3.common.vec_env.base_vec_env.VecEnv  # vectorized environment

@@ -1,28 +1,77 @@
 import math
+from typing import Sequence, Iterable, Tuple, List
 
 import numpy as np
-from matplotlib import pyplot as plt
-from matplotlib.colors import ListedColormap
-
 import consts
 
 
-def dist(point1: consts.vector, point2: consts.vector) -> float:
+def pos_to_car_center(pos: np.ndarray, theta) -> np.ndarray:
+    """
+    get approximate position of the center of mass of the car from the position of the car according to pybullet (
+    middle of
+    back wheels)
+    :param pos: position of back wheels middle
+    :param theta: rotation of car
+    :return: numpy array that corresponds to the center's position
+    """
+    return pos[:2] + consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
+
+
+def car_center_to_pos(pos: np.ndarray, theta) -> np.ndarray:
+    """
+    get the position of the of car according to pybullet (middle of back wheels) from the approximate position of the center of mass of the car
+    :param pos: position of back wheels middle
+    :param theta: rotation of car
+    :return: numpy array that corresponds to the center's position
+    """
+    return pos[:2] - consts.a_2 * np.array([np.cos(theta), np.sin(theta)])
+
+
+def dist(point1: Sequence[float], point2: Sequence[float]) -> float:
+    """
+    L2 distance between the two points
+    :param point1: first point
+    :param point2: second point
+    :return: the distance between them
+    """
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
 
-def draw_binary_matrix(mat: consts.binary_matrix) -> None:
+def get_wall(point1: Tuple[float, float], point2: Tuple[float, float], width: float) -> List[Tuple[float, float]]:
     """
-    draws the given matrix with matplotlib
-    :param mat: the binary matrix to draw
-    :return:
+    function return a wall with width around the given segment, represented by two points
+    :param point1: first point of the wall
+    :param point2: second point of the wall
+    :param width: the width around it
+    :return: the corner points of the wall, first and last are the same one
     """
-    cmap = ListedColormap(["b", "g"])
-    matrix = np.array(mat, dtype=np.uint8)
-    plt.imshow(matrix, cmap=cmap)
+    theta = math.atan2(point1[1] - point2[1], point1[0] - point2[0])
+    ret = [(point1[0] + math.sqrt(2) * width * math.cos(theta - math.pi / 2),
+            point1[1] + math.sqrt(2) * width * math.sin(theta - math.pi / 2)),
+           (point1[0] + math.sqrt(2) * width * math.cos(theta + math.pi / 2),
+            point1[1] + math.sqrt(2) * width * math.sin(theta + math.pi / 2)),
+           (point2[0] + math.sqrt(2) * width * math.cos(-theta - math.pi / 2),
+            point2[1] + math.sqrt(2) * width * math.sin(-theta - math.pi / 2)),
+           (point2[0] + math.sqrt(2) * width * math.cos(-theta + math.pi / 2),
+            point2[1] + math.sqrt(2) * width * math.sin(-theta + math.pi / 2)),
+           (point1[0] + math.sqrt(2) * width * math.cos(theta - math.pi / 2),
+            point1[1] + math.sqrt(2) * width * math.sin(theta - math.pi / 2))]
+    return ret
 
 
-def add_lists(lists: list[list[float]]) -> list[float]:
+def is_in_rect(rect: list, point: Tuple[float, float]) -> bool:
+    """
+    :param rect: a 5 point list of the rectangle, where the last point is the first point.
+    :param point: the point we want to check
+    :returns True if the point is inside the rectangle, false o.w.
+    """
+    for i in range(4):
+        if orientation(rect[i], rect[i + 1], point) < 0:
+            return False
+    return True
+
+
+def add_lists(lists: Iterable[list]) -> list:
     """
     adds lists of length at most three by index
     :param lists: list of lists to add
@@ -35,86 +84,165 @@ def add_lists(lists: list[list[float]]) -> list[float]:
     return ret
 
 
-def plot_line_low(x0: int, y0: int, x1: int, y1: int, matrix: consts.binary_matrix) -> None:
-    """
-    helper function to plot a binary line in a binary matrix
-    """
-    dx = x1 - x0
-    dy = y1 - y0
-    yi = 1
-    if dy < 0:
-        yi = -1
-        dy = -dy
-
-    d = (2 * dy) - dx
-    y = y0
-
-    for x in range(x0, x1 + 1):
-        if x < len(matrix) and y < len(matrix):
-            matrix[x][y] = 1
-        else:
-            pass
-            # print("illegal", x, y)
-        if d > 0:
-            y = y + yi
-            d = d + (2 * (dy - dx))
-        else:
-            d = d + 2 * dy
-
-
-def plot_line_high(x0: int, y0: int, x1: int, y1: int, matrix: consts.binary_matrix) -> None:
-    """
-    helper function to plot a binary line in a binary matrix
-    """
-    dx = x1 - x0
-    dy = y1 - y0
-    xi = 1
-    if dx < 0:
-        xi = -1
-        dx = -dx
-
-    d = (2 * dx) - dy
-    x = x0
-
-    for y in range(y0, y1 + 1):
-        if x < len(matrix) and y < len(matrix):
-            matrix[x][y] = 1
-        else:
-            # print("illegal", x, y)
-            pass
-        if d > 0:
-            x = x + xi
-            d = d + (2 * (dx - dy))
-        else:
-            d = d + 2 * dx
-
-
-def plot_line(x0: int, y0: int, x1: int, y1: int, matrix: consts.binary_matrix) -> None:
-    """
-    plots a binary line in a binary matrix
-    :param x0: starting x coordinate of line
-    :param y0: starting y coordinate of line
-    :param x1: ending x coordinate of line
-    :param y1: ending y coordinate of line
-    :param matrix: matrix to draw the line in
-    :return:
-    """
-    if abs(y1 - y0) < abs(x1 - x0):
-        if x0 > x1:
-            plot_line_low(x1, y1, x0, y0, matrix)
-        else:
-            plot_line_low(x0, y0, x1, y1, matrix)
-    else:
-        if y0 > y1:
-            plot_line_high(x1, y1, x0, y0, matrix)
-        else:
-            plot_line_high(x0, y0, x1, y1, matrix)
-
-
-def norm(a: consts.vector) -> float:
+def norm(vec: Sequence[float]):
     """
     calculates norm of a vector
-    :param a: the vector
-    :return:
+    :param vec: the vector
+    :return: the norm of the vector
     """
-    return math.sqrt(sum((x ** 2 for x in a)))
+    return dist(vec, [0] * len(vec))
+
+
+def map_index_from_pos(pos: Sequence[float], size_map_quarter: float) -> Sequence[int]:
+    """
+    transforms a position on the map to indices in the vertex list
+    :param pos: (x,y) pair on the map
+    :param size_map_quarter: length of half of the map
+    :return: (x, y) indices that the point is contained in
+    """
+    indices = [int((value + size_map_quarter) / consts.vertex_offset) for value in pos[:2]]
+    # keep the return value within the wanted limits for edge cases
+    return tuple([max(0, min(idx, int((2 * size_map_quarter) // consts.vertex_offset) - 1)) for idx in indices])
+
+
+def block_options(index: Sequence[int], radius: int, map_shape: Tuple[int, int], only_positives: bool = False) -> \
+        List[Tuple[int, int]]:
+    """
+    returns the neighbors of a block in the map (including diagonal)
+    :param index: the index of the block in the map (list with length 2)
+    :param radius: the radius around the block we will return
+    :param map_shape: the shape of the map
+    :param only_positives: indicates if we only want values lexicographically larger
+    :return: list of the neighbors in the map
+    """
+    radius = int(radius)
+    c, r = index
+    padding = consts.amount_vertices_from_edge
+    if c < padding or c >= map_shape[1] - padding or r < padding or r >= map_shape[0] - padding:
+        return []
+    neighbors = []
+    for x in range(-radius, radius + 1):
+        for y in range(-radius, radius + 1):
+            if padding <= r + y < map_shape[0] - padding and padding <= c + x < map_shape[1] - padding:
+                if x * x + y * y <= radius * radius + radius:
+                    neighbors.append((c + x, r + y))
+    if only_positives:
+        neighbors = [n for n in neighbors if n >= (c, r)]
+    return neighbors
+
+
+def on_segment(p: Tuple[float, float], q: Tuple[float, float], r: Tuple[float, float]):
+    """
+    check if r is in the pq segment
+    :param p: first point of the segment
+    :param q: second point of the segment
+    :param r: given point to check
+    :return: whether or not they are collinear
+    """
+    if ((q[0] <= max(p[0], r[0])) and (q[0] >= min(p[0], r[0])) and
+            (q[1] <= max(p[1], r[1])) and (q[1] >= min(p[1], r[1]))):
+        return True
+    return False
+
+
+def orientation(p: Tuple[float, float], q: Tuple[float, float], r: Tuple[float, float]):
+    """
+    to find the orientation of an ordered triplet (p,q,r) r compared to the pq segment
+    :param p: given point to check
+    :param q: first point of the segment
+    :param r: second point of the segment
+    :return: negative value if counter clockwise, zero if collinear, positive if clockwise
+    """
+    #
+    # function returns the following values:
+    val = (float(q[1] - p[1]) * (r[0] - q[0])) - (float(q[0] - p[0]) * (r[1] - q[1]))
+    return val
+
+
+# The main function that returns true if 
+# the line segment 'p1q1' and 'p2q2' intersect.
+def do_intersect(p1: Tuple[float, float], q1: Tuple[float, float], p2: Tuple[float, float], q2: Tuple[float, float]):
+    """
+    return whether or not two given segments intersect
+    :param p1: start point of the first segment
+    :param q1: end point of the first segment
+    :param p2: start point of the second segment
+    :param q2: end point of the second segment
+    :return: true if they intersect, false otherwise
+    """
+    o1 = np.sign(orientation(p1, q1, p2))
+    o2 = np.sign(orientation(p1, q1, q2))
+    o3 = np.sign(orientation(p2, q2, p1))
+    o4 = np.sign(orientation(p2, q2, q1))
+
+    # General case
+    if (o1 != o2) and (o3 != o4):
+        return True
+
+    # Special Cases
+
+    # p1 , q1 and p2 are collinear and p2 lies on segment p1q1
+    if (o1 == 0) and on_segment(p1, p2, q1):
+        return True
+
+    # p1 , q1 and q2 are collinear and q2 lies on segment p1q1
+    if (o2 == 0) and on_segment(p1, q2, q1):
+        return True
+
+    # p2 , q2 and p1 are collinear and p1 lies on segment p2q2
+    if (o3 == 0) and on_segment(p2, p1, q2):
+        return True
+
+    # p2 , q2 and q1 are collinear and q1 lies on segment p2q2
+    if (o4 == 0) and on_segment(p2, q1, q2):
+        return True
+
+    # If none of the cases
+    return False
+
+
+def distance_between_lines(start_point1: Tuple[float, float], end_point1: Tuple[float, float],
+                           start_point2: Tuple[float, float], end_point2: Tuple[float, float]):
+    """
+    calculates and returns the distance between two line
+    :param start_point1: start point of the first segment
+    :param end_point1: end point of the first segment
+    :param start_point2: start point of the second segment
+    :param end_point2: end point of the second segment
+    :return: the distance between the segments
+    """
+    if do_intersect(start_point1, end_point1, start_point2, end_point2):
+        return 0
+    return min([perpendicular_distance(start_point1, start_point2, end_point2),
+                perpendicular_distance(end_point1, start_point2, end_point2),
+                perpendicular_distance(start_point2, start_point1, end_point1),
+                perpendicular_distance(end_point2, start_point1, end_point1)])
+
+
+def perpendicular_distance(point: Tuple[float, float], start_point: Tuple[float, float],
+                           end_point: Tuple[float, float]):
+    """
+    calculates and returns the perpendicular distance between a given point and a segment
+    :param point: the point to check from
+    :param start_point: the start point of the segment
+    :param end_point: the end point of the segment
+    :return: the distance between them
+    """
+    x0, y0 = start_point
+    x1, y1 = end_point
+    x, y = point
+    def_val = min(dist(point, start_point), dist(point, end_point))
+    if x0 == x1:
+        if min(y0, y1) <= y <= max(y0, y1):
+            return abs(x - x0)
+        return def_val
+    if y0 == y1:
+        if min(x0, x1) <= x <= max(x0, x1):
+            return abs(y - y0)
+        return def_val
+    m = (y0 - y1) / (x0 - x1)
+    inter_x = (y - y0 + m * x0 + x / m) / (m + 1 / m)
+    inter_y = y0 + m * (inter_x - x0)
+    if min(x0, x1) <= inter_x <= max(x0, x1):
+        return math.sqrt((x - inter_x) ** 2 + (y - inter_y) ** 2)
+    return def_val
