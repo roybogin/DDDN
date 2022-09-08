@@ -132,7 +132,7 @@ class Car:
                                     v = self.prm.vertices[x][y][angle]
                                     self.prm.remove_vertex(v)
 
-    def remove_edges(self, new_segments, deactivate: bool = False):  # TODO: typing
+    def remove_edges(self, new_segments: List[List[Tuple(float, float)]], deactivate: bool = False):
         """
         given walls in segments we calculate which walls we need to remove from the graph
         deactivate indicates if we want to deactivate rather than remove

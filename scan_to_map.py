@@ -79,6 +79,7 @@ class Map:
         self.number_of_segment.append(len(self.segment_representation()))
         return
 
+    # TODO: maybe remove?
     def check_batch(self, points: list[Point]) -> bool:
         """
         checks if the batch of points representing the car might colide with some segment in the map.
@@ -96,6 +97,7 @@ class Map:
                         return False
         return True
 
+    # TODO: maybe remove?
     def check_state(self, vertex: Vertex, num_sample_car: int = 2):
         """
         the code used to check which vertecies we need to remove from the PRM graph.

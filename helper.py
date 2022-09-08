@@ -36,14 +36,14 @@ def dist(point1: Sequence[float], point2: Sequence[float]) -> float:
     """
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
-# TODO: typing
-def get_wall(point1, point2, width):
+
+def get_wall(point1: Tuple(float, float), point2: Tuple(float, float), width: float) -> List[Tuple(float, float)]:
     """
-    function return a wall with width around
-    :param point1:
-    :param point2:
-    :param width:
-    :return:
+    function return a wall with width around the given segment, represented by two points
+    :param point1: first point of the wall
+    :param point2: second point of the wall
+    :param width: the width around it
+    :return: the corner points of the wall, first and lasst are the same one
     """
     theta = math.atan2(point1[1] - point2[1], point1[0] - point2[0])
     ret = [(point1[0] + math.sqrt(2) * width * math.cos(theta - math.pi / 2),
@@ -131,17 +131,29 @@ def block_options(index: Sequence[int], radius: int, map_shape: Tuple[int, int],
     return neighbors
 
 
-def on_segment(p, q, r):
-    # TODO: dicstring and typing
+def on_segment(p: Tuple(float, float), q: Tuple(float, float), r: Tuple(float, float)):
+    """
+    check if r is in the pq segment
+    :param p: first point of the segment
+    :param q: second point of the segment
+    :param r: given point to check
+    :return: wether or not they are collinear
+    """
     if ((q[0] <= max(p[0], r[0])) and (q[0] >= min(p[0], r[0])) and
             (q[1] <= max(p[1], r[1])) and (q[1] >= min(p[1], r[1]))):
         return True
     return False
 
 
-def orientation(p, q, r):
-    # TODO: dicstring and typing
-    # to find the orientation of an ordered triplet (p,q,r)
+def orientation(p: Tuple(float, float), q: Tuple(float, float), r: Tuple(float, float)):
+    """
+    to find the orientation of an ordered triplet (p,q,r) r compared to the pq segment
+    :param p: given point to check
+    :param q: first point of the segment
+    :param r: second point of the segment
+    :return: negative value if counter clockwise, zero if collinear, positive if clockwise
+    """
+    #
     # function returns the following values:
     val = (float(q[1] - p[1]) * (r[0] - q[0])) - (float(q[0] - p[0]) * (r[1] - q[1]))
     return val
@@ -149,10 +161,15 @@ def orientation(p, q, r):
 
 # The main function that returns true if 
 # the line segment 'p1q1' and 'p2q2' intersect.
-def do_intersect(p1, q1, p2, q2):
-    # TODO: dicstring and typing
-    # Find the 4 orientations required for
-    # the general and special cases
+def do_intersect(p1: Tuple(float, float), q1: Tuple(float, float), p2: Tuple(float, float), q2: Tuple(float, float)):
+    """
+    return whether or not two given segments intersect
+    :param p1: start point of the first segment
+    :param q1: end point of the first segment
+    :param p2: start point of the second segment
+    :param q2: end point of the second segment
+    :return: true if they intersect, false otherwise
+    """
     o1 = np.sign(orientation(p1, q1, p2))
     o2 = np.sign(orientation(p1, q1, q2))
     o3 = np.sign(orientation(p2, q2, p1))
@@ -184,8 +201,15 @@ def do_intersect(p1, q1, p2, q2):
     return False
 
 
-def distance_between_lines(start_point1, end_point1, start_point2, end_point2):
-    # TODO: dicstring and typing
+def distance_between_lines(start_point1: Tuple(float, float), end_point1: Tuple(float, float), start_point2: Tuple(float, float), end_point2: Tuple(float, float)):
+    """
+    calculates and returns the distance between two line
+    :param start_point1: start point of the first segment
+    :param end_point1: end point of the first segment
+    :param start_point2: start point of the second segment
+    :param end_point2: end point of the second segment
+    :return: the distance between the segments
+    """
     if do_intersect(start_point1, end_point1, start_point2, end_point2):
         return 0
     return min([perpendicular_distance(start_point1, start_point2, end_point2),
@@ -194,8 +218,14 @@ def distance_between_lines(start_point1, end_point1, start_point2, end_point2):
                 perpendicular_distance(end_point2, start_point1, end_point1)])
 
 
-def perpendicular_distance(point, start_point, end_point):
-    # TODO: dicstring and typing
+def perpendicular_distance(point: Tuple(float, float), start_point: Tuple(float, float), end_point: Tuple(float, float)):
+    """
+    calculates and returns the perpendicular distance between a given point and a segment
+    :param point: the point to check from
+    :param start_point: the start point of the segment
+    :param end_point: the end point of the segment
+    :return: the distance between them
+    """
     x0, y0 = start_point
     x1, y1 = end_point
     x, y = point
