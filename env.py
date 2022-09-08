@@ -21,7 +21,7 @@ class Env:
 
         # define Matplotlib figure and axis
 
-        self.size_map_quarter = maze['size'] / 2
+        self.size_map_quarter = maze["size"] / 2
 
         self.map_borders = [
             (self.size_map_quarter, self.size_map_quarter),
@@ -38,7 +38,9 @@ class Env:
 
         self.maze_title = maze["title"]
 
-        self.segments_partial_map: Map = Map([self.map_borders.copy()], int(self.size_map_quarter * 1.2))
+        self.segments_partial_map: Map = Map(
+            [self.map_borders.copy()], int(self.size_map_quarter * 1.2)
+        )
 
         self.run_time: int = 0  # time of the run
 
@@ -59,7 +61,13 @@ class Env:
         positions = maze["positions"]
         self.number_of_cars = len(positions)
         self.cars: List[Optional[Car]] = [
-            Car(i, positions[i], self.prm, self.segments_partial_map, self.size_map_quarter)
+            Car(
+                i,
+                positions[i],
+                self.prm,
+                self.segments_partial_map,
+                self.size_map_quarter,
+            )
             for i in range(self.number_of_cars)
         ]
         if consts.drawing:
@@ -131,7 +139,7 @@ class Env:
         if consts.print_runtime and self.run_time % 400 == 0:
             print("time:", self.run_time)
 
-        # lookat changed edges from parking
+        # updating target velocity and steering angle
         changed_edges: Set[Edge] = set()
         for car in self.cars:
             if car and car.step():
@@ -150,7 +158,7 @@ class Env:
                     car.prm.update_d_star(changed_edges, car.current_vertex)
                     car.prm.d_star.compute_shortest_path(car.current_vertex)
                     car.calculations_clock = 0
-            print('all paths computed in ', time.time() - t)
+            print("all paths computed in ", time.time() - t)
 
         p.stepSimulation()  # make a step for all cars
         self.run_time += 1

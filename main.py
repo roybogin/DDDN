@@ -2,8 +2,7 @@ import argparse
 import json
 import time
 from typing import Dict
-
-import numpy as np
+from scan_to_map import Map
 import pybullet as p
 from matplotlib import pyplot as plt
 
@@ -34,20 +33,83 @@ def main():
         action="store_true",
         help="visualize the simulation using pybullet",
     )
+    parser.add_argument(
+        "-m",
+        "--plot_maze",
+        action="store_true",
+        help="draw the maze map with a matplotlib plot",
+    )
+    parser.add_argument(
+        "-t",
+        "--max_time",
+        type=int,
+        help="the maximum number of ticks before the simulation is stopped.",
+    )
 
     args = parser.parse_args()
-
-    consts.debugging = args.print
-    consts.drawing = args.draw
-    consts.is_visual = args.visualize
 
     with open(args.maze) as f:
         maze = json.load(f)
         f.close()
+
+    if args.max_time:
+        max_time = int(args.max_time)
+    else:
+        max_time = consts.max_time
+
+    if not is_input_valid(maze, max_time):
+        exit(1)
+
+    if args.plot_maze:
+        map = Map(maze["walls"], maze["size"])
+        ax = plt.gca()
+        map.plot(ax)
+        plt.show()
+        return
+
+    consts.debugging = args.print
+    consts.drawing = args.draw
+    consts.is_visual = args.visualize
+    consts.max_time = args.max_time
+
     run_sim(maze)
 
 
-def run_sim(maze: Dict):
+def is_input_valid(maze: dict, max_time: int) -> bool:
+    """
+    Check if the input maze can be contained in a square with side length maze["size"].
+    :return: True if the input maze can be contained, False otherwise
+    """
+    size = maze["size"]
+    for poly_chain in maze["walls"]:
+        for segment in poly_chain:
+            for point in segment:
+                if abs(point) >= size / 2:
+                    print(
+                        "invalid input, you might want to increase the size of the maze size."
+                    )
+                    return False
+    for position in maze["positions"]:
+        for i in range(2):
+            if (
+                abs(position["start"][i]) >= size / 2
+                or abs(position["end"][i]) >= size / 2
+            ):
+                print(
+                    "invalid input, you might want to increase the size of the maze size."
+                )
+                return False
+        if position["start"][2] != 0 or position["end"][2] != 0:
+            print("invalid input, start and endpoints must be with z value 0.")
+            return False
+    if max_time <= 0:
+        print("max time should be a positive integer!")
+        return False
+
+    return True
+
+
+def run_sim(maze: Dict) -> None:
     t0 = time.time()
     stop = False
     env = Env(maze)
@@ -59,7 +121,11 @@ def run_sim(maze: Dict):
         env.segments_partial_map.plot(env.ax)
         for idx, car in enumerate(env.cars):
             curr_trace = env.traces[idx]
-            plt.plot([a for a, _ in curr_trace], [a for _, a in curr_trace], label=f"actual car {idx}")
+            plt.plot(
+                [a for a, _ in curr_trace],
+                [a for _, a in curr_trace],
+                label=f"actual car {idx}",
+            )
         plt.title(f'{maze["title"]} - time {env.run_time}')
         ax = env.ax
         box = ax.get_position()
